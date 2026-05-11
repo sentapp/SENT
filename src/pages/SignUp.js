@@ -2,6 +2,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
+  deleteOrphanProfilesByEmailForSignup,
   ensureProfileRole,
   isDuplicateSignupError,
   signUpWithEmail,
@@ -98,13 +99,26 @@ function SignUp() {
     }
     setSubmitting(true);
     try {
-      const { data, error: signErr } = await signUpWithEmail({
+      const inviteForRole = role === 'supporter' ? inviteCode : '';
+      let { data, error: signErr } = await signUpWithEmail({
         email,
         password,
         fullName: name,
         role,
-        inviteCode: role === 'supporter' ? inviteCode : '',
+        inviteCode: inviteForRole,
       });
+
+      if (signErr && isDuplicateSignupError(signErr)) {
+        await deleteOrphanProfilesByEmailForSignup(email);
+        ({ data, error: signErr } = await signUpWithEmail({
+          email,
+          password,
+          fullName: name,
+          role,
+          inviteCode: inviteForRole,
+        }));
+      }
+
       if (signErr) {
         if (isDuplicateSignupError(signErr)) {
           setAlreadyRegistered(true);
@@ -278,7 +292,7 @@ function SignUp() {
 
         {alreadyRegistered ? (
           <div className="mb-4 rounded-btn border border-mission-blue/25 bg-mission-blue/5 px-4 py-4 text-center text-sm text-neutral-800">
-            <p className="font-medium">You already have an account — sign in instead</p>
+            <p className="font-medium">This email is already registered. Try signing in instead.</p>
             <Link className="mt-3 inline-block font-semibold text-mission-blue underline-offset-2 hover:underline" to="/signin">
               Sign in
             </Link>

@@ -65,10 +65,32 @@ export function isDuplicateSignupError(error) {
     msg.includes('already registered') ||
     msg.includes('already been registered') ||
     msg.includes('user already registered') ||
+    msg.includes('user already exists') ||
+    msg.includes('email address is already registered') ||
+    msg.includes('email is already registered') ||
     msg.includes('already exists') ||
+    (msg.includes('duplicate') && (msg.includes('user') || msg.includes('email'))) ||
     code.includes('user_already') ||
-    code === 'signup_disabled'
+    code === 'email_exists'
   );
+}
+
+/**
+ * Removes `profiles` rows for this email when there is no `auth.users` row with the same id (orphans).
+ * Used before retrying `signUp` after a duplicate-email error. Requires RPC in Supabase (see migration).
+ */
+export async function deleteOrphanProfilesByEmailForSignup(email) {
+  if (!supabase) {
+    return { deleted: 0, error: new Error('Supabase is not configured.') };
+  }
+  const { data, error } = await supabase.rpc('delete_orphan_profiles_by_email', {
+    p_email: String(email || '').trim(),
+  });
+  if (error) {
+    return { deleted: 0, error };
+  }
+  const n = typeof data === 'number' ? data : Number.parseInt(String(data ?? '0'), 10) || 0;
+  return { deleted: n, error: null };
 }
 
 /** Wait for DB trigger to create `profiles` row after signup. */
