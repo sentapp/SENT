@@ -17,7 +17,7 @@ export function useMissionaryPublicProfile(missionaryId) {
       const { data } = await supabase
         .from('profiles')
         .select(
-          'full_name, photo_url, location_name, latitude, longitude, tax_deductible_url, non_tax_deductible_url',
+          'full_name, organization, photo_url, location_name, latitude, longitude, tax_deductible_url, non_tax_deductible_url',
         )
         .eq('id', missionaryId)
         .maybeSingle();

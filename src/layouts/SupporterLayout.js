@@ -4,6 +4,7 @@ const tabs = [
   { to: '/supporter', label: 'Feed' },
   { to: '/supporter/map', label: 'Map' },
   { to: '/supporter/prayer', label: 'Prayer' },
+  { to: '/supporter/give', label: 'Give' },
   { to: '/supporter/refer', label: 'Refer' },
   { to: '/supporter/profile', label: 'Profile' },
 ];
@@ -11,7 +12,7 @@ const tabs = [
 function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 backdrop-blur">
-      <ul className="mx-auto grid max-w-6xl grid-cols-5 px-2 py-2 text-[11px] sm:text-xs">
+      <ul className="mx-auto grid max-w-6xl grid-cols-6 px-1 py-2 text-[10px] sm:grid-cols-6 sm:px-2 sm:text-xs">
         {tabs.map((t) => (
           <li key={t.to} className="flex justify-center">
             <NavLink

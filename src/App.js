@@ -15,6 +15,7 @@ import MissionaryOnboarding from './pages/missionary/MissionaryOnboarding';
 import SupporterFeed from './pages/supporter/Feed';
 import SupporterPrayer from './pages/supporter/Prayer';
 import SupporterRefer from './pages/supporter/Refer';
+import SupporterGive from './pages/supporter/SupporterGive';
 import SupporterProfile from './pages/supporter/Profile';
 import SupporterMap from './pages/supporter/SupporterMap';
 import RequireAuth from './components/RequireAuth';
@@ -54,6 +55,7 @@ function App() {
         <Route index element={<SupporterFeed />} />
         <Route path="map" element={<SupporterMap />} />
         <Route path="prayer" element={<SupporterPrayer />} />
+        <Route path="give" element={<SupporterGive />} />
         <Route path="refer" element={<SupporterRefer />} />
         <Route path="profile" element={<SupporterProfile />} />
       </Route>

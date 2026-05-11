@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../../state/AppState';
 import { useAuth } from '../../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { relinkSupporterToMissionary } from '../../lib/supporterConnection';
-import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
 import { Button, Card, Input, Label } from '../../components/ui';
 import FeedbackSection from '../../components/FeedbackSection';
 import LocalPinSettingsSection from '../../components/LocalPinSettingsSection';
@@ -27,7 +26,7 @@ function ToggleRow({ title, subtitle, checked, onChange }) {
 
 export default function SupporterProfile() {
   const navigate = useNavigate();
-  const { signOut, user, profile, refreshProfile } = useAuth();
+  const { signOut, user, refreshProfile } = useAuth();
   const { actions } = useAppState();
 
   const [loadError, setLoadError] = useState('');
@@ -42,8 +41,9 @@ export default function SupporterProfile() {
   const [detailsSaving, setDetailsSaving] = useState(false);
   const [detailsMsg, setDetailsMsg] = useState('');
 
-  const [connectedLabel, setConnectedLabel] = useState('');
-  const [connectedLoading, setConnectedLoading] = useState(false);
+  const [linkedMissionaryId, setLinkedMissionaryId] = useState(null);
+  const [connectedMissionary, setConnectedMissionary] = useState(null);
+
   const [codeOpen, setCodeOpen] = useState(false);
   const [newCode, setNewCode] = useState('');
   const [codeBusy, setCodeBusy] = useState(false);
@@ -69,7 +69,11 @@ export default function SupporterProfile() {
         setProfileLoading(false);
         return;
       }
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, email, phone, connected_missionary_id, notify_in_app, notify_email, notify_text, notify_prayer')
+        .eq('id', authUser.id)
+        .single();
       if (!mounted) return;
       if (error) {
         setLoadError(error.message || 'Could not load profile.');
@@ -84,8 +88,24 @@ export default function SupporterProfile() {
         setNotifyEmail(Boolean(data.notify_email));
         setNotifyText(Boolean(data.notify_text));
         setNotifyPrayer(data.notify_prayer !== false);
+        const mid = data.connected_missionary_id || null;
+        setLinkedMissionaryId(mid);
+        if (mid) {
+          const { data: missionary } = await supabase
+            .from('profiles')
+            .select('full_name, organization')
+            .eq('id', mid)
+            .single();
+          if (mounted && missionary) {
+            setConnectedMissionary(missionary);
+          } else if (mounted) {
+            setConnectedMissionary(null);
+          }
+        } else if (mounted) {
+          setConnectedMissionary(null);
+        }
       }
-      setProfileLoading(false);
+      if (mounted) setProfileLoading(false);
     }
     void load();
     return () => {
@@ -95,35 +115,13 @@ export default function SupporterProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadConnectedMissionary = useCallback(async () => {
-    const mid = profile?.connected_missionary_id;
-    if (!mid || !supabase) {
-      setConnectedLabel('');
-      return;
-    }
-    setConnectedLoading(true);
-    try {
-      const rpc = await fetchConnectedMissionaryPublic();
-      if (rpc?.id === mid) {
-        const org = String(rpc.organization ?? '').trim();
-        setConnectedLabel(org ? `${rpc.full_name || 'Missionary'} — ${org}` : String(rpc.full_name || '').trim() || 'Connected');
-        return;
-      }
-      const { data, error } = await supabase.from('profiles').select('full_name, organization').eq('id', mid).maybeSingle();
-      if (error || !data) {
-        setConnectedLabel('Connected (details unavailable)');
-        return;
-      }
-      const org = String(data.organization ?? '').trim();
-      setConnectedLabel(org ? `${data.full_name || 'Missionary'} — ${org}` : String(data.full_name || '').trim() || 'Connected');
-    } finally {
-      setConnectedLoading(false);
-    }
-  }, [profile?.connected_missionary_id]);
-
-  useEffect(() => {
-    void loadConnectedMissionary();
-  }, [loadConnectedMissionary]);
+  const connectedDisplayText = (() => {
+    if (!linkedMissionaryId) return null;
+    if (!connectedMissionary) return 'Could not load missionary details.';
+    const org = String(connectedMissionary.organization ?? '').trim();
+    const name = String(connectedMissionary.full_name ?? '').trim() || 'Missionary';
+    return org ? `${name} — ${org}` : name;
+  })();
 
   const saveDetails = async () => {
     if (!supabase || !user?.id) return;
@@ -206,19 +204,19 @@ export default function SupporterProfile() {
       const org = String(res.missionary?.organization ?? '').trim();
       const name = String(res.missionary?.full_name ?? '').trim() || 'Your missionary';
       setCodeOk(org ? `Connected to ${name} — ${org}` : `Connected to ${name}`);
-      setConnectedLabel(org ? `${name} — ${org}` : name);
+      setLinkedMissionaryId(res.missionary?.id ?? null);
+      if (res.missionary) {
+        setConnectedMissionary({
+          full_name: res.missionary.full_name,
+          organization: res.missionary.organization,
+        });
+      }
       setNewCode('');
       setCodeOpen(false);
     } finally {
       setCodeBusy(false);
     }
   };
-
-  const connectedDisplay = profile?.connected_missionary_id
-    ? connectedLoading
-      ? 'Loading…'
-      : connectedLabel || 'Could not load missionary name.'
-    : null;
 
   return (
     <div className="space-y-6">
@@ -233,8 +231,8 @@ export default function SupporterProfile() {
       <Card className="p-5">
         <p className="text-sm font-semibold">Connected missionary</p>
         <p className="mt-2 text-sm text-neutral-800">
-          {profile?.connected_missionary_id
-            ? connectedDisplay
+          {linkedMissionaryId
+            ? connectedDisplayText
             : 'You are not linked to a missionary yet. Use an invite code from sign up, or update your code below.'}
         </p>
         {codeOk ? (

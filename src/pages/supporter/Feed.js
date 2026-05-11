@@ -163,11 +163,11 @@ export default function SupporterFeed() {
   const taxUrl = (missionaryDb?.tax_deductible_url || '').trim();
   const nonTaxUrl = (missionaryDb?.non_tax_deductible_url || '').trim();
   const showGiving = Boolean(taxUrl || nonTaxUrl);
-  const primaryGiveUrl = normalizeUrl(taxUrl || nonTaxUrl);
-  const otherGiveUrl = normalizeUrl(nonTaxUrl);
+  const primaryGiveHref = taxUrl ? normalizeUrl(taxUrl) : normalizeUrl(nonTaxUrl);
   const showOtherGiving = Boolean(taxUrl && nonTaxUrl);
 
   const displayName = missionaryDb?.full_name?.trim() || 'Missionary';
+  const orgLine = (missionaryDb?.organization || '').trim();
   const photoUrl = missionaryDb?.photo_url || '';
 
   const pushGoal = missionPush ? Number(missionPush.goal_amount || 0) : 0;
@@ -187,42 +187,38 @@ export default function SupporterFeed() {
         <EmptyState title="Connect to a missionary" subtitle="Your SENT invite code links you to their updates." />
       ) : (
         <>
-          <div className="-mx-6 space-y-1 sm:mx-0">
-            <p className="px-6 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:px-0">Mission map</p>
-            <MapView points={mapPoints} route={true} height={380} rounded={false} className="border-x-0 sm:rounded-card sm:border" />
-          </div>
-
           {showGiving ? (
-            <Card className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-card border border-neutral-200 bg-neutral-50">
+            <Card className="overflow-hidden border border-neutral-200/90 bg-gradient-to-b from-white to-neutral-50/70 p-6 shadow-sm">
+              <div className="flex gap-4">
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white shadow ring-1 ring-neutral-200/80">
                   {photoUrl ? (
                     <img src={photoUrl} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-neutral-400">
+                    <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-xl font-semibold text-neutral-400">
                       {displayName.slice(0, 1).toUpperCase() || '?'}
                     </div>
                   )}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-neutral-900">{displayName}</p>
-                  <p className="mt-0.5 text-sm text-neutral-600">
-                    Support <span className="font-semibold text-neutral-900">{displayName}</span>&apos;s mission
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg font-semibold tracking-tight text-neutral-900">{displayName}</p>
+                  {orgLine ? <p className="mt-0.5 text-sm text-neutral-600">{orgLine}</p> : null}
+                  <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+                    Partner with {displayName} through a gift that sends the Gospel further.
                   </p>
                 </div>
               </div>
               <a
-                href={primaryGiveUrl}
+                href={primaryGiveHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-4 block w-full rounded-btn bg-mission-blue py-3.5 text-center text-[17px] font-semibold text-white shadow-sm hover:opacity-95"
+                className="mt-5 block w-full rounded-btn bg-mission-blue py-3.5 text-center text-[17px] font-semibold text-white shadow-sm transition hover:opacity-95"
               >
-                Give monthly
+                Give to {displayName}
               </a>
               {showOtherGiving ? (
                 <div className="mt-3 text-center">
                   <a
-                    href={otherGiveUrl}
+                    href={normalizeUrl(nonTaxUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm font-medium text-mission-blue underline-offset-4 hover:underline"
@@ -233,6 +229,11 @@ export default function SupporterFeed() {
               ) : null}
             </Card>
           ) : null}
+
+          <div className="-mx-6 space-y-1 sm:mx-0">
+            <p className="px-6 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:px-0">Mission map</p>
+            <MapView points={mapPoints} route={true} height={380} rounded={false} className="border-x-0 sm:rounded-card sm:border" />
+          </div>
 
           {missionPush && missionPush.is_active ? (
             <Card className="border-2 border-mission-blue/20 bg-mission-blue/[0.04] p-5">
