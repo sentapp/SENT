@@ -35,6 +35,23 @@ export default function MissionaryOverview() {
     () => partners.reduce((sum, p) => sum + (Number(p.monthlyAmount) || 0), 0),
     [partners],
   );
+
+  const oneTimeDonors = useMemo(() => contacts.filter((c) => c.isOneTimeDonor), [contacts]);
+  const totalOneTimeGifts = useMemo(
+    () => oneTimeDonors.reduce((sum, c) => sum + (Number(c.oneTimeDonationAmount) || 0), 0),
+    [oneTimeDonors],
+  );
+  const recentOneTimeDonors = useMemo(() => {
+    return [...oneTimeDonors]
+      .sort((a, b) => {
+        const da = a.oneTimeDonationDate || '';
+        const db = b.oneTimeDonationDate || '';
+        if (db !== da) return db.localeCompare(da);
+        return (a.fullName || '').localeCompare(b.fullName || '');
+      })
+      .slice(0, 12);
+  }, [oneTimeDonors]);
+
   const goal = Number(profile?.monthly_goal ?? state.missionary.profile.monthlyGoal ?? 0) || 0;
   const gap = Math.max(goal - monthlySupport, 0);
   const pct = goal > 0 ? Math.min(100, Math.round((monthlySupport / goal) * 100)) : 0;
@@ -49,8 +66,9 @@ export default function MissionaryOverview() {
         <p className="text-sm text-neutral-600">Your ministry at a glance on SENT.</p>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Metric label="Monthly Support" value={`$${monthlySupport.toFixed(0)}`} />
+        <Metric label="One-time gifts" value={`$${totalOneTimeGifts.toFixed(0)}`} />
         <Metric label="Partners" value={`${partners.length}`} />
         <Metric label="Gap to Goal" value={`$${gap.toFixed(0)}`} />
         <Metric label="Total Contacts" value={`${contacts.length}`} />
@@ -69,6 +87,47 @@ export default function MissionaryOverview() {
         <div className="mt-4 h-3 w-full rounded-full bg-neutral-200">
           <div className="h-3 rounded-full bg-mission-blue" style={{ width: `${pct}%` }} />
         </div>
+      </Card>
+
+      <Card className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">One-time gifts</p>
+            <p className="mt-1 text-xs text-neutral-500">
+              Separate from recurring monthly support — track single gifts here.
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Total received</p>
+            <p className="text-2xl font-semibold tracking-tight text-neutral-900">${totalOneTimeGifts.toFixed(2)}</p>
+          </div>
+        </div>
+
+        {recentOneTimeDonors.length === 0 ? (
+          <p className="mt-4 text-sm text-neutral-500">
+            No one-time donors yet — mark contacts as one-time donors on the Contacts tab.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-neutral-100 rounded-card border border-neutral-200">
+            {recentOneTimeDonors.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                <span className="font-medium text-neutral-900">{c.fullName || 'Unnamed'}</span>
+                <span className="shrink-0 font-semibold text-neutral-800">
+                  ${Number(c.oneTimeDonationAmount || 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2,
+                  })}
+                  {c.oneTimeDonationDate ? (
+                    <span className="ml-2 font-normal text-neutral-500">
+                      ·{' '}
+                      {new Date(`${c.oneTimeDonationDate}T12:00:00`).toLocaleDateString()}
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">

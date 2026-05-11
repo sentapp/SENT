@@ -4,7 +4,7 @@ import { normalizeCategoryForSave, normalizeCategoryFromDb } from '../lib/contac
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../lib/contactStatuses';
 
 const CONTACT_SELECT =
-  'id, missionary_id, full_name, phone, email, address, category, status, monthly_amount, notes, created_at, updated_at';
+  'id, missionary_id, full_name, phone, email, address, category, status, monthly_amount, notes, is_one_time_donor, one_time_donation_amount, one_time_donation_date, created_at, updated_at';
 
 /**
  * Privacy: contacts are **never** loaded without scoping to the signed-in missionary.
@@ -33,6 +33,11 @@ function mapRow(row) {
     category: normalizeCategoryFromDb(row.category),
     status: normalizeStatusFromDb(row.status),
     monthlyAmount: row.monthly_amount != null ? Number(row.monthly_amount) : 0,
+    isOneTimeDonor: Boolean(row.is_one_time_donor),
+    oneTimeDonationAmount: row.one_time_donation_amount != null ? Number(row.one_time_donation_amount) : 0,
+    oneTimeDonationDate: row.one_time_donation_date
+      ? String(row.one_time_donation_date).slice(0, 10)
+      : '',
     notes: row.notes || '',
     updatedAt: row.updated_at,
     createdAt: row.created_at,
@@ -68,6 +73,21 @@ function toRow(payload, missionaryId) {
     monthly_amount,
     notes: String(payload.notes ?? '').trim(),
     address: String(payload.address ?? '').trim(),
+    ...(() => {
+      const isDonor = Boolean(payload.isOneTimeDonor ?? payload.is_one_time_donor);
+      const amtRaw = payload.oneTimeDonationAmount ?? payload.one_time_donation_amount;
+      const amtNum = Number.isFinite(Number(amtRaw)) ? Number(amtRaw) : 0;
+      const dateRaw = payload.oneTimeDonationDate ?? payload.one_time_donation_date;
+      const dateStr =
+        isDonor && dateRaw != null && String(dateRaw).trim() !== ''
+          ? String(dateRaw).slice(0, 10)
+          : null;
+      return {
+        is_one_time_donor: isDonor,
+        one_time_donation_amount: isDonor ? amtNum : 0,
+        one_time_donation_date: isDonor ? dateStr : null,
+      };
+    })(),
   };
 }
 

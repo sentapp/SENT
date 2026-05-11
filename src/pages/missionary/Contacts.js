@@ -42,6 +42,9 @@ const emptyForm = {
   category: 'supporter',
   status: 'partner',
   monthlyAmount: '',
+  isOneTimeDonor: false,
+  oneTimeDonationAmount: '',
+  oneTimeDonationDate: '',
   notes: '',
 };
 
@@ -243,6 +246,13 @@ export default function MissionaryContacts() {
           status: normalizeStatusForSave(d.status),
           notes,
           monthly_amount: Number.isFinite(Number(d.monthly_amount)) ? Number(d.monthly_amount) : 0,
+          is_one_time_donor: Boolean(d.is_one_time_donor ?? d.isOneTimeDonor),
+          one_time_donation_amount: Number.isFinite(Number(d.one_time_donation_amount))
+            ? Number(d.one_time_donation_amount)
+            : 0,
+          one_time_donation_date: d.one_time_donation_date
+            ? String(d.one_time_donation_date).slice(0, 10)
+            : null,
         };
 
         if (isImportDuplicateByPhoneOrName(row, contacts) || isImportDuplicateByPhoneOrNameAgainstRows(row, rows)) {
@@ -482,6 +492,12 @@ export default function MissionaryContacts() {
       category: normalizeCategoryForSave(c.category),
       status: normalizeStatusFromDb(c.status),
       monthlyAmount: c.monthlyAmount ? String(c.monthlyAmount) : '',
+      isOneTimeDonor: Boolean(c.isOneTimeDonor),
+      oneTimeDonationAmount:
+        c.oneTimeDonationAmount != null && Number(c.oneTimeDonationAmount) > 0
+          ? String(c.oneTimeDonationAmount)
+          : '',
+      oneTimeDonationDate: c.oneTimeDonationDate || '',
       notes: c.notes,
     });
     setSaveError('');
@@ -505,6 +521,9 @@ export default function MissionaryContacts() {
         category: normalizeCategoryForSave(form.category),
         status: normalizeStatusForSave(form.status),
         monthlyAmount: form.monthlyAmount,
+        isOneTimeDonor: form.isOneTimeDonor,
+        oneTimeDonationAmount: form.oneTimeDonationAmount,
+        oneTimeDonationDate: form.oneTimeDonationDate,
         notes: form.notes,
       };
       const res = await updateContact(editingId, payload);
@@ -537,6 +556,14 @@ export default function MissionaryContacts() {
     const monthly_amount =
       statusSaved === 'partner' && Number.isFinite(monthlyNum) ? monthlyNum : 0;
 
+    const isDonor = Boolean(form.isOneTimeDonor);
+    const oneTimeNum = Number(String(form.oneTimeDonationAmount ?? '').replace(/,/g, ''));
+    const one_time_donation_amount = isDonor && Number.isFinite(oneTimeNum) ? oneTimeNum : 0;
+    const one_time_donation_date =
+      isDonor && form.oneTimeDonationDate?.trim()
+        ? form.oneTimeDonationDate.trim().slice(0, 10)
+        : null;
+
     const { error: insErr } = await supabase.from('contacts').insert({
       missionary_id: user.id,
       full_name: form.fullName.trim(),
@@ -547,6 +574,9 @@ export default function MissionaryContacts() {
       status: statusSaved,
       notes: (form.notes || '').trim(),
       monthly_amount,
+      is_one_time_donor: isDonor,
+      one_time_donation_amount,
+      one_time_donation_date,
     });
 
     if (insErr) {
@@ -788,6 +818,17 @@ export default function MissionaryContacts() {
                   {c.phone ? <p className="text-sm text-neutral-700">{c.phone}</p> : null}
                   {c.email ? <p className="text-sm text-neutral-700">{c.email}</p> : null}
                   {c.address ? <p className="text-sm text-neutral-700">{c.address}</p> : null}
+                  {c.isOneTimeDonor ? (
+                    <p className="text-sm font-medium text-mission-blue">
+                      One-time gift
+                      {Number(c.oneTimeDonationAmount) > 0
+                        ? `: $${Number(c.oneTimeDonationAmount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+                        : ''}
+                      {c.oneTimeDonationDate
+                        ? ` · ${new Date(`${c.oneTimeDonationDate}T12:00:00`).toLocaleDateString()}`
+                        : ''}
+                    </p>
+                  ) : null}
                   {c.notes ? <p className="mt-1 text-sm text-neutral-600">{c.notes}</p> : null}
                 </div>
                 <div className="flex shrink-0 gap-2 self-start" onClick={(e) => e.stopPropagation()}>
@@ -925,6 +966,48 @@ export default function MissionaryContacts() {
               />
             </Label>
           ) : null}
+
+          <label className="flex cursor-pointer items-center gap-3 rounded-card border border-neutral-200 bg-white px-4 py-3">
+            <input
+              type="checkbox"
+              className="h-5 w-5 shrink-0 accent-[#185FA5]"
+              checked={form.isOneTimeDonor}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  isOneTimeDonor: e.target.checked,
+                  ...(!e.target.checked ? { oneTimeDonationAmount: '', oneTimeDonationDate: '' } : {}),
+                }))
+              }
+            />
+            <span className="text-sm font-semibold text-neutral-900">One-time donor</span>
+          </label>
+          {form.isOneTimeDonor ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <Label title="Donation amount">
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500">
+                    $
+                  </span>
+                  <Input
+                    inputMode="decimal"
+                    value={form.oneTimeDonationAmount}
+                    onChange={(e) => setForm((f) => ({ ...f, oneTimeDonationAmount: e.target.value }))}
+                    placeholder="0"
+                    className="pl-8"
+                  />
+                </div>
+              </Label>
+              <Label title="Donation date">
+                <Input
+                  type="date"
+                  value={form.oneTimeDonationDate}
+                  onChange={(e) => setForm((f) => ({ ...f, oneTimeDonationDate: e.target.value }))}
+                />
+              </Label>
+            </div>
+          ) : null}
+
           <Label title="Notes">
             <Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Notes…" rows={4} />
           </Label>

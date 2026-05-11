@@ -127,5 +127,10 @@ export function draftToInsertPayload(d) {
     monthly_amount: Number.isFinite(Number(d.monthly_amount)) ? Number(d.monthly_amount) : 0,
     notes: d.notes || '',
     address: String(d.address ?? '').trim(),
+    is_one_time_donor: Boolean(d.is_one_time_donor ?? d.isOneTimeDonor),
+    one_time_donation_amount: Number.isFinite(Number(d.one_time_donation_amount))
+      ? Number(d.one_time_donation_amount)
+      : 0,
+    one_time_donation_date: d.one_time_donation_date ? String(d.one_time_donation_date).slice(0, 10) : null,
   };
 }
