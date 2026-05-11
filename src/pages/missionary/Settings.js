@@ -278,6 +278,17 @@ export default function MissionarySettings() {
         <p className="text-sm text-neutral-600">Profile, goals, security, and your SENT supporter invite code.</p>
       </header>
 
+      <Card className="border-2 border-mission-blue/25 bg-mission-blue/[0.06] p-5 shadow-sm md:p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-mission-blue">Your missionary / supporter code</p>
+        <p className="mt-3 break-all font-mono text-2xl font-bold tracking-wide text-neutral-900 md:text-3xl">
+          {supporterCodeDisplay}
+        </p>
+        <p className="mt-3 text-sm text-neutral-700">
+          Share this code so supporters can link their SENT account to you. It’s unique to your ministry — keep it handy on
+          mobile from this Profile tab.
+        </p>
+      </Card>
+
       {profileErr ? <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{profileErr}</p> : null}
       {profileMsg ? <p className="rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{profileMsg}</p> : null}
 
@@ -326,16 +337,6 @@ export default function MissionarySettings() {
           <Button type="button" disabled={profileSaving || !fullName.trim()} onClick={saveProfile}>
             {profileSaving ? 'Saving…' : 'Save profile'}
           </Button>
-        </div>
-      </Card>
-
-      <Card className="p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold">SENT supporter invite code</p>
-            <p className="mt-1 text-xs text-neutral-500">Share this code so supporters can link their account to you.</p>
-          </div>
-          <p className="rounded-full bg-neutral-100 px-4 py-2 text-sm font-semibold tracking-wide text-neutral-900">{supporterCodeDisplay}</p>
         </div>
       </Card>
 

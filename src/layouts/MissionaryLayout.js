@@ -10,6 +10,11 @@ const items = [
   { to: '/missionary/settings', label: 'Settings' },
 ];
 
+/** Bottom bar shows all routes; Settings uses “Profile” so six tabs fit on phones. */
+const bottomNavItems = items.map((it) =>
+  it.to === '/missionary/settings' ? { ...it, label: 'Profile' } : it,
+);
+
 function FullPageLoading() {
   return (
     <div className="flex min-h-full items-center justify-center bg-mission-canvas px-6">
@@ -53,20 +58,20 @@ function SideNav() {
 function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 backdrop-blur md:hidden">
-      <ul className="mx-auto grid max-w-mobile grid-cols-5 px-4 py-2 text-xs">
-        {items.slice(0, 5).map((it) => (
+      <ul className="mx-auto grid max-w-mobile grid-cols-6 px-1 py-2 text-[10px] leading-tight sm:px-3 sm:text-xs">
+        {bottomNavItems.map((it) => (
           <li key={it.to} className="flex justify-center">
             <NavLink
               to={it.to}
               end={it.to === '/missionary'}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 rounded-btn px-2 py-1.5 font-semibold ${
+                `flex max-w-full flex-col items-center gap-0.5 rounded-btn px-1 py-1.5 font-semibold sm:gap-1 sm:px-2 ${
                   isActive ? 'text-mission-blue' : 'text-neutral-500'
                 }`
               }
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" aria-hidden />
-              <span>{it.label}</span>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70" aria-hidden />
+              <span className="text-center">{it.label}</span>
             </NavLink>
           </li>
         ))}

@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import * as pdfjsLib from 'pdfjs-dist';
+import { normalizeFullName } from './contactDuplicates';
 
 // CDN worker (version must match pdfjs-dist in package.json — Safari is picky about workers)
 if (typeof window !== 'undefined') {
@@ -49,8 +50,9 @@ export function findBestColumns(headers, firstRow) {
   }
 
   if (nameIdx === -1) nameIdx = 0;
-  if (phoneIdx === -1) phoneIdx = 1;
-  if (emailIdx === -1) emailIdx = 2;
+  /** Phone/email columns optional — callers treat `-1` as “no column”. */
+  if (phoneIdx === -1) phoneIdx = -1;
+  if (emailIdx === -1) emailIdx = -1;
 
   return { nameIdx, phoneIdx, emailIdx };
 }
@@ -81,6 +83,36 @@ function rowLooksLikeHeaderRow(cells) {
     if (s.includes('email') || s.includes('mail')) return true;
     return false;
   });
+}
+
+/** Spreadsheet / PDF header / section title — not a person name. */
+export function isHeaderRow(text) {
+  const raw = String(text ?? '').trim();
+  if (!raw) return false;
+  const t = raw.toLowerCase();
+  return (
+    t.includes('full name') ||
+    t.includes('phone number') ||
+    t.includes('contact collection') ||
+    t.includes('netcasting phase') ||
+    t.includes('dashboard') ||
+    t === 'name' ||
+    t === 'phone' ||
+    t === 'email' ||
+    /^[A-Z\s]{10,}$/.test(raw)
+  );
+}
+
+/**
+ * A row is importable if it has a real person name. Phone, email, and address are optional.
+ */
+export function isValidImportContactName(name) {
+  const cleanName = String(name ?? '').trim();
+  if (cleanName.length < 2) return false;
+  if (/^\d+$/.test(cleanName)) return false;
+  if (isHeaderRow(cleanName)) return false;
+  if (shouldRejectImportName(cleanName)) return false;
+  return true;
 }
 
 /** Reject placeholder / header / URL “names” — not real contacts. */
@@ -239,19 +271,45 @@ function strictEmailFromCell(val) {
   return { email: raw, extra: '' };
 }
 
-function countRowsWithNameAndPhone(dataRows, nameIdx, phoneIdx) {
+function countRowsWithValidName(dataRows, nameIdx) {
   let n = 0;
   for (const row of dataRows) {
     const nameStr = String(row[nameIdx] ?? '').trim();
-    if (shouldRejectImportName(nameStr)) continue;
-    const { phone } = strictPhoneFromCell(row[phoneIdx]);
-    if (nameStr && /[a-zA-Z]/.test(nameStr) && phone.length >= 7) n += 1;
+    if (isValidImportContactName(nameStr)) n += 1;
   }
   return n;
 }
 
+/** Pick the column whose cells look most like person names (when there is no phone column). */
+function findBestNameColumnIndex(dataRows, headerCells, width) {
+  const h = headerCells.map((x) => String(x ?? '').toLowerCase().trim());
+  const headerHint = h.findIndex(
+    (x) =>
+      (x.includes('name') && !x.includes('company') && !x.includes('user name')) ||
+      x.includes('full') ||
+      (x.includes('contact') && !x.includes('phone')),
+  );
+  if (headerHint >= 0) return headerHint;
+
+  let bestCol = 0;
+  let bestScore = -1;
+  for (let j = 0; j < width; j += 1) {
+    let score = 0;
+    for (const row of dataRows) {
+      const nameStr = String(row[j] ?? '').trim();
+      if (isValidImportContactName(nameStr)) score += 3;
+      else if (nameStr.length >= 2 && /[a-zA-Z]/.test(nameStr) && !shouldRejectImportName(nameStr)) score += 1;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestCol = j;
+    }
+  }
+  return bestCol;
+}
+
 /**
- * @returns {{ sheetName: string, bothCount: number, drafts: object[] } | null}
+ * @returns {{ sheetName: string, validNameCount: number, drafts: object[] } | null}
  */
 export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
   const padded = padRawRows(rawRows);
@@ -273,22 +331,48 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
   const width = padded[0].length;
   const clamp = (idx) => Math.min(Math.max(0, idx), Math.max(0, width - 1));
 
+  /** Single-column sheet: names only. */
+  if (width === 1) {
+    const validNameCount = countRowsWithValidName(dataRows, 0);
+    const drafts = [];
+    for (let i = 0; i < dataRows.length; i += 1) {
+      const row = dataRows[i];
+      const nameRaw = String(row[0] ?? '').trim();
+      if (!isValidImportContactName(nameRaw)) continue;
+      drafts.push({
+        id: `flex-${sheetName}-${i}`,
+        full_name: nameRaw,
+        phone: '',
+        email: '',
+        category: 'potential',
+        status: 'prospect',
+        monthly_amount: 0,
+        notes: '',
+      });
+    }
+    if (!drafts.length) return null;
+    return { sheetName, validNameCount, drafts };
+  }
+
+  let phoneColumnDistinct = false;
   let phoneIdx = findPhoneColumnIndex(dataRows);
   let nameIdx;
   let emailIdx;
 
-  if (phoneIdx == null || Number.isNaN(phoneIdx) || phoneIdx < 0 || phoneIdx >= width) {
-    const fixed = resolveImportColumnIndices(width, headerCells);
-    nameIdx = clamp(fixed.nameIdx);
-    phoneIdx = clamp(fixed.phoneIdx);
-    emailIdx = clamp(fixed.emailIdx);
-  } else {
+  if (phoneIdx != null && !Number.isNaN(phoneIdx) && phoneIdx >= 0 && phoneIdx < width) {
+    phoneColumnDistinct = true;
     phoneIdx = clamp(phoneIdx);
     nameIdx = clamp(findNameColumnBeforePhone(dataRows, phoneIdx, width));
     emailIdx = clamp(findBestEmailColumnIndex(dataRows, phoneIdx, nameIdx, width));
+  } else {
+    const fixed = resolveImportColumnIndices(width, headerCells);
+    nameIdx = clamp(findBestNameColumnIndex(dataRows, headerCells, width));
+    if (nameIdx < 0 || Number.isNaN(nameIdx)) nameIdx = clamp(fixed.nameIdx);
+    phoneIdx = clamp(nameIdx);
+    emailIdx = clamp(findBestEmailColumnIndex(dataRows, nameIdx, nameIdx, width));
   }
 
-  if (nameIdx === phoneIdx) {
+  if (phoneColumnDistinct && nameIdx === phoneIdx && width > 1) {
     nameIdx = clamp(phoneIdx > 0 ? phoneIdx - 1 : phoneIdx + 1 < width ? phoneIdx + 1 : 0);
   }
   if (emailIdx === phoneIdx || emailIdx === nameIdx) {
@@ -302,43 +386,39 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
     }
     if (!found) emailIdx = clamp(Math.min(width - 1, phoneIdx + 1));
   }
-  if (nameIdx >= phoneIdx) {
+  if (phoneColumnDistinct && nameIdx >= phoneIdx) {
     const fixed = resolveImportColumnIndices(width, []);
     nameIdx = clamp(fixed.nameIdx);
     phoneIdx = clamp(fixed.phoneIdx);
     emailIdx = clamp(fixed.emailIdx);
   }
 
-  console.log('[import] Sheet:', sheetName, { nameIdx, phoneIdx, emailIdx });
+  console.log('[import] Sheet:', sheetName, { nameIdx, phoneIdx, emailIdx, phoneColumnDistinct });
   console.log('Raw headers:', headerCells);
   console.log('First 3 rows:', dataRows.slice(0, 3));
 
-  const bothCount = countRowsWithNameAndPhone(dataRows, nameIdx, phoneIdx);
+  const validNameCount = countRowsWithValidName(dataRows, nameIdx);
 
   const drafts = [];
   for (let i = 0; i < dataRows.length; i += 1) {
     const row = dataRows[i];
     const nameRaw = String(row[nameIdx] ?? '').trim();
-    if (shouldRejectImportName(nameRaw)) continue;
+    if (!isValidImportContactName(nameRaw)) continue;
 
-    const phoneRaw = String(row[phoneIdx] ?? '').trim();
-    const emailRaw = String(row[emailIdx] ?? '').trim();
+    const phoneRaw = phoneIdx !== nameIdx ? String(row[phoneIdx] ?? '').trim() : '';
+    const emailRaw = emailIdx !== nameIdx ? String(row[emailIdx] ?? '').trim() : '';
     const { phone: phoneOut, extra: phoneExtra } = strictPhoneFromCell(phoneRaw);
     const { email: emailOut, extra: emailExtra } = strictEmailFromCell(emailRaw);
 
     const notesParts = [];
     if (phoneExtra) notesParts.push(phoneExtra);
     if (emailExtra) notesParts.push(emailExtra);
-    for (let j = 4; j < width; j += 1) {
+    for (let j = 0; j < width; j += 1) {
+      if (j === nameIdx || j === phoneIdx || j === emailIdx) continue;
       const cell = String(row[j] ?? '').trim();
       if (cell) notesParts.push(cell);
     }
     const notes = notesParts.join(' | ');
-
-    const hasRealName = nameRaw.length > 0 && /[a-zA-Z]/.test(nameRaw);
-    if (!hasRealName) continue;
-
-    if (!phoneOut && !emailOut) continue;
 
     drafts.push({
       id: `flex-${sheetName}-${i}`,
@@ -353,7 +433,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
   }
 
   if (!drafts.length) return null;
-  return { sheetName, bothCount, drafts };
+  return { sheetName, validNameCount, drafts };
 }
 
 /**
@@ -416,9 +496,9 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
     if (ev) evaluated.push(ev);
   }
 
-  let candidates = evaluated.filter((e) => e.bothCount >= 1);
+  let candidates = evaluated.filter((e) => e.validNameCount >= 1);
   if (!candidates.length) candidates = evaluated.slice();
-  candidates.sort((a, b) => b.bothCount - a.bothCount || b.drafts.length - a.drafts.length);
+  candidates.sort((a, b) => b.validNameCount - a.validNameCount || b.drafts.length - a.drafts.length);
 
   const best = candidates[0];
   if (!best?.drafts?.length) {
@@ -427,7 +507,7 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
   }
 
   console.log(
-    `[import] Using sheet “${best.sheetName}” (${best.bothCount} rows with name+phone). Contacts found: ${best.drafts.length}`,
+    `[import] Using sheet “${best.sheetName}” (${best.validNameCount} rows with a valid name). Contacts found: ${best.drafts.length}`,
   );
   console.log('[import] Flexible spreadsheet: total contacts to insert:', best.drafts.length);
   onProgress?.({ pct: 100, note: 'Ready to save…' });
@@ -455,9 +535,9 @@ export function rowsToContacts(rows, headers) {
     const fullName = String(arr[fullNameIdx] ?? '').trim();
     const phone = phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '';
     const email = emailIdx >= 0 ? String(arr[emailIdx] ?? '').trim() : '';
-    if (!fullName && !email && !phone) continue;
+    if (!isValidImportContactName(fullName)) continue;
     out.push({
-      full_name: fullName || email || phone || 'Imported contact',
+      full_name: fullName,
       phone,
       email,
       category: 'potential',
@@ -646,27 +726,40 @@ function findNetCastPhoneOnLine(line) {
 
 function parseNetCastingDataLine(trimmedLine) {
   const trimmed = trimmedLine.trim();
-  if (trimmed.length < 14) return null;
+  if (trimmed.length < 2) return null;
 
   const phoneInfo = findNetCastPhoneOnLine(trimmed);
-  if (!phoneInfo) return null;
 
-  const beforePhone = trimmed.slice(0, phoneInfo.index).trim();
-  const afterPhone = trimmed.slice(phoneInfo.index + phoneInfo.raw.length).trim();
+  if (phoneInfo) {
+    const beforePhone = trimmed.slice(0, phoneInfo.index).trim();
+    const afterPhone = trimmed.slice(phoneInfo.index + phoneInfo.raw.length).trim();
 
-  const rowMatch = beforePhone.match(/^(\d{1,5})\s+(.+)$/);
-  if (!rowMatch) return null;
+    const rowMatch = beforePhone.match(/^(\d{1,5})\s+(.+)$/);
+    let full_name = '';
+    if (rowMatch) {
+      full_name = rowMatch[2].trim().replace(/\s+/g, ' ');
+    } else {
+      full_name = beforePhone.replace(/\s+/g, ' ');
+    }
+    if (!isValidImportContactName(full_name)) return null;
 
-  let full_name = rowMatch[2].trim().replace(/\s+/g, ' ');
-  if (!full_name || full_name.length < 2) return null;
-  const ln = full_name.toLowerCase();
-  if (ln === 'full name' || ln.includes('phone number') || ln === 'email') return null;
+    let email = '';
+    const em = afterPhone.match(PDF_EMAIL_RE);
+    if (em) email = em[0];
 
-  let email = '';
-  const em = afterPhone.match(PDF_EMAIL_RE);
-  if (em) email = em[0];
+    return draftFromParts(full_name, phoneInfo.digits, email);
+  }
 
-  return draftFromParts(full_name, phoneInfo.digits, email);
+  /** Name-only row (optional leading index / row number); optional email on the line. */
+  let rest = trimmed.replace(/^\d+\s*/, '').trim();
+  const emails = [...rest.matchAll(new RegExp(PDF_EMAIL_RE.source, 'gi'))].map((m) => m[0]);
+  const email = emails[0] || '';
+  if (email) {
+    rest = rest.split(email).join(' ').trim();
+  }
+  rest = rest.replace(/\s+/g, ' ');
+  if (!isValidImportContactName(rest)) return null;
+  return draftFromParts(rest, '', email);
 }
 
 /**
@@ -681,7 +774,7 @@ export function parseNetCastingTrackerLines(lines) {
   const headerIdx = trimmed.findIndex((l) => isNetCastingHeaderLine(l));
   if (headerIdx >= 0) startIdx = headerIdx + 1;
 
-  const byPhone = new Map();
+  const byKey = new Map();
 
   for (let i = startIdx; i < trimmed.length; i += 1) {
     const line = trimmed[i];
@@ -690,12 +783,13 @@ export function parseNetCastingTrackerLines(lines) {
     const draft = parseNetCastingDataLine(line);
     if (!draft) continue;
 
-    const key = normalizeUsPhoneDigits(draft.phone);
-    if (key.length !== 10) continue;
-    if (!byPhone.has(key)) byPhone.set(key, draft);
+    const phoneDigits = normalizeUsPhoneDigits(draft.phone);
+    const key =
+      phoneDigits.length === 10 ? `p:${phoneDigits}` : `n:${normalizeFullName(draft.full_name)}`;
+    if (!byKey.has(key)) byKey.set(key, draft);
   }
 
-  return Array.from(byPhone.values());
+  return Array.from(byKey.values());
 }
 
 /**
@@ -706,12 +800,12 @@ export function parsePdfContactsFromText(text) {
   const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
   const netCast = parseNetCastingTrackerLines(lines);
-  if (netCast.length > 0) return netCast;
 
   const contacts = [];
   const seenEmail = new Set();
 
   for (const line of lines) {
+    const cleaned = line.replace(/^\d+\s*/, '').trim();
     const emails = [...line.matchAll(new RegExp(PDF_EMAIL_RE.source, 'gi'))].map((m) => m[0]);
     const phones = [...line.matchAll(new RegExp(PDF_PHONE_RE.source, 'g'))].map((m) => m[0].trim());
 
@@ -725,35 +819,62 @@ export function parsePdfContactsFromText(text) {
       let namePart = idx >= 0 ? line.slice(0, idx) : line;
       namePart = namePart.replace(new RegExp(PDF_PHONE_RE.source, 'g'), '').trim();
       namePart = namePart.replace(/^[-•*–—\t\s\d.)]+/, '').trim();
-      const full_name = namePart || email.split('@')[0] || 'Imported contact';
+      namePart = namePart.replace(/^\d+\s*/, '').trim();
+      const full_name = namePart || email.split('@')[0] || '';
+      if (!isValidImportContactName(full_name)) continue;
 
       contacts.push(draftFromParts(full_name, phones[0] || '', email));
     }
+
+    /** Name + optional phone, optional email — no email on line */
+    if (!emails.length && cleaned) {
+      let rest = cleaned;
+      const phone = phones[0] || '';
+      for (const p of phones) {
+        rest = rest.replace(p, ' ');
+      }
+      rest = rest.replace(/^[-•*–—\t\s\d.)]+/, '').trim().replace(/\s+/g, ' ');
+      if (isValidImportContactName(rest)) {
+        contacts.push(draftFromParts(rest, phone, ''));
+      }
+    }
   }
 
-  if (contacts.length > 0) return contacts;
+  const merged = [...netCast, ...contacts];
+  const uniq = [];
+  const seen = new Set();
+  for (const c of merged) {
+    if (!isValidImportContactName(c.full_name)) continue;
+    const k = `${normalizeFullName(c.full_name)}|${c.phone}|${(c.email || '').toLowerCase()}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    uniq.push(c);
+  }
+  if (uniq.length > 0) return uniq;
 
   const emailsGlobal = [...raw.matchAll(new RegExp(PDF_EMAIL_RE.source, 'gi'))].map((m) => m[0]);
   const phonesGlobal = [...raw.matchAll(new RegExp(PDF_PHONE_RE.source, 'g'))].map((m) => m[0].trim());
 
   if (emailsGlobal.length === 0 && phonesGlobal.length === 0 && lines.length) {
-    return lines.slice(0, 80).map((line, i) =>
-      draftFromParts(line.length > 120 ? `${line.slice(0, 117)}…` : line, '', ''),
-    );
+    return lines
+      .slice(0, 200)
+      .map((line) => {
+        const cleaned = line.replace(/^\d+\s*/, '').trim();
+        const short = cleaned.length > 120 ? `${cleaned.slice(0, 117)}…` : cleaned;
+        return isValidImportContactName(short) ? draftFromParts(short, '', '') : null;
+      })
+      .filter(Boolean);
   }
 
   const n = Math.max(emailsGlobal.length, phonesGlobal.length, 1);
   const out = [];
   for (let i = 0; i < n; i += 1) {
-    out.push(
-      draftFromParts(
-        lines[i] || `Contact ${i + 1}`,
-        phonesGlobal[i] || '',
-        emailsGlobal[i] || '',
-      ),
-    );
+    const nm = lines[i] || '';
+    const cleaned = nm.replace(/^\d+\s*/, '').trim();
+    if (!isValidImportContactName(cleaned)) continue;
+    out.push(draftFromParts(cleaned, phonesGlobal[i] || '', emailsGlobal[i] || ''));
   }
-  return out.filter((c) => c.full_name?.trim() || c.email?.trim() || c.phone?.trim());
+  return out.filter((c) => isValidImportContactName(c.full_name));
 }
 
 /**
@@ -780,7 +901,7 @@ function parsePdfContactsFromRawBytesLatin1(arrayBuffer) {
       out.push(draftFromParts(email.split('@')[0] || 'Imported contact', '', email));
     }
   }
-  return out.filter((c) => c.full_name?.trim() || c.email?.trim() || c.phone?.trim());
+  return out.filter((c) => isValidImportContactName(c.full_name));
 }
 
 export async function parsePdfFile(file, { shouldCancel, onProgress } = {}) {
@@ -866,7 +987,7 @@ export const INVALID_GOOGLE_SHEET_LINK_MSG = 'Please paste a valid Google Sheets
 export const SHEET_NOT_PUBLIC_MSG =
   'This sheet is not publicly accessible. Please change sharing settings to Anyone with the link';
 export const NO_CONTACTS_IN_SHEET_MSG =
-  'No contacts found in this sheet — make sure your sheet has name, phone, and email columns';
+  'No contacts found in this sheet — make sure there is a column with each contact’s name (phone and email are optional)';
 
 function looksLikeHtmlSignInPage(text) {
   const t = String(text || '').slice(0, 500).trim().toLowerCase();

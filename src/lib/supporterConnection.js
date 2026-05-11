@@ -13,22 +13,17 @@ function parseRpcJson(data) {
   return null;
 }
 
+/** One letter per word, e.g. Hannah Holt → HH; Mary Kay Jones → MKJ */
 function initialsFromFullName(name) {
-  const parts = String(name ?? '')
+  const initials = String(name ?? '')
     .trim()
     .split(/\s+/)
-    .filter(Boolean);
-  if (!parts.length) return 'SN';
-  if (parts.length === 1) {
-    const w = parts[0].toUpperCase().replace(/[^A-Z]/g, '');
-    const a = w[0] ?? 'S';
-    const b = w[1] ?? w[0] ?? 'N';
-    return `${a}${b}`.slice(0, 2);
-  }
-  const first = (parts[0][0] ?? '').toUpperCase();
-  const last = (parts[parts.length - 1][0] ?? '').toUpperCase();
-  const pair = `${first}${last}`.replace(/[^A-Z]/g, '');
-  return pair.slice(0, 2) || 'SN';
+    .filter(Boolean)
+    .map((w) => String(w[0] ?? '').toUpperCase().replace(/[^A-Z]/g, ''))
+    .filter(Boolean)
+    .join('');
+  const base = initials.slice(0, 16);
+  return base || 'XX';
 }
 
 /**
@@ -61,8 +56,8 @@ export async function findMissionaryIdBySupporterCode(rawCode) {
 }
 
 /**
- * Ensures a missionary has a unique `supporter_code`: first initial + last initial + hyphen + calendar year
- * (e.g. Hannah Holt → HH-2026). Collision-safe suffix if needed.
+ * Ensures a missionary has a unique `supporter_code`: initials from each name word + calendar year
+ * (e.g. Hannah Holt → HH-2026). If taken: HH-2026-1, HH-2026-2, …
  */
 export async function ensureMissionarySupporterCode(userId, fullNameHint) {
   if (!supabase || !userId) return { ok: false, error: 'Not signed in.' };
@@ -76,16 +71,27 @@ export async function ensureMissionarySupporterCode(userId, fullNameHint) {
   if (selErr) return { ok: false, error: selErr.message };
   if (String(row?.supporter_code ?? '').trim()) return { ok: true, code: row.supporter_code };
 
-  const base = initialsFromFullName(fullNameHint || row?.full_name || '');
+  const initialsBase = initialsFromFullName(fullNameHint || row?.full_name || '');
   const year = new Date().getFullYear();
-  let code = `${base}-${year}`;
-  for (let i = 0; i < 8; i += 1) {
-    const tryCode = i === 0 ? code : `${base}-${year}-${i}`;
-    const { error: upErr } = await supabase.from('profiles').update({ supporter_code: tryCode }).eq('id', userId);
-    if (!upErr) return { ok: true, code: tryCode };
-    if (!String(upErr.message || '').toLowerCase().includes('unique')) return { ok: false, error: upErr.message };
+  let code = `${initialsBase}-${year}`;
+  let counter = 1;
+
+  while (true) {
+    const { data: taken, error: qErr } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('supporter_code', code)
+      .maybeSingle();
+    if (qErr) return { ok: false, error: qErr.message };
+    if (!taken) break;
+    code = `${initialsBase}-${year}-${counter}`;
+    counter += 1;
+    if (counter > 10000) return { ok: false, error: 'Could not assign a unique supporter code.' };
   }
-  return { ok: false, error: 'Could not assign a unique supporter code.' };
+
+  const { error: upErr } = await supabase.from('profiles').update({ supporter_code: code }).eq('id', userId);
+  if (upErr) return { ok: false, error: upErr.message };
+  return { ok: true, code };
 }
 
 /**
