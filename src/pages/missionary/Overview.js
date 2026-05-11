@@ -15,8 +15,8 @@ function Metric({ label, value }) {
 }
 
 export default function MissionaryOverview() {
-  const { profile, user } = useAuth();
-  const { contacts } = useSupabaseContacts(user?.id);
+  const { profile, user, loading: authLoading } = useAuth();
+  const { contacts } = useSupabaseContacts(user?.id, { authLoading });
   const { prayerRequests: prayer, loading: prayerLoading } = useMissionaryPrayerRequests(user?.id);
   const { state, actions } = useAppState();
   const [newTask, setNewTask] = useState('');

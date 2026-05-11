@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { normalizeCategoryForSave, normalizeCategoryFromDb } from '../lib/contactCategories';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../lib/contactStatuses';
+import { isImportDuplicateByPhoneOrName, removeDuplicateContacts as removeDuplicateContactsFromDb } from '../lib/contactDuplicates';
 
 /** Columns present in the original schema — safe before optional migrations. */
 const CONTACT_SELECT_MINIMAL =
@@ -48,14 +49,27 @@ export function stripOptionalContactColumnsFromRow(row, schemaPartial) {
  * - Every insert/update row includes `missionary_id` from `auth.getUser().id`.
  * - Supabase RLS policy `Missionaries can only see own contacts` must match `missionary_id = auth.uid()`.
  */
-async function resolveMissionaryId(client) {
+/**
+ * Resolves the signed-in missionary id. Uses getSession as fallback when getUser lags (avoids empty fetch on cold load).
+ * When `preferredIdFromReact` is set (from AuthContext), uses it only if it matches the Supabase session or when the session is not ready yet.
+ */
+async function resolveMissionaryId(client, preferredIdFromReact = null) {
   if (!client) return null;
   const {
     data: { user },
     error,
   } = await client.auth.getUser();
-  if (error || !user?.id) return null;
-  return user.id;
+  let uid = !error && user?.id ? user.id : null;
+  if (!uid) {
+    const {
+      data: { session },
+    } = await client.auth.getSession();
+    uid = session?.user?.id ?? null;
+  }
+  if (preferredIdFromReact && uid && preferredIdFromReact !== uid) {
+    return null;
+  }
+  return uid ?? preferredIdFromReact ?? null;
 }
 
 function mapRow(row) {
@@ -131,32 +145,51 @@ function toRow(payload, missionaryId) {
 /**
  * Loads contacts for the signed-in missionary. Uses `supabase.auth.getUser()` for reads/writes (missionary_id).
  * Pass `authUserId` (e.g. `user?.id` from `useAuth`) so the list refetches when the session appears or changes.
+ * Pass `authLoading: true` from `useAuth().loading` so we do not fetch or clear the list before auth is ready.
  */
-export function useSupabaseContacts(authUserId) {
+export function useSupabaseContacts(authUserId, options = {}) {
+  const { authLoading = false } = options;
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   /** True when optional columns were omitted because they are not in the DB yet. */
   const [schemaPartial, setSchemaPartial] = useState(false);
+  /** Server returned 0 rows but we previously had contacts — likely session/RLS/query issue. */
+  const [unexpectedEmptyWarning, setUnexpectedEmptyWarning] = useState(false);
 
-  const refetch = useCallback(async () => {
+  /** Last server-backed list length (used to detect suspicious empty responses). */
+  const lastGoodSnapshotRef = useRef([]);
+  /** Once true, a later unexplained empty fetch triggers a warning instead of wiping the UI. */
+  const hadContactsLoadedBeforeRef = useRef(false);
+
+  const refetch = useCallback(async (options = {}) => {
+    const { trustEmpty = false } = options;
+
     if (!supabase) {
       setContacts([]);
       setLoading(false);
       setSchemaPartial(false);
+      lastGoodSnapshotRef.current = [];
+      hadContactsLoadedBeforeRef.current = false;
       return;
     }
     setLoading(true);
     setError(null);
     setSchemaPartial(false);
+    setUnexpectedEmptyWarning(false);
 
     try {
-      const missionaryId = await resolveMissionaryId(supabase);
+      const missionaryId = await resolveMissionaryId(supabase, authUserId);
       if (!missionaryId) {
         setContacts([]);
         setLoading(false);
+        lastGoodSnapshotRef.current = [];
+        hadContactsLoadedBeforeRef.current = false;
         return;
       }
+
+      // eslint-disable-next-line no-console
+      console.log('[contacts] Fetching for missionary_id:', missionaryId);
 
       let q = await supabase
         .from('contacts')
@@ -174,41 +207,105 @@ export function useSupabaseContacts(authUserId) {
       }
 
       if (q.error) {
+        // eslint-disable-next-line no-console
+        console.error('[contacts] Fetch failed:', q.error);
         setError(friendlyContactsFetchError(q.error));
-        setContacts([]);
-      } else {
-        setContacts((q.data || []).map(mapRow));
+        setUnexpectedEmptyWarning(false);
+        setLoading(false);
+        return;
+      }
+
+      const rows = q.data || [];
+      // eslint-disable-next-line no-console
+      console.log('[contacts] Contacts returned:', rows.length);
+
+      const mapped = rows.map(mapRow);
+
+      if (
+        rows.length === 0 &&
+        !trustEmpty &&
+        hadContactsLoadedBeforeRef.current &&
+        lastGoodSnapshotRef.current.length > 0
+      ) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          '[contacts] Unexpected empty result — keeping previous list (session/RLS/query issue?).',
+        );
+        setUnexpectedEmptyWarning(true);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+
+      setContacts(mapped);
+      lastGoodSnapshotRef.current = mapped;
+      hadContactsLoadedBeforeRef.current = mapped.length > 0;
+      if (mapped.length === 0 && trustEmpty) {
+        hadContactsLoadedBeforeRef.current = false;
+        lastGoodSnapshotRef.current = [];
       }
     } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[contacts] Fetch exception:', e);
       setError(friendlyContactsFetchError(e));
-      setContacts([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authUserId]);
 
   useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+    if (!authUserId) {
+      setContacts([]);
+      setLoading(false);
+      setError(null);
+      setSchemaPartial(false);
+      setUnexpectedEmptyWarning(false);
+      lastGoodSnapshotRef.current = [];
+      hadContactsLoadedBeforeRef.current = false;
+      return;
+    }
+    lastGoodSnapshotRef.current = [];
+    hadContactsLoadedBeforeRef.current = false;
+    setUnexpectedEmptyWarning(false);
     refetch();
-  }, [refetch, authUserId]);
+  }, [refetch, authUserId, authLoading]);
 
   const insertContact = useCallback(
     async (payload) => {
       if (!supabase) return { ok: false, error: 'Not signed in.' };
-      const missionaryId = await resolveMissionaryId(supabase);
+      const missionaryId = await resolveMissionaryId(supabase, authUserId);
       if (!missionaryId) return { ok: false, error: 'Not signed in.' };
       const row = stripOptionalContactColumnsFromRow(toRow(payload, missionaryId), schemaPartial);
+
+      const { data: existingRows, error: exErr } = await supabase
+        .from('contacts')
+        .select('full_name, phone')
+        .eq('missionary_id', missionaryId);
+      if (exErr) return { ok: false, error: exErr.message };
+      const existingForDup = (existingRows || []).map((r) => ({
+        fullName: r.full_name || '',
+        phone: r.phone || '',
+      }));
+      if (isImportDuplicateByPhoneOrName({ full_name: row.full_name, phone: row.phone }, existingForDup)) {
+        return { ok: false, error: 'A contact with this phone or name already exists.' };
+      }
+
       const { error: insErr } = await supabase.from('contacts').insert(row);
       if (insErr) return { ok: false, error: insErr.message };
       await refetch();
       return { ok: true };
     },
-    [refetch, schemaPartial],
+    [refetch, schemaPartial, authUserId],
   );
 
   const updateContact = useCallback(
     async (id, payload) => {
       if (!supabase || !id) return { ok: false, error: 'Missing id.' };
-      const missionaryId = await resolveMissionaryId(supabase);
+      const missionaryId = await resolveMissionaryId(supabase, authUserId);
       if (!missionaryId) return { ok: false, error: 'Not signed in.' };
       const row = toRow(payload, missionaryId);
       delete row.missionary_id;
@@ -222,14 +319,27 @@ export function useSupabaseContacts(authUserId) {
       await refetch();
       return { ok: true };
     },
-    [refetch, schemaPartial],
+    [refetch, schemaPartial, authUserId],
   );
 
   const deleteContact = useCallback(
     async (id) => {
       if (!supabase || !id) return { ok: false, error: 'Missing id.' };
-      const missionaryId = await resolveMissionaryId(supabase);
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      if (!currentUser?.id) {
+        // eslint-disable-next-line no-console
+        console.error('[contacts] No user ID — aborting delete');
+        return { ok: false, error: 'Not signed in.' };
+      }
+      const missionaryId = await resolveMissionaryId(supabase, authUserId);
       if (!missionaryId) return { ok: false, error: 'Not signed in.' };
+      if (currentUser.id !== missionaryId) {
+        // eslint-disable-next-line no-console
+        console.error('[contacts] User/session mismatch — aborting delete');
+        return { ok: false, error: 'Session mismatch.' };
+      }
       // Safety: never delete without scoping to the signed-in missionary's CRM rows.
       const { error: delErr } = await supabase
         .from('contacts')
@@ -237,11 +347,21 @@ export function useSupabaseContacts(authUserId) {
         .eq('id', id)
         .eq('missionary_id', missionaryId);
       if (delErr) return { ok: false, error: delErr.message };
-      await refetch();
+      await refetch({ trustEmpty: true });
       return { ok: true };
     },
-    [refetch],
+    [refetch, authUserId],
   );
+
+  const removeDuplicateContacts = useCallback(async () => {
+    if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
+    const missionaryId = await resolveMissionaryId(supabase, authUserId);
+    if (!missionaryId) return { ok: false, error: 'Not signed in.' };
+    const { removed, error } = await removeDuplicateContactsFromDb(supabase, missionaryId);
+    if (error) return { ok: false, error };
+    await refetch({ trustEmpty: true });
+    return { ok: true, removed };
+  }, [authUserId, refetch]);
 
   const removeContactsByIds = useCallback((ids) => {
     if (!ids?.length) return;
@@ -249,15 +369,23 @@ export function useSupabaseContacts(authUserId) {
     setContacts((prev) => prev.filter((c) => !idSet.has(c.id)));
   }, []);
 
+  const acceptEmptyAsValid = useCallback(async () => {
+    setUnexpectedEmptyWarning(false);
+    await refetch({ trustEmpty: true });
+  }, [refetch]);
+
   return {
     contacts,
     loading,
     error,
     schemaPartial,
+    unexpectedEmptyWarning,
+    acceptEmptyAsValid,
     refetch,
     insertContact,
     updateContact,
     deleteContact,
+    removeDuplicateContacts,
     removeContactsByIds,
   };
 }

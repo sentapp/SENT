@@ -24,8 +24,8 @@ function Tabs({ tab, setTab }) {
 }
 
 export default function MissionaryPartners() {
-  const { user } = useAuth();
-  const { contacts } = useSupabaseContacts(user?.id);
+  const { user, loading: authLoading } = useAuth();
+  const { contacts } = useSupabaseContacts(user?.id, { authLoading });
   const [selectedId, setSelectedId] = useState(null);
   const [tab, setTab] = useState('Message');
 

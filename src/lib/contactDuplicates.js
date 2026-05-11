@@ -115,6 +115,64 @@ export function findEmailConflict(email, contacts, { excludeId } = {}) {
   return contacts.find((c) => c.id !== excludeId && normalizeEmail(c.email) === e) || null;
 }
 
+/**
+ * Delete older duplicate rows for one missionary: same normalized phone (7+ digits) OR same normalized full name.
+ * Keeps the most recently created row per phone/name (list ordered newest first).
+ * @returns {{ removed: number, error?: string }}
+ */
+export async function removeDuplicateContacts(supabase, missionaryId) {
+  if (!supabase || !missionaryId) {
+    return { removed: 0, error: 'Missing Supabase client or missionary ID.' };
+  }
+
+  const { data: contacts, error } = await supabase
+    .from('contacts')
+    .select('id, full_name, phone, created_at')
+    .eq('missionary_id', missionaryId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return { removed: 0, error: error.message };
+  }
+  if (!contacts?.length) {
+    return { removed: 0 };
+  }
+
+  const seenPhones = new Set();
+  const seenNames = new Set();
+  const toDelete = [];
+
+  for (const c of contacts) {
+    const phone = normalizePhone(c.phone);
+    const name = normalizeFullName(c.full_name);
+    const dupPhone = phone.length >= MIN_PHONE_DIGITS && seenPhones.has(phone);
+    const dupName = name.length > 0 && seenNames.has(name);
+
+    if (dupPhone || dupName) {
+      toDelete.push(c.id);
+    } else {
+      if (phone.length >= MIN_PHONE_DIGITS) seenPhones.add(phone);
+      if (name.length > 0) seenNames.add(name);
+    }
+  }
+
+  if (toDelete.length === 0) {
+    return { removed: 0 };
+  }
+
+  const { error: delErr } = await supabase
+    .from('contacts')
+    .delete()
+    .in('id', toDelete)
+    .eq('missionary_id', missionaryId);
+
+  if (delErr) {
+    return { removed: 0, error: delErr.message };
+  }
+
+  return { removed: toDelete.length };
+}
+
 /** Strip UI-only fields for Supabase insert/update */
 export function draftToInsertPayload(d) {
   const full_name = String(d.full_name ?? d.fullName ?? d.name ?? '').trim();

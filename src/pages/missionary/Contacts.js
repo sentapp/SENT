@@ -116,17 +116,20 @@ function ImportBlockingOverlay({ open, progress, onCancel }) {
 }
 
 export default function MissionaryContacts() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const {
     contacts,
     loading,
     error: loadError,
     schemaPartial,
+    unexpectedEmptyWarning,
+    acceptEmptyAsValid,
     refetch,
+    insertContact,
     updateContact,
     deleteContact,
-    removeContactsByIds,
-  } = useSupabaseContacts(user?.id);
+    removeDuplicateContacts,
+  } = useSupabaseContacts(user?.id, { authLoading });
 
   const [filter, setFilter] = useState('all');
   useEffect(() => {
@@ -156,6 +159,8 @@ export default function MissionaryContacts() {
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
   const [bulkDeleteError, setBulkDeleteError] = useState('');
   const [bulkDeleteBanner, setBulkDeleteBanner] = useState(null);
+  const [dedupeLoading, setDedupeLoading] = useState(false);
+  const [dedupeBanner, setDedupeBanner] = useState(null);
 
   const sessionRef = useRef(0);
   const importAbortRef = useRef(null);
@@ -196,6 +201,12 @@ export default function MissionaryContacts() {
     return () => clearTimeout(t);
   }, [bulkDeleteBanner]);
 
+  useEffect(() => {
+    if (!dedupeBanner) return undefined;
+    const t = setTimeout(() => setDedupeBanner(null), 10000);
+    return () => clearTimeout(t);
+  }, [dedupeBanner]);
+
   const resetImportWizard = () => {
     setImportTab('excel');
     setSheetUrl('');
@@ -227,6 +238,16 @@ export default function MissionaryContacts() {
       if (!user?.id) throw new Error('Not signed in.');
       if (!items?.length) return { inserted: 0, skippedDuplicates: 0 };
 
+      const { data: existingRows, error: existingErr } = await supabase
+        .from('contacts')
+        .select('full_name, phone')
+        .eq('missionary_id', user.id);
+      if (existingErr) throw existingErr;
+      const existingContacts = (existingRows || []).map((r) => ({
+        fullName: r.full_name || '',
+        phone: r.phone || '',
+      }));
+
       let skippedDuplicates = 0;
       const rows = [];
 
@@ -256,7 +277,10 @@ export default function MissionaryContacts() {
             : null,
         };
 
-        if (isImportDuplicateByPhoneOrName(row, contacts) || isImportDuplicateByPhoneOrNameAgainstRows(row, rows)) {
+        if (
+          isImportDuplicateByPhoneOrName(row, existingContacts) ||
+          isImportDuplicateByPhoneOrNameAgainstRows(row, rows)
+        ) {
           skippedDuplicates += 1;
           continue;
         }
@@ -281,7 +305,7 @@ export default function MissionaryContacts() {
       }
       return { inserted, skippedDuplicates };
     },
-    [contacts, schemaPartial],
+    [schemaPartial],
   );
 
   const finalizeImportSuccess = async (imported, skippedDuplicates = 0) => {
@@ -540,58 +564,26 @@ export default function MissionaryContacts() {
       return;
     }
 
-    if (!supabase) {
-      setSaveError('Supabase is not configured. Check your .env file.');
-      return;
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user?.id) {
-      setSaveError('Not signed in.');
-      return;
-    }
-
     const categorySaved = normalizeCategoryForSave(form.category);
     const statusSaved = normalizeStatusForSave(form.status);
-    const monthlyNum = Number(String(form.monthlyAmount ?? '').replace(/,/g, ''));
-    const monthly_amount =
-      statusSaved === 'partner' && Number.isFinite(monthlyNum) ? monthlyNum : 0;
 
-    const isDonor = Boolean(form.isOneTimeDonor);
-    const oneTimeNum = Number(String(form.oneTimeDonationAmount ?? '').replace(/,/g, ''));
-    const one_time_donation_amount = isDonor && Number.isFinite(oneTimeNum) ? oneTimeNum : 0;
-    const one_time_donation_date =
-      isDonor && form.oneTimeDonationDate?.trim()
-        ? form.oneTimeDonationDate.trim().slice(0, 10)
-        : null;
-
-    const insertRow = stripOptionalContactColumnsFromRow(
-      {
-        missionary_id: user.id,
-        full_name: form.fullName.trim(),
-        phone: (form.phone || '').trim(),
-        email: (form.email || '').trim(),
-        address: (form.address || '').trim(),
-        category: categorySaved,
-        status: statusSaved,
-        notes: (form.notes || '').trim(),
-        monthly_amount,
-        is_one_time_donor: isDonor,
-        one_time_donation_amount,
-        one_time_donation_date,
-      },
-      schemaPartial,
-    );
-
-    const { error: insErr } = await supabase.from('contacts').insert(insertRow);
-
-    if (insErr) {
-      setSaveError(insErr.message || 'Could not save contact.');
+    const res = await insertContact({
+      fullName: form.fullName.trim(),
+      phone: form.phone,
+      email: form.email,
+      address: form.address,
+      category: categorySaved,
+      status: statusSaved,
+      monthlyAmount: form.monthlyAmount,
+      isOneTimeDonor: form.isOneTimeDonor,
+      oneTimeDonationAmount: form.oneTimeDonationAmount,
+      oneTimeDonationDate: form.oneTimeDonationDate,
+      notes: form.notes,
+    });
+    if (!res.ok) {
+      setSaveError(res.error || 'Could not save contact.');
       return;
     }
-    await refetch();
     setModalOpen(false);
     setContactSaveSuccess('Contact saved');
   };
@@ -652,6 +644,20 @@ export default function MissionaryContacts() {
     setBulkDeleteConfirmOpen(true);
   };
 
+  const runRemoveDuplicates = async () => {
+    setDedupeLoading(true);
+    try {
+      const res = await removeDuplicateContacts();
+      if (!res.ok) {
+        setImportMsg(res.error || 'Could not remove duplicates.');
+        return;
+      }
+      setDedupeBanner({ removed: res.removed ?? 0 });
+    } finally {
+      setDedupeLoading(false);
+    }
+  };
+
   const runBulkDelete = async () => {
     const ids = [...selectedIds];
     if (!ids.length) return;
@@ -666,6 +672,8 @@ export default function MissionaryContacts() {
         data: { user: authUser },
       } = await supabase.auth.getUser();
       if (!authUser?.id) {
+        // eslint-disable-next-line no-console
+        console.error('[contacts] No user ID — aborting delete');
         setBulkDeleteError('Not signed in.');
         return;
       }
@@ -679,7 +687,7 @@ export default function MissionaryContacts() {
         setBulkDeleteError(error.message);
         return;
       }
-      removeContactsByIds(ids);
+      await refetch({ trustEmpty: true });
       setBulkDeleteBanner({ count: ids.length });
       exitSelectMode();
     } finally {
@@ -705,7 +713,7 @@ export default function MissionaryContacts() {
     });
   }, []);
 
-  const showEmpty = !loading && contacts.length === 0;
+  const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
 
   return (
     <div className="space-y-6">
@@ -736,6 +744,14 @@ export default function MissionaryContacts() {
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" type="button" onClick={openImport}>
               Import
+            </Button>
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={dedupeLoading || loading}
+              onClick={() => void runRemoveDuplicates()}
+            >
+              {dedupeLoading ? 'Working…' : 'Remove duplicates'}
             </Button>
             <Button variant="secondary" type="button" onClick={enterSelectMode}>
               Select
@@ -769,6 +785,16 @@ export default function MissionaryContacts() {
         </div>
       ) : null}
 
+      {dedupeBanner ? (
+        <div className="rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <p>
+            {dedupeBanner.removed === 0
+              ? 'No duplicate contacts found.'
+              : `${dedupeBanner.removed} duplicate${dedupeBanner.removed === 1 ? '' : 's'} removed`}
+          </p>
+        </div>
+      ) : null}
+
       {contactSaveSuccess ? (
         <div className="rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
           {contactSaveSuccess}
@@ -777,6 +803,24 @@ export default function MissionaryContacts() {
 
       {loadError ? (
         <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>
+      ) : null}
+
+      {unexpectedEmptyWarning ? (
+        <div className="rounded-btn border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold">Something may have gone wrong loading your contacts — try refreshing</p>
+          <p className="mt-1 text-amber-900/90">
+            Your list is unchanged. This can happen with a session glitch or RLS. In Supabase, open{' '}
+            <strong>Table Editor → contacts</strong> to confirm your rows still exist.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" onClick={() => void refetch()}>
+              Retry refresh
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => void acceptEmptyAsValid()}>
+              My list really is empty
+            </Button>
+          </div>
+        </div>
       ) : null}
 
       {schemaPartial ? (
