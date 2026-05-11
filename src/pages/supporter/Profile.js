@@ -118,10 +118,11 @@ export default function SupporterProfile() {
               <Input
                 value={newCode}
                 onChange={(e) => setNewCode(e.target.value)}
-                placeholder="e.g. HH-2026"
+                placeholder="e.g. AB-2025"
                 autoComplete="off"
               />
             </Label>
+            <p className="text-xs text-neutral-500">Your missionary can find their code in Settings.</p>
             {codeError ? <p className="text-sm text-red-600">{codeError}</p> : null}
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={codeBusy}>

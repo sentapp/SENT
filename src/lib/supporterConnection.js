@@ -1,16 +1,14 @@
 import { supabase } from './supabaseClient';
 
-function parseRpcJson(data) {
-  if (data == null) return null;
-  if (typeof data === 'object' && data !== null && !Array.isArray(data)) return data;
-  if (typeof data === 'string') {
-    try {
-      return JSON.parse(data);
-    } catch {
-      return null;
-    }
-  }
-  return null;
+/**
+ * Canonical form for invite code entry: trim, Unicode dashes → ASCII hyphen, remove spaces, uppercase.
+ * Keeps supporter typing (hh 2026, HH–2026, etc.) aligned with DB + RPC comparison.
+ */
+export function normalizeMissionaryInviteCode(raw) {
+  let s = String(raw ?? '').trim();
+  s = s.replace(/\u2013/g, '-').replace(/\u2014/g, '-').replace(/\u2212/g, '-');
+  s = s.replace(/\s+/g, '');
+  return s.toUpperCase();
 }
 
 /** One letter per word, e.g. Hannah Holt → HH; Mary Kay Jones → MKJ */
@@ -31,7 +29,7 @@ function initialsFromFullName(name) {
  * so supporters are not blocked by RLS on `profiles`.
  */
 export async function lookupMissionaryBySupporterCode(rawCode) {
-  const code = String(rawCode ?? '').trim();
+  const code = normalizeMissionaryInviteCode(rawCode);
   if (!code || !supabase) return null;
 
   const { data, error } = await supabase.rpc('lookup_missionary_by_supporter_code', { p_code: code });
@@ -91,58 +89,30 @@ export async function ensureMissionarySupporterCode(userId, fullNameHint) {
 
   const { error: upErr } = await supabase.from('profiles').update({ supporter_code: code }).eq('id', userId);
   if (upErr) return { ok: false, error: upErr.message };
+
+  if (process.env.NODE_ENV === 'development') {
+    const { data: verify } = await supabase
+      .from('profiles')
+      .select('supporter_code, full_name')
+      .eq('id', userId)
+      .maybeSingle();
+    // eslint-disable-next-line no-console
+    console.log('[missionary] supporter_code saved; profile row:', verify);
+  }
+
   return { ok: true, code };
 }
 
 /**
  * Link supporter profile to missionary matched by `supporter_code`.
- * Updates `connected_missionary_id` and normalizes `invite_code_used`.
- * @returns {{ ok: true, missionary?: object } | { ok: true, skipped: true } | { ok: false, error: string }}
+ * Always sets **both** `connected_missionary_id` and `invite_code_used` (canonical uppercase code).
+ * Uses SECURITY DEFINER lookup RPC — supporters cannot SELECT missionaries by code directly under RLS.
+ * @returns {{ ok: true, missionary: object } | { ok: true, skipped: true } | { ok: false, error: string }}
  */
 export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed) {
   if (!supabase || !supporterUserId) return { ok: false, error: 'Not signed in.' };
-  const normalized = String(inviteCodeUsed ?? '').trim().toUpperCase();
+  const normalized = normalizeMissionaryInviteCode(inviteCodeUsed);
   if (!normalized) return { ok: true, skipped: true };
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user?.id === supporterUserId) {
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('link_supporter_by_invite_code', {
-      p_code: String(inviteCodeUsed ?? '').trim(),
-    });
-    const row = parseRpcJson(rpcData);
-    const rpcUnavailable =
-      rpcErr &&
-      (String(rpcErr.message || '').includes('does not exist') ||
-        String(rpcErr.message || '').includes('schema cache') ||
-        String(rpcErr.code || '') === 'PGRST202');
-
-    if (!rpcUnavailable) {
-      if (rpcErr && !row) return { ok: false, error: rpcErr.message };
-      if (row?.skipped) return { ok: true, skipped: true };
-      if (row?.ok === false) return { ok: false, error: String(row.error || 'Could not link.') };
-      const m = row?.missionary;
-      if (row?.ok && m?.id) {
-        return {
-          ok: true,
-          missionary: {
-            id: m.id,
-            full_name: String(m.full_name ?? ''),
-            organization: String(m.organization ?? ''),
-          },
-        };
-      }
-    }
-  }
-
-  const { data: existing } = await supabase
-    .from('profiles')
-    .select('connected_missionary_id')
-    .eq('id', supporterUserId)
-    .maybeSingle();
-  if (existing?.connected_missionary_id) return { ok: true, skipped: true };
 
   const missionary = await lookupMissionaryBySupporterCode(normalized);
   if (!missionary?.id) {
@@ -169,12 +139,37 @@ export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed)
 }
 
 /**
+ * If the profile has a stored invite code but no missionary link, complete the link (e.g. after partial signup or DB drift).
+ * Optionally pass `inviteMetadataFallback` (e.g. `user.user_metadata.invite_code`) when `invite_code_used` is empty in DB.
+ */
+export async function repairSupporterMissionaryLink(userId, inviteMetadataFallback = null) {
+  if (!supabase || !userId) return { ok: false, error: 'Not signed in.' };
+
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('invite_code_used, connected_missionary_id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (prof?.connected_missionary_id) return { ok: true, skipped: true };
+
+  const raw =
+    (prof?.invite_code_used && String(prof.invite_code_used).trim()) ||
+    (inviteMetadataFallback && String(inviteMetadataFallback).trim()) ||
+    '';
+
+  if (!raw) return { ok: true, skipped: true };
+
+  return linkSupporterToMissionary(userId, raw);
+}
+
+/**
  * Replace `connected_missionary_id` (and `invite_code_used`) even when already linked.
  * @returns {{ ok: true, missionary: object } | { ok: false, error: string }}
  */
 export async function relinkSupporterToMissionary(supporterUserId, inviteCodeUsed) {
   if (!supabase || !supporterUserId) return { ok: false, error: 'Not signed in.' };
-  const normalized = String(inviteCodeUsed ?? '').trim().toUpperCase();
+  const normalized = normalizeMissionaryInviteCode(inviteCodeUsed);
   if (!normalized) return { ok: false, error: 'Enter a missionary code.' };
 
   const missionary = await lookupMissionaryBySupporterCode(normalized);

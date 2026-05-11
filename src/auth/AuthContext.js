@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { repairSupporterMissionaryLink } from '../lib/supporterConnection';
 
 const AuthContext = createContext(null);
 
@@ -31,7 +32,13 @@ export function AuthProvider({ children }) {
     }
     if (!silent) setLoading(true);
     try {
-      const row = await fetchProfileRow(userId);
+      let row = await fetchProfileRow(userId);
+      if (row?.role === 'supporter') {
+        const repair = await repairSupporterMissionaryLink(userId);
+        if (repair.ok && repair.missionary) {
+          row = (await fetchProfileRow(userId)) ?? row;
+        }
+      }
       setProfile(row);
     } finally {
       if (!silent) setLoading(false);

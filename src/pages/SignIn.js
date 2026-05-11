@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { ensureProfileRole, formatSignInError, requestPasswordReset, signInWithEmail } from '../lib/authApi';
 import { useAuth } from '../auth/AuthContext';
-import { ensureMissionarySupporterCode, linkSupporterToMissionary } from '../lib/supporterConnection';
+import { ensureMissionarySupporterCode, repairSupporterMissionaryLink } from '../lib/supporterConnection';
 import { hasLocalPin, verifyLocalPin } from '../lib/localPin';
 import { PinDots, PinKeypad } from '../components/PinEntry';
 
@@ -34,21 +34,7 @@ function SignIn() {
       }
 
       if (role === 'supporter') {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('invite_code_used, connected_missionary_id')
-          .eq('id', user.id)
-          .maybeSingle();
-        let code = prof?.invite_code_used?.trim();
-        if (!code && user.user_metadata?.invite_code) {
-          code = String(user.user_metadata.invite_code).trim();
-          if (code) {
-            await supabase.from('profiles').update({ invite_code_used: code }).eq('id', user.id);
-          }
-        }
-        if (code && !prof?.connected_missionary_id) {
-          await linkSupporterToMissionary(user.id, code);
-        }
+        await repairSupporterMissionaryLink(user.id, user.user_metadata?.invite_code);
       }
       if (role === 'missionary') {
         const { data: mn } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();

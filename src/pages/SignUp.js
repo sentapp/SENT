@@ -371,8 +371,10 @@ function SignUp() {
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                   className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[17px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring"
-                  placeholder="Code from your missionary"
+                  placeholder="e.g. AB-2025"
+                  autoComplete="off"
                 />
+                <p className="mt-2 text-xs text-neutral-500">Your missionary can find their code in Settings.</p>
               </label>
             )}
             <div className="mt-auto">

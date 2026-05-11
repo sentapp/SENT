@@ -64,7 +64,19 @@ export default function MissionaryOnboarding() {
         return;
       }
 
-      await ensureMissionarySupporterCode(user.id, profile?.full_name);
+      const { data: freshRow } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const ens = await ensureMissionarySupporterCode(user.id, freshRow?.full_name ?? profile?.full_name ?? '');
+      if (!ens.ok) {
+        setError(ens.error || 'Could not save your missionary invite code. Try again or open Settings later.');
+        setSaving(false);
+        return;
+      }
+
       await refreshProfile();
       navigate('/missionary', { replace: true });
     } catch (e) {
