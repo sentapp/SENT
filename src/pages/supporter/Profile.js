@@ -4,6 +4,7 @@ import { useAppState } from '../../state/AppState';
 import { useAuth } from '../../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { relinkSupporterToMissionary } from '../../lib/supporterConnection';
+import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
 import { Button, Card, Input, Label } from '../../components/ui';
 import FeedbackSection from '../../components/FeedbackSection';
 import LocalPinSettingsSection from '../../components/LocalPinSettingsSection';
@@ -27,15 +28,72 @@ function ToggleRow({ title, subtitle, checked, onChange }) {
 export default function SupporterProfile() {
   const navigate = useNavigate();
   const { signOut, user, profile, refreshProfile } = useAuth();
-  const { state, actions } = useAppState();
-  const p = state.supporter.profile;
+  const { actions } = useAppState();
+
+  const [loadError, setLoadError] = useState('');
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [notifyInApp, setNotifyInApp] = useState(true);
+  const [notifyEmail, setNotifyEmail] = useState(false);
+  const [notifyText, setNotifyText] = useState(false);
+  const [notifyPrayer, setNotifyPrayer] = useState(true);
+  const [detailsSaving, setDetailsSaving] = useState(false);
+  const [detailsMsg, setDetailsMsg] = useState('');
 
   const [connectedLabel, setConnectedLabel] = useState('');
+  const [connectedLoading, setConnectedLoading] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
   const [newCode, setNewCode] = useState('');
   const [codeBusy, setCodeBusy] = useState(false);
   const [codeError, setCodeError] = useState('');
   const [codeOk, setCodeOk] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      if (!supabase) {
+        if (mounted) {
+          setLoadError('Supabase is not configured.');
+          setProfileLoading(false);
+        }
+        return;
+      }
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+      if (!mounted) return;
+      if (!authUser?.id) {
+        setLoadError('Not signed in.');
+        setProfileLoading(false);
+        return;
+      }
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle();
+      if (!mounted) return;
+      if (error) {
+        setLoadError(error.message || 'Could not load profile.');
+        setProfileLoading(false);
+        return;
+      }
+      if (data) {
+        setFullName(String(data.full_name ?? '').trim());
+        setEmail(String(data.email ?? authUser.email ?? '').trim());
+        setPhone(String(data.phone ?? '').trim());
+        setNotifyInApp(Boolean(data.notify_in_app));
+        setNotifyEmail(Boolean(data.notify_email));
+        setNotifyText(Boolean(data.notify_text));
+        setNotifyPrayer(data.notify_prayer !== false);
+      }
+      setProfileLoading(false);
+    }
+    void load();
+    return () => {
+      mounted = false;
+    };
+    // Intentionally run once on mount — details are saved explicitly to Supabase.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadConnectedMissionary = useCallback(async () => {
     const mid = profile?.connected_missionary_id;
@@ -43,18 +101,86 @@ export default function SupporterProfile() {
       setConnectedLabel('');
       return;
     }
-    const { data, error } = await supabase.from('profiles').select('full_name, organization').eq('id', mid).maybeSingle();
-    if (error || !data) {
-      setConnectedLabel('');
-      return;
+    setConnectedLoading(true);
+    try {
+      const rpc = await fetchConnectedMissionaryPublic();
+      if (rpc?.id === mid) {
+        const org = String(rpc.organization ?? '').trim();
+        setConnectedLabel(org ? `${rpc.full_name || 'Missionary'} — ${org}` : String(rpc.full_name || '').trim() || 'Connected');
+        return;
+      }
+      const { data, error } = await supabase.from('profiles').select('full_name, organization').eq('id', mid).maybeSingle();
+      if (error || !data) {
+        setConnectedLabel('Connected (details unavailable)');
+        return;
+      }
+      const org = String(data.organization ?? '').trim();
+      setConnectedLabel(org ? `${data.full_name || 'Missionary'} — ${org}` : String(data.full_name || '').trim() || 'Connected');
+    } finally {
+      setConnectedLoading(false);
     }
-    const org = String(data.organization ?? '').trim();
-    setConnectedLabel(org ? `${data.full_name || 'Missionary'} — ${org}` : String(data.full_name || '').trim() || 'Connected');
   }, [profile?.connected_missionary_id]);
 
   useEffect(() => {
     void loadConnectedMissionary();
   }, [loadConnectedMissionary]);
+
+  const saveDetails = async () => {
+    if (!supabase || !user?.id) return;
+    setDetailsMsg('');
+    setLoadError('');
+    setDetailsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          notify_in_app: notifyInApp,
+          notify_email: notifyEmail,
+          notify_text: notifyText,
+          notify_prayer: notifyPrayer,
+        })
+        .eq('id', user.id);
+      if (error) {
+        setLoadError(error.message);
+        return;
+      }
+      actions.updateSupporterProfile({
+        name: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+      });
+      actions.updateSupporterNotifications({
+        inApp: notifyInApp,
+        email: notifyEmail,
+        text: notifyText,
+        prayer: notifyPrayer,
+      });
+      await refreshProfile();
+      setDetailsMsg('Saved.');
+    } finally {
+      setDetailsSaving(false);
+    }
+  };
+
+  const persistNotifs = async ({ inApp, email, text, prayer }) => {
+    if (!supabase || !user?.id) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        notify_in_app: inApp,
+        notify_email: email,
+        notify_text: text,
+        notify_prayer: prayer,
+      })
+      .eq('id', user.id);
+    if (!error) {
+      actions.updateSupporterNotifications({ inApp, email, text, prayer });
+      await refreshProfile();
+    }
+  };
 
   const submitNewCode = async (e) => {
     e.preventDefault();
@@ -88,6 +214,12 @@ export default function SupporterProfile() {
     }
   };
 
+  const connectedDisplay = profile?.connected_missionary_id
+    ? connectedLoading
+      ? 'Loading…'
+      : connectedLabel || 'Could not load missionary name.'
+    : null;
+
   return (
     <div className="space-y-6">
       <header className="space-y-1 text-center md:text-left">
@@ -96,11 +228,13 @@ export default function SupporterProfile() {
         <p className="text-sm text-neutral-600">Edit your details and notification preferences.</p>
       </header>
 
+      {loadError ? <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p> : null}
+
       <Card className="p-5">
         <p className="text-sm font-semibold">Connected missionary</p>
         <p className="mt-2 text-sm text-neutral-800">
           {profile?.connected_missionary_id
-            ? connectedLabel || 'Loading…'
+            ? connectedDisplay
             : 'You are not linked to a missionary yet. Use an invite code from sign up, or update your code below.'}
         </p>
         {codeOk ? (
@@ -147,17 +281,29 @@ export default function SupporterProfile() {
 
       <Card className="p-5">
         <p className="text-sm font-semibold">Details</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Label title="Name">
-            <Input value={p.name} onChange={(e) => actions.updateSupporterProfile({ name: e.target.value })} placeholder="Your name" />
-          </Label>
-          <Label title="Email">
-            <Input value={p.email} onChange={(e) => actions.updateSupporterProfile({ email: e.target.value })} placeholder="you@example.com" />
-          </Label>
-          <Label title="Phone">
-            <Input value={p.phone} onChange={(e) => actions.updateSupporterProfile({ phone: e.target.value })} placeholder="(555) 555‑5555" />
-          </Label>
-        </div>
+        {profileLoading ? (
+          <p className="mt-4 text-sm text-neutral-500">Loading your profile…</p>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Label title="Name">
+                <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" />
+              </Label>
+              <Label title="Email">
+                <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              </Label>
+              <Label title="Phone">
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 555‑5555" />
+              </Label>
+            </div>
+            {detailsMsg ? <p className="mt-3 text-sm text-emerald-800">{detailsMsg}</p> : null}
+            <div className="mt-4 flex justify-end">
+              <Button type="button" disabled={detailsSaving || !fullName.trim()} onClick={() => void saveDetails()}>
+                {detailsSaving ? 'Saving…' : 'Save details'}
+              </Button>
+            </div>
+          </>
+        )}
       </Card>
 
       <div className="space-y-3">
@@ -165,26 +311,38 @@ export default function SupporterProfile() {
         <ToggleRow
           title="In-app"
           subtitle="Receive updates inside the app."
-          checked={p.notifications.inApp}
-          onChange={(v) => actions.updateSupporterNotifications({ inApp: v })}
+          checked={notifyInApp}
+          onChange={(v) => {
+            setNotifyInApp(v);
+            void persistNotifs({ inApp: v, email: notifyEmail, text: notifyText, prayer: notifyPrayer });
+          }}
         />
         <ToggleRow
           title="Email"
           subtitle="Get email updates."
-          checked={p.notifications.email}
-          onChange={(v) => actions.updateSupporterNotifications({ email: v })}
+          checked={notifyEmail}
+          onChange={(v) => {
+            setNotifyEmail(v);
+            void persistNotifs({ inApp: notifyInApp, email: v, text: notifyText, prayer: notifyPrayer });
+          }}
         />
         <ToggleRow
           title="Text"
           subtitle="SMS notifications."
-          checked={p.notifications.text}
-          onChange={(v) => actions.updateSupporterNotifications({ text: v })}
+          checked={notifyText}
+          onChange={(v) => {
+            setNotifyText(v);
+            void persistNotifs({ inApp: notifyInApp, email: notifyEmail, text: v, prayer: notifyPrayer });
+          }}
         />
         <ToggleRow
           title="Prayer notifications"
           subtitle="Notify me when new prayer requests are posted."
-          checked={p.notifications.prayer}
-          onChange={(v) => actions.updateSupporterNotifications({ prayer: v })}
+          checked={notifyPrayer}
+          onChange={(v) => {
+            setNotifyPrayer(v);
+            void persistNotifs({ inApp: notifyInApp, email: notifyEmail, text: notifyText, prayer: v });
+          }}
         />
       </div>
 
@@ -196,7 +354,7 @@ export default function SupporterProfile() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold">Sign out</p>
-            <p className="mt-1 text-xs text-neutral-500">Auth will be wired to Supabase later.</p>
+            <p className="mt-1 text-xs text-neutral-500">Ends your session on this device.</p>
           </div>
           <Button
             type="button"

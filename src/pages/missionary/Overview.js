@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { useAppState } from '../../state/AppState';
+import MissionPushSection from '../../components/MissionPushSection';
 import { Button, Card, EmptyState, Input } from '../../components/ui';
 
 function Metric({ label, value }) {
@@ -88,6 +89,8 @@ export default function MissionaryOverview() {
           <div className="h-3 rounded-full bg-mission-blue" style={{ width: `${pct}%` }} />
         </div>
       </Card>
+
+      {user?.id ? <MissionPushSection missionaryId={user.id} /> : null}
 
       <Card className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
