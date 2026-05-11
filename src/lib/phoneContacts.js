@@ -28,7 +28,7 @@ export function contactPickerEntryToDraft(c, index) {
     full_name: name || email || tel || 'Contact',
     phone: tel,
     email,
-    category: 'church',
+    category: 'potential',
     status: 'prospect',
     monthly_amount: 0,
     notes: '',

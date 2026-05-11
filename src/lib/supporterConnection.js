@@ -6,27 +6,49 @@ function initialsFromFullName(name) {
     .split(/\s+/)
     .filter(Boolean);
   if (!parts.length) return 'SN';
-  const a = parts[0]?.[0] ?? '';
-  const b = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? '' : parts[0]?.[1] ?? '';
-  return `${a}${b}`.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'SN';
+  if (parts.length === 1) {
+    const w = parts[0].toUpperCase().replace(/[^A-Z]/g, '');
+    const a = w[0] ?? 'S';
+    const b = w[1] ?? w[0] ?? 'N';
+    return `${a}${b}`.slice(0, 2);
+  }
+  const first = (parts[0][0] ?? '').toUpperCase();
+  const last = (parts[parts.length - 1][0] ?? '').toUpperCase();
+  const pair = `${first}${last}`.replace(/[^A-Z]/g, '');
+  return pair.slice(0, 2) || 'SN';
 }
 
 /**
- * Resolve missionary profile id from their public `supporter_code` (case-insensitive).
+ * Resolve missionary by public `supporter_code` (case-insensitive) via SECURITY DEFINER RPC
+ * so supporters are not blocked by RLS on `profiles`.
  */
+export async function lookupMissionaryBySupporterCode(rawCode) {
+  const code = String(rawCode ?? '').trim();
+  if (!code || !supabase) return null;
+
+  const { data, error } = await supabase.rpc('lookup_missionary_by_supporter_code', { p_code: code });
+  if (error) {
+    console.warn('lookup_missionary_by_supporter_code', error);
+    return null;
+  }
+  const row = typeof data === 'string' ? (() => { try { return JSON.parse(data); } catch { return null; } })() : data;
+  if (!row || !row.id) return null;
+  return {
+    id: row.id,
+    full_name: String(row.full_name ?? ''),
+    organization: String(row.organization ?? ''),
+    supporter_code: String(row.supporter_code ?? ''),
+  };
+}
+
+/** @deprecated use lookupMissionaryBySupporterCode */
 export async function findMissionaryIdBySupporterCode(rawCode) {
-  const want = String(rawCode ?? '').trim().toUpperCase();
-  if (!want || !supabase) return null;
-
-  const { data, error } = await supabase.from('profiles').select('id, supporter_code').eq('role', 'missionary');
-
-  if (error || !data?.length) return null;
-  const row = data.find((r) => String(r.supporter_code ?? '').trim().toUpperCase() === want);
-  return row?.id ?? null;
+  const m = await lookupMissionaryBySupporterCode(rawCode);
+  return m?.id ?? null;
 }
 
 /**
- * Ensures a missionary has a unique `supporter_code` (e.g. AB-2026) for invite linking.
+ * Ensures a missionary has a unique `supporter_code` (initials + year, e.g. HH-2025) for invite linking.
  */
 export async function ensureMissionarySupporterCode(userId, fullNameHint) {
   if (!supabase || !userId) return { ok: false, error: 'Not signed in.' };
@@ -53,12 +75,14 @@ export async function ensureMissionarySupporterCode(userId, fullNameHint) {
 }
 
 /**
- * Sets `connected_missionary_id` on the supporter's profile when the invite code matches a missionary's `supporter_code`.
+ * Link supporter profile to missionary matched by `supporter_code`.
+ * Updates `connected_missionary_id` and normalizes `invite_code_used`.
+ * @returns {{ ok: true, missionary?: object } | { ok: true, skipped: true } | { ok: false, error: string }}
  */
 export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed) {
   if (!supabase || !supporterUserId) return { ok: false, error: 'Not signed in.' };
-  const code = String(inviteCodeUsed ?? '').trim();
-  if (!code) return { ok: true, skipped: true };
+  const normalized = String(inviteCodeUsed ?? '').trim().toUpperCase();
+  if (!normalized) return { ok: true, skipped: true };
 
   const { data: existing } = await supabase
     .from('profiles')
@@ -67,17 +91,61 @@ export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed)
     .maybeSingle();
   if (existing?.connected_missionary_id) return { ok: true, skipped: true };
 
-  const missionaryId = await findMissionaryIdBySupporterCode(code);
-  if (!missionaryId) {
-    return { ok: false, error: 'Invite code not recognized. Check your code or ask your missionary for their SENT invite code.' };
+  const missionary = await lookupMissionaryBySupporterCode(normalized);
+  if (!missionary?.id) {
+    return { ok: false, error: 'Code not found — check with your missionary' };
   }
 
   const { error } = await supabase
     .from('profiles')
-    .update({ connected_missionary_id: missionaryId })
+    .update({
+      connected_missionary_id: missionary.id,
+      invite_code_used: normalized,
+    })
     .eq('id', supporterUserId)
     .eq('role', 'supporter');
 
   if (error) return { ok: false, error: error.message };
-  return { ok: true, missionaryId };
+  return {
+    ok: true,
+    missionary: {
+      id: missionary.id,
+      full_name: missionary.full_name,
+      organization: missionary.organization,
+    },
+  };
+}
+
+/**
+ * Replace `connected_missionary_id` (and `invite_code_used`) even when already linked.
+ * @returns {{ ok: true, missionary: object } | { ok: false, error: string }}
+ */
+export async function relinkSupporterToMissionary(supporterUserId, inviteCodeUsed) {
+  if (!supabase || !supporterUserId) return { ok: false, error: 'Not signed in.' };
+  const normalized = String(inviteCodeUsed ?? '').trim().toUpperCase();
+  if (!normalized) return { ok: false, error: 'Enter a missionary code.' };
+
+  const missionary = await lookupMissionaryBySupporterCode(normalized);
+  if (!missionary?.id) {
+    return { ok: false, error: 'Code not found — check with your missionary' };
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      connected_missionary_id: missionary.id,
+      invite_code_used: normalized,
+    })
+    .eq('id', supporterUserId)
+    .eq('role', 'supporter');
+
+  if (error) return { ok: false, error: error.message };
+  return {
+    ok: true,
+    missionary: {
+      id: missionary.id,
+      full_name: missionary.full_name,
+      organization: missionary.organization,
+    },
+  };
 }

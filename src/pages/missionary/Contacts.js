@@ -21,43 +21,17 @@ import {
   isContactPickerSupported,
 } from '../../lib/phoneContacts';
 import { supabase } from '../../lib/supabaseClient';
+import {
+  CONTACT_CATEGORY_FILTER_TABS,
+  CONTACT_CATEGORY_FORM_OPTIONS,
+  categoryLabel,
+  normalizeCategoryForSave,
+} from '../../lib/contactCategories';
 import { Button, Card, EmptyState, Input, Label, LoadingSpinner, Modal, Textarea } from '../../components/ui';
 
-// Filter ids map to public.contact_category enum values, except 'all'.
-// Order: All → Supporters → Churches / Organizations → Previous Partners.
-const FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'supporter', label: 'Supporters' },
-  { id: 'church', label: 'Churches / Organizations' },
-  { id: 'former', label: 'Previous Partners' },
-];
-
+const FILTERS = CONTACT_CATEGORY_FILTER_TABS;
 const VALID_CONTACT_FILTER_IDS = new Set(FILTERS.map((f) => f.id));
-
-const ALLOWED_CATEGORIES = new Set(['supporter', 'church', 'former']);
-
-const CATEGORY_OPTIONS = [
-  { value: 'supporter', label: 'Supporters' },
-  { value: 'church', label: 'Churches / Organizations' },
-  { value: 'former', label: 'Previous Partners' },
-];
-
-const CATEGORY_LABELS = CATEGORY_OPTIONS.reduce((acc, opt) => {
-  acc[opt.value] = opt.label;
-  return acc;
-}, {});
-
-function categoryLabel(value) {
-  if (value === 'warm' || value === 'potential_partner') return CATEGORY_LABELS.church;
-  return CATEGORY_LABELS[value] || value || '—';
-}
-
-/** Coerce to one of the three live categories before save. */
-function normalizeCategoryForSave(value) {
-  if (ALLOWED_CATEGORIES.has(value)) return value;
-  if (value === 'warm' || value === 'potential_partner') return 'church';
-  return 'church';
-}
+const CATEGORY_OPTIONS = CONTACT_CATEGORY_FORM_OPTIONS.map(({ id, label }) => ({ value: id, label }));
 
 const emptyForm = {
   fullName: '',
@@ -239,7 +213,7 @@ export default function MissionaryContacts() {
   };
 
   const bulkInsertParsedContacts = useCallback(
-    async (items) => {
+    async (items, onProgress) => {
       if (!supabase) throw new Error('Supabase is not configured.');
       const {
         data: { user },
@@ -279,9 +253,17 @@ export default function MissionaryContacts() {
         return { inserted: 0, skippedDuplicates };
       }
 
-      const { data, error } = await supabase.from('contacts').insert(rows).select();
-      if (error) throw error;
-      return { inserted: data?.length ?? rows.length, skippedDuplicates };
+      const BATCH = 100;
+      let inserted = 0;
+      const total = rows.length;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const chunk = rows.slice(i, i + BATCH);
+        const { data, error } = await supabase.from('contacts').insert(chunk).select();
+        if (error) throw error;
+        inserted += data?.length ?? chunk.length;
+        onProgress?.({ inserted, total });
+      }
+      return { inserted, skippedDuplicates };
     },
     [contacts],
   );
@@ -327,7 +309,15 @@ export default function MissionaryContacts() {
         return;
       }
       setImportProgress({ pct: 90, note: 'Saving contacts…' });
-      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(drafts);
+      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(drafts, ({ inserted: ins, total }) => {
+        if (sessionId !== sessionRef.current) return;
+        setImportProgress({
+          pct: total ? 90 + Math.min(9, Math.round((ins / total) * 9)) : 95,
+          note: `Importing… ${ins} of ${total}`,
+          processed: ins,
+          total,
+        });
+      });
       if (sessionId !== sessionRef.current) return;
       await finalizeImportSuccess(inserted, skippedDuplicates);
     } catch (e) {
@@ -363,7 +353,15 @@ export default function MissionaryContacts() {
         return;
       }
       setImportProgress({ pct: 90, note: 'Saving contacts…' });
-      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(drafts);
+      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(drafts, ({ inserted: ins, total }) => {
+        if (sessionId !== sessionRef.current) return;
+        setImportProgress({
+          pct: total ? 90 + Math.min(9, Math.round((ins / total) * 9)) : 95,
+          note: `Importing… ${ins} of ${total}`,
+          processed: ins,
+          total,
+        });
+      });
       if (sessionId !== sessionRef.current) return;
       await finalizeImportSuccess(inserted, skippedDuplicates);
     } catch (e) {
@@ -399,7 +397,15 @@ export default function MissionaryContacts() {
         return;
       }
       setImportProgress({ pct: 90, note: 'Saving contacts…' });
-      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(rows);
+      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(rows, ({ inserted: ins, total }) => {
+        if (sessionId !== sessionRef.current) return;
+        setImportProgress({
+          pct: total ? 90 + Math.min(9, Math.round((ins / total) * 9)) : 95,
+          note: `Importing… ${ins} of ${total}`,
+          processed: ins,
+          total,
+        });
+      });
       if (sessionId !== sessionRef.current) return;
       await finalizeImportSuccess(inserted, skippedDuplicates);
     } catch (e) {
@@ -431,7 +437,15 @@ export default function MissionaryContacts() {
         return;
       }
       setImportProgress({ pct: 90, note: 'Saving contacts…' });
-      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(list);
+      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(list, ({ inserted: ins, total }) => {
+        if (sessionId !== sessionRef.current) return;
+        setImportProgress({
+          pct: total ? 90 + Math.min(9, Math.round((ins / total) * 9)) : 95,
+          note: `Importing… ${ins} of ${total}`,
+          processed: ins,
+          total,
+        });
+      });
       if (sessionId !== sessionRef.current) return;
       await finalizeImportSuccess(inserted, skippedDuplicates);
     } catch (e) {
@@ -460,8 +474,7 @@ export default function MissionaryContacts() {
       fullName: c.fullName,
       phone: c.phone,
       email: c.email,
-      // Map legacy categories so the dropdown only uses supporter / church / former.
-      // selection. When the user saves, the row is rewritten with the new value.
+      // Map legacy categories into the current enum set for the form.
       category: normalizeCategoryForSave(c.category),
       status: c.status,
       monthlyAmount: c.monthlyAmount ? String(c.monthlyAmount) : '',

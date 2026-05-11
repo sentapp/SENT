@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { normalizeCategoryForSave, normalizeCategoryFromDb } from '../lib/contactCategories';
 
 const CONTACT_SELECT =
   'id, missionary_id, full_name, phone, email, category, status, monthly_amount, notes, created_at, updated_at';
@@ -20,15 +21,6 @@ async function resolveMissionaryId(client) {
   return user.id;
 }
 
-const ALLOWED_CATEGORIES = new Set(['supporter', 'church', 'former']);
-
-/** Map legacy / removed categories into one of the three live enum values. */
-function normalizeCategoryFromRow(value) {
-  if (!value || value === 'warm' || value === 'potential_partner') return 'church';
-  if (ALLOWED_CATEGORIES.has(value)) return value;
-  return 'church';
-}
-
 function mapRow(row) {
   if (!row) return null;
   return {
@@ -36,7 +28,7 @@ function mapRow(row) {
     fullName: row.full_name || '',
     phone: row.phone || '',
     email: row.email || '',
-    category: normalizeCategoryFromRow(row.category),
+    category: normalizeCategoryFromDb(row.category),
     status: row.status || 'prospect',
     monthlyAmount: row.monthly_amount != null ? Number(row.monthly_amount) : 0,
     notes: row.notes || '',
@@ -55,11 +47,7 @@ function toRow(payload, missionaryId) {
         ? payload.monthly_amount
         : 0;
 
-  const rawCategory = payload.category || 'supporter';
-  const category =
-    ALLOWED_CATEGORIES.has(rawCategory) && rawCategory !== 'warm' && rawCategory !== 'potential_partner'
-      ? rawCategory
-      : 'church';
+  const category = normalizeCategoryForSave(payload.category || 'supporter');
 
   return {
     missionary_id: missionaryId,

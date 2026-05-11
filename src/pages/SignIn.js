@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { ensureProfileRole, formatSignInError, requestPasswordReset, signInWithEmail } from '../lib/authApi';
 import { useAuth } from '../auth/AuthContext';
@@ -20,6 +20,8 @@ function SignIn() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const pinUnlockInFlight = useRef(false);
+  const prevPinLen = useRef(0);
 
   const runAfterSignIn = useCallback(
     async (user) => {
@@ -78,8 +80,33 @@ function SignIn() {
     };
   }, []);
 
+  const attemptPinUnlock = useCallback(async () => {
+    if (view !== 'pin' || pin.length < 4 || pinUnlockInFlight.current) return;
+    pinUnlockInFlight.current = true;
+    const pinSnapshot = pin;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const u = data.session?.user;
+      if (!u?.id) return;
+      if (!verifyLocalPin(u.id, pinSnapshot)) {
+        setError('Incorrect PIN. Try again or use email and password.');
+        setPin('');
+        return;
+      }
+      setSubmitting(true);
+      const ok = await runAfterSignIn(u);
+      if (!ok) setSubmitting(false);
+    } finally {
+      pinUnlockInFlight.current = false;
+    }
+  }, [pin, view, runAfterSignIn]);
+
   const handlePinKey = (k) => {
     setError('');
+    if (k === 'enter') {
+      void attemptPinUnlock();
+      return;
+    }
     if (k === 'back') {
       setPin((p) => p.slice(0, -1));
       return;
@@ -91,27 +118,15 @@ function SignIn() {
   };
 
   useEffect(() => {
-    if (view !== 'pin' || pin.length < 4) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      const u = data.session?.user;
-      if (!u?.id || cancelled) return;
-      if (!verifyLocalPin(u.id, pin)) {
-        if (!cancelled) {
-          setError('Incorrect PIN. Try again or use email and password.');
-          setPin('');
-        }
-        return;
-      }
-      setSubmitting(true);
-      const ok = await runAfterSignIn(u);
-      if (!cancelled && !ok) setSubmitting(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [pin, view, runAfterSignIn]);
+    if (view !== 'pin') {
+      prevPinLen.current = pin.length;
+      return;
+    }
+    const prev = prevPinLen.current;
+    prevPinLen.current = pin.length;
+    if (pin.length !== 4 || prev >= 4) return;
+    void attemptPinUnlock();
+  }, [pin, view, attemptPinUnlock]);
 
   const onSubmitEmail = async (e) => {
     e.preventDefault();

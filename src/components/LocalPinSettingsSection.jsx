@@ -45,6 +45,7 @@ export default function LocalPinSettingsSection({ userId }) {
   const handleKey = (k) => {
     setPinMsg('');
     if (!pinStep) return;
+    if (k === 'enter') return;
     if (k === 'back') {
       setPinBuf((p) => p.slice(0, -1));
       return;

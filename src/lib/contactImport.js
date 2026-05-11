@@ -148,6 +148,81 @@ function resolveImportColumnIndices(width, headerCells) {
   return { nameIdx: 0, phoneIdx: 0, emailIdx: 0 };
 }
 
+/**
+ * Find which column index has the most 10-digit phone numbers (US-style), scanning every data row.
+ * @param {unknown[][]} rows
+ * @returns {number | null}
+ */
+export function findPhoneColumnIndex(rows) {
+  const counts = {};
+  (rows || []).forEach((row) => {
+    if (!Array.isArray(row)) return;
+    row.forEach((cell, i) => {
+      const digits = String(cell ?? '').replace(/\D/g, '');
+      if (digits.length === 10) counts[i] = (counts[i] || 0) + 1;
+    });
+  });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (!sorted.length) return null;
+  return Number(sorted[0][0]);
+}
+
+function columnIsAllNumericRowIds(rows, colIdx, sampleSize = 80) {
+  const slice = rows.slice(0, Math.min(sampleSize, rows.length));
+  const vals = slice.map((r) => String(r[colIdx] ?? '').trim()).filter(Boolean);
+  if (vals.length < Math.min(5, slice.length)) return false;
+  return vals.every((v) => /^\d+$/.test(v));
+}
+
+/**
+ * Prefer the first text column before the phone column; skip column 0 when it looks like row numbers.
+ * If the phone column is first, pick the first name-like column after it.
+ * @param {unknown[][]} rows
+ */
+function findNameColumnBeforePhone(rows, phoneIdx, width) {
+  if (phoneIdx > 0) {
+    let start = 0;
+    if (rows.length && columnIsAllNumericRowIds(rows, 0)) start = 1;
+    for (let j = start; j < phoneIdx; j += 1) {
+      const hasNameLike = rows.some((r) => {
+        const s = String(r[j] ?? '').trim();
+        return s && /[a-zA-Z]/.test(s) && !shouldRejectImportName(s);
+      });
+      if (hasNameLike) return j;
+    }
+  }
+  for (let j = phoneIdx + 1; j < width; j += 1) {
+    const hasNameLike = rows.some((r) => {
+      const s = String(r[j] ?? '').trim();
+      return s && /[a-zA-Z]/.test(s) && !shouldRejectImportName(s);
+    });
+    if (hasNameLike) return j;
+  }
+  if (phoneIdx > 0) return Math.max(0, phoneIdx - 1);
+  return 0;
+}
+
+function findBestEmailColumnIndex(rows, phoneIdx, nameIdx, width) {
+  const counts = {};
+  (rows || []).forEach((row) => {
+    if (!Array.isArray(row)) return;
+    for (let i = 0; i < width; i += 1) {
+      if (i === phoneIdx || i === nameIdx) continue;
+      const s = String(row[i] ?? '').trim();
+      if (s.includes('@') && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) {
+        counts[i] = (counts[i] || 0) + 1;
+      }
+    }
+  });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (!sorted.length) {
+    const fallback = phoneIdx + 1;
+    if (fallback < width && fallback !== nameIdx) return fallback;
+    return Math.max(0, width - 1);
+  }
+  return Number(sorted[0][0]);
+}
+
 function strictPhoneFromCell(val) {
   const raw = String(val ?? '').trim();
   if (!raw) return { phone: '', extra: '' };
@@ -196,21 +271,47 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
   if (!dataRows.length) return null;
 
   const width = padded[0].length;
-  console.log('[import] Sheet:', sheetName);
-  console.log('Raw headers:', headerCells);
-  console.log('First 3 rows:', dataRows.slice(0, 3));
-
-  let { nameIdx, phoneIdx, emailIdx } = resolveImportColumnIndices(width, headerCells);
   const clamp = (idx) => Math.min(Math.max(0, idx), Math.max(0, width - 1));
-  nameIdx = clamp(nameIdx);
-  phoneIdx = clamp(phoneIdx);
-  emailIdx = clamp(emailIdx);
+
+  let phoneIdx = findPhoneColumnIndex(dataRows);
+  let nameIdx;
+  let emailIdx;
+
+  if (phoneIdx == null || Number.isNaN(phoneIdx) || phoneIdx < 0 || phoneIdx >= width) {
+    const fixed = resolveImportColumnIndices(width, headerCells);
+    nameIdx = clamp(fixed.nameIdx);
+    phoneIdx = clamp(fixed.phoneIdx);
+    emailIdx = clamp(fixed.emailIdx);
+  } else {
+    phoneIdx = clamp(phoneIdx);
+    nameIdx = clamp(findNameColumnBeforePhone(dataRows, phoneIdx, width));
+    emailIdx = clamp(findBestEmailColumnIndex(dataRows, phoneIdx, nameIdx, width));
+  }
+
+  if (nameIdx === phoneIdx) {
+    nameIdx = clamp(phoneIdx > 0 ? phoneIdx - 1 : phoneIdx + 1 < width ? phoneIdx + 1 : 0);
+  }
+  if (emailIdx === phoneIdx || emailIdx === nameIdx) {
+    let found = false;
+    for (let ei = 0; ei < width; ei += 1) {
+      if (ei !== phoneIdx && ei !== nameIdx) {
+        emailIdx = clamp(ei);
+        found = true;
+        break;
+      }
+    }
+    if (!found) emailIdx = clamp(Math.min(width - 1, phoneIdx + 1));
+  }
   if (nameIdx >= phoneIdx) {
     const fixed = resolveImportColumnIndices(width, []);
     nameIdx = clamp(fixed.nameIdx);
     phoneIdx = clamp(fixed.phoneIdx);
     emailIdx = clamp(fixed.emailIdx);
   }
+
+  console.log('[import] Sheet:', sheetName, { nameIdx, phoneIdx, emailIdx });
+  console.log('Raw headers:', headerCells);
+  console.log('First 3 rows:', dataRows.slice(0, 3));
 
   const bothCount = countRowsWithNameAndPhone(dataRows, nameIdx, phoneIdx);
 
@@ -244,7 +345,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
       full_name: nameRaw,
       phone: phoneOut,
       email: emailOut,
-      category: 'church',
+      category: 'potential',
       status: 'prospect',
       monthly_amount: 0,
       notes,
@@ -315,7 +416,7 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
     if (ev) evaluated.push(ev);
   }
 
-  let candidates = evaluated.filter((e) => e.bothCount >= 3);
+  let candidates = evaluated.filter((e) => e.bothCount >= 1);
   if (!candidates.length) candidates = evaluated.slice();
   candidates.sort((a, b) => b.bothCount - a.bothCount || b.drafts.length - a.drafts.length);
 
@@ -359,7 +460,7 @@ export function rowsToContacts(rows, headers) {
       full_name: fullName || email || phone || 'Imported contact',
       phone,
       email,
-      category: 'church',
+      category: 'potential',
       status: 'prospect',
       monthly_amount: 0,
       notes: '',
@@ -493,7 +594,7 @@ function draftFromParts(full_name, phone, email) {
     full_name: full_name || email || phone || 'Imported contact',
     phone: phone || '',
     email: email || '',
-    category: 'church',
+    category: 'potential',
     status: 'prospect',
     monthly_amount: 0,
     notes: '',

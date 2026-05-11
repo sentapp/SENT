@@ -151,6 +151,16 @@ function SignUp() {
             setSubmitting(false);
             return;
           }
+          if (linked.ok && linked.missionary) {
+            const m = linked.missionary;
+            const org = String(m.organization || '').trim();
+            setInfo(
+              org
+                ? `Connected to ${m.full_name || 'your missionary'} — ${org}`
+                : `Connected to ${m.full_name || 'your missionary'}`,
+            );
+            await new Promise((r) => setTimeout(r, 2200));
+          }
         }
 
         if (pinToSave && String(pinToSave).length === 4) {
@@ -179,6 +189,29 @@ function SignUp() {
 
   const handleSignupPinKey = (k) => {
     setError('');
+    if (k === 'enter') {
+      if (step3Sub === 'first' && pinBuf.length === 4) {
+        setFirstPin(pinBuf);
+        setPinBuf('');
+        setStep3Sub('confirm');
+        return;
+      }
+      if (step3Sub === 'confirm' && pinBuf.length === 4) {
+        if (pinBuf !== firstPin) {
+          setError('PINs do not match. Start again.');
+          setStep3Sub('first');
+          setFirstPin('');
+          confirmSubmitLock.current = false;
+          setPinBuf('');
+          return;
+        }
+        if (!confirmSubmitLock.current) {
+          confirmSubmitLock.current = true;
+          void completeSignup(pinBuf);
+        }
+      }
+      return;
+    }
     if (step3Sub === 'menu') return;
     if (k === 'back') {
       setPinBuf((p) => p.slice(0, -1));
@@ -242,7 +275,13 @@ function SignUp() {
         ) : null}
 
         {step === 1 && (
-          <section className="flex flex-1 flex-col">
+          <form
+            className="flex flex-1 flex-col"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canProceedStep1) setStep(2);
+            }}
+          >
             <h1 className="mb-8 text-center text-2xl font-semibold tracking-tight">Who are you?</h1>
             <div className="flex flex-col gap-4">
               <RoleCard
@@ -260,9 +299,8 @@ function SignUp() {
             </div>
             <div className="mt-auto pt-10">
               <button
-                type="button"
+                type="submit"
                 disabled={!canProceedStep1}
-                onClick={() => setStep(2)}
                 className="block w-full rounded-btn bg-mission-blue py-[14px] text-center font-medium text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
               >
                 Continue
@@ -274,11 +312,17 @@ function SignUp() {
                 </Link>
               </p>
             </div>
-          </section>
+          </form>
         )}
 
         {step === 2 && (
-          <section className="flex flex-1 flex-col">
+          <form
+            className="flex flex-1 flex-col"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canProceedStep2) setStep(3);
+            }}
+          >
             <h1 className="mb-8 text-center text-2xl font-semibold tracking-tight">Tell us about you</h1>
             <label className="mb-5 block">
               <span className="mb-2 block text-sm font-medium text-neutral-700">Name</span>
@@ -330,19 +374,27 @@ function SignUp() {
             )}
             <div className="mt-auto">
               <button
-                type="button"
+                type="submit"
                 disabled={!canProceedStep2}
-                onClick={() => setStep(3)}
                 className="block w-full rounded-btn bg-mission-blue py-[14px] text-center font-medium text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
               >
                 Continue
               </button>
             </div>
-          </section>
+          </form>
         )}
 
         {step === 3 && step3Sub === 'menu' && (
-          <section className="flex flex-1 flex-col">
+          <form
+            className="flex flex-1 flex-col"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!submitting) {
+                setError('');
+                void completeSignup(null);
+              }
+            }}
+          >
             <h1 className="mb-2 text-center text-2xl font-semibold tracking-tight">Quick unlock (optional)</h1>
             <p className="mx-auto mb-8 max-w-sm text-center text-sm leading-relaxed text-neutral-600">
               You&apos;ll always sign in with email and password. On this device only, you can add a 4-digit PIN to get
@@ -364,16 +416,15 @@ function SignUp() {
                 <span className="text-sm text-neutral-600">4-digit shortcut on this device after you create your account.</span>
               </button>
               <button
-                type="button"
+                type="submit"
                 disabled={submitting}
-                onClick={() => completeSignup(null)}
                 className="rounded-btn border border-transparent bg-transparent py-3 text-center text-[17px] font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-60"
               >
                 {submitting ? 'Creating account…' : 'Skip for now'}
               </button>
-              <p className="text-center text-xs text-neutral-500">Skip uses email and password every time.</p>
+              <p className="text-center text-xs text-neutral-500">Press Enter to skip and finish. Skip uses email and password every time.</p>
             </div>
-          </section>
+          </form>
         )}
 
         {step === 3 && step3Sub === 'first' && (

@@ -30,6 +30,11 @@ export function PinKeypad({ onKey, keyboard = true }) {
       ) {
         return;
       }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        onKey('enter');
+        return;
+      }
       if (e.key === 'Backspace') {
         e.preventDefault();
         onKey('back');

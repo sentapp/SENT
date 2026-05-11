@@ -1,3 +1,5 @@
+import { normalizeCategoryForSave } from './contactCategories';
+
 /** Normalize for duplicate comparison */
 export function normalizePhone(p) {
   const d = String(p || '').replace(/\D/g, '');
@@ -119,10 +121,7 @@ export function draftToInsertPayload(d) {
     full_name,
     phone: d.phone || '',
     email: d.email || '',
-    category:
-      d.category === 'warm' || d.category === 'potential_partner' || !['supporter', 'church', 'former'].includes(d.category)
-        ? 'church'
-        : d.category || 'church',
+    category: normalizeCategoryForSave(d.category),
     status: d.status || 'prospect',
     monthly_amount: Number.isFinite(Number(d.monthly_amount)) ? Number(d.monthly_amount) : 0,
     notes: d.notes || '',

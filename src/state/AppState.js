@@ -74,10 +74,10 @@ export function AppStateProvider({ children }) {
           email: contact.email?.trim() ?? '',
           category:
             contact.category === 'warm' || contact.category === 'potential_partner'
-              ? 'church'
-              : ['supporter', 'church', 'former'].includes(contact.category)
+              ? 'potential'
+              : ['supporter', 'church', 'former', 'potential'].includes(contact.category)
                 ? contact.category
-                : 'church',
+                : 'potential',
           status: contact.status ?? 'prospect',
           monthlyAmount: Number.isFinite(Number(contact.monthlyAmount)) ? Number(contact.monthlyAmount) : 0,
           notes: contact.notes?.trim() ?? '',
