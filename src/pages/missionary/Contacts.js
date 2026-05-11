@@ -32,6 +32,8 @@ const FILTERS = [
   { id: 'former', label: 'Previous Partners' },
 ];
 
+const VALID_CONTACT_FILTER_IDS = new Set(FILTERS.map((f) => f.id));
+
 const ALLOWED_CATEGORIES = new Set(['supporter', 'church', 'former']);
 
 const CATEGORY_OPTIONS = [
@@ -147,6 +149,9 @@ export default function MissionaryContacts() {
   } = useSupabaseContacts(user?.id);
 
   const [filter, setFilter] = useState('all');
+  useEffect(() => {
+    if (!VALID_CONTACT_FILTER_IDS.has(filter)) setFilter('all');
+  }, [filter]);
   const [query, setQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -322,9 +327,9 @@ export default function MissionaryContacts() {
         return;
       }
       setImportProgress({ pct: 90, note: 'Saving contacts…' });
-      await bulkInsertParsedContacts(drafts);
+      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(drafts);
       if (sessionId !== sessionRef.current) return;
-      await finalizeImportSuccess(drafts.length);
+      await finalizeImportSuccess(inserted, skippedDuplicates);
     } catch (e) {
       if (sessionId !== sessionRef.current) return;
       console.error('[import] Google Sheets import fetch failed', e);
@@ -358,9 +363,9 @@ export default function MissionaryContacts() {
         return;
       }
       setImportProgress({ pct: 90, note: 'Saving contacts…' });
-      await bulkInsertParsedContacts(drafts);
+      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(drafts);
       if (sessionId !== sessionRef.current) return;
-      await finalizeImportSuccess(drafts.length);
+      await finalizeImportSuccess(inserted, skippedDuplicates);
     } catch (e) {
       if (e?.name === 'AbortError' || sessionId !== sessionRef.current) return;
       console.error('[import] spreadsheet parse failed', e);
@@ -394,9 +399,9 @@ export default function MissionaryContacts() {
         return;
       }
       setImportProgress({ pct: 90, note: 'Saving contacts…' });
-      await bulkInsertParsedContacts(rows);
+      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(rows);
       if (sessionId !== sessionRef.current) return;
-      await finalizeImportSuccess(rows.length);
+      await finalizeImportSuccess(inserted, skippedDuplicates);
     } catch (e) {
       if (sessionId !== sessionRef.current) return;
       console.error('[import] PDF failed', e);
@@ -426,9 +431,9 @@ export default function MissionaryContacts() {
         return;
       }
       setImportProgress({ pct: 90, note: 'Saving contacts…' });
-      await bulkInsertParsedContacts(list);
+      const { inserted, skippedDuplicates } = await bulkInsertParsedContacts(list);
       if (sessionId !== sessionRef.current) return;
-      await finalizeImportSuccess(list.length);
+      await finalizeImportSuccess(inserted, skippedDuplicates);
     } catch (e) {
       if (sessionId !== sessionRef.current) return;
       if (e?.name === 'AbortError') setImportMsg('Cancelled.');
@@ -675,6 +680,12 @@ export default function MissionaryContacts() {
           <p>
             {importSummary.imported} contact{importSummary.imported === 1 ? '' : 's'} imported
           </p>
+          {importSummary.skipped > 0 ? (
+            <p className="mt-1 text-emerald-800">
+              {importSummary.skipped} duplicate{importSummary.skipped === 1 ? '' : 's'} skipped (same phone or name
+              already in your list)
+            </p>
+          ) : null}
         </div>
       ) : null}
 

@@ -1,6 +1,6 @@
 # Deploying SENT on Vercel with Supabase Auth
 
-If sign-up or email confirmation fails on production (e.g. `https://sent-kohl.vercel.app`), configure both **Supabase** and **Vercel**.
+If sign-up or email confirmation fails on production (e.g. **`https://sent-kohl.vercel.app`**), configure both **Supabase** and **Vercel**. The SPA’s Supabase client uses the **current browser origin** as `auth.redirectTo` when `REACT_APP_SITE_URL` is unset, so `sent-kohl.vercel.app` still requires that host to be allowlisted in Supabase (CORS / Auth URLs are enforced server-side).
 
 ## 1. Supabase — Authentication → URL Configuration
 
