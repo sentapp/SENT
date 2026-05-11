@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
+import { useMissionaryMapPoints } from '../../hooks/useMissionaryMapPoints';
+import MapView from '../../components/MapView';
 import { Button, Card, EmptyState, Input, Label, Modal, Textarea } from '../../components/ui';
 
 const POST_TYPES = ['Field story', 'Prayer request', 'Monthly update', 'Win/testimony'];
@@ -72,9 +74,11 @@ function PostActionsMenu({ onEdit, onDelete }) {
 }
 
 export default function MissionaryUpdates() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const mid = user?.id;
   const { posts, loading, addPost, updatePost, deletePost } = useMissionaryPosts(mid);
+  const readMoreHref = useCallback((p) => `/missionary/updates#post-${p.id}`, []);
+  const mapPoints = useMissionaryMapPoints(profile, posts, { readMoreHref });
 
   const [type, setType] = useState(POST_TYPES[0]);
   const [locationName, setLocationName] = useState('');
@@ -203,7 +207,7 @@ export default function MissionaryUpdates() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Updates</h1>
         <p className="text-sm text-neutral-600">
-          Share with supporters. Locations use plain text — we look up coordinates automatically for your map.
+          Post stories for supporters, manage recent posts, and view your mission map — all on this page.
         </p>
       </header>
 
@@ -220,6 +224,7 @@ export default function MissionaryUpdates() {
       ) : null}
 
       <Card className="p-5">
+        <p className="mb-4 text-sm font-semibold text-neutral-900">Post an update</p>
         <div className="grid gap-4 md:grid-cols-2">
           <Label title="Post type">
             <select
@@ -280,6 +285,24 @@ export default function MissionaryUpdates() {
           </div>
         )}
       </div>
+
+      <section className="space-y-3" aria-labelledby="mission-map-heading">
+        <div className="space-y-1">
+          <h2 id="mission-map-heading" className="text-sm font-semibold text-neutral-900">
+            Mission map
+          </h2>
+          <p className="text-sm text-neutral-600">
+            Your home base and update locations (from plain-text places on posts). Pins connect in chronological order.
+          </p>
+        </div>
+        <MapView points={mapPoints} route height={380} />
+        <Card className="p-5">
+          <p className="text-sm font-semibold">How pins work</p>
+          <p className="mt-2 text-sm text-neutral-600">
+            Set your home location as text in Settings. When you post an update with a location, we place a pin automatically — no coordinates needed.
+          </p>
+        </Card>
+      </section>
 
       <Modal
         open={Boolean(editingPost)}

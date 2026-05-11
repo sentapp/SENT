@@ -9,7 +9,6 @@ import MissionaryOverview from './pages/missionary/Overview';
 import MissionaryContacts from './pages/missionary/Contacts';
 import MissionaryPartners from './pages/missionary/Partners';
 import MissionaryUpdates from './pages/missionary/Updates';
-import MissionaryMap from './pages/missionary/Map';
 import MissionarySettings from './pages/missionary/Settings';
 import MissionaryOnboarding from './pages/missionary/MissionaryOnboarding';
 
@@ -40,7 +39,7 @@ function App() {
         <Route path="contacts" element={<MissionaryContacts />} />
         <Route path="partners" element={<MissionaryPartners />} />
         <Route path="updates" element={<MissionaryUpdates />} />
-        <Route path="map" element={<MissionaryMap />} />
+        <Route path="map" element={<Navigate to="/missionary/updates" replace />} />
         <Route path="settings" element={<MissionarySettings />} />
       </Route>
 
