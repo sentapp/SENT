@@ -34,10 +34,27 @@ export default function SupporterPrayer() {
   const submit = async () => {
     setSubmitErr('');
     const text = body.trim();
-    if (!text || !supabase || !missionaryId || !user?.id) return;
+    if (!text || !supabase || !user?.id) return;
+
+    const { data: myProfile, error: profErr } = await supabase
+      .from('profiles')
+      .select('connected_missionary_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profErr) {
+      setSubmitErr(profErr.message || 'Could not load your profile.');
+      return;
+    }
+
+    const mid = myProfile?.connected_missionary_id || missionaryId;
+    if (!mid) {
+      setSubmitErr('Connect to a missionary before submitting a request.');
+      return;
+    }
 
     const { data, error } = await insertPrayerRequest(supabase, {
-      missionaryId,
+      missionaryId: mid,
       authorId: user.id,
       body: text,
       anonymous,

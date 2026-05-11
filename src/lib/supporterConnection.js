@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { maybeLinkSupporterContactAfterLink } from './supporterContactLink';
 
 function parseLinkInviteRpcPayload(payload) {
   if (payload == null) return null;
@@ -137,6 +138,7 @@ export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed)
       if (rpc.skipped) return { ok: true, skipped: true };
       const m = rpc.missionary;
       if (m?.id) {
+        void maybeLinkSupporterContactAfterLink(m.id, supporterUserId);
         return {
           ok: true,
           missionary: {
@@ -169,6 +171,7 @@ export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed)
     .eq('id', supporterUserId);
 
   if (error) return { ok: false, error: error.message };
+  void maybeLinkSupporterContactAfterLink(missionary.id, supporterUserId);
   return {
     ok: true,
     missionary: {
@@ -227,6 +230,7 @@ export async function relinkSupporterToMissionary(supporterUserId, inviteCodeUse
     .eq('id', supporterUserId);
 
   if (error) return { ok: false, error: error.message };
+  void maybeLinkSupporterContactAfterLink(missionary.id, supporterUserId);
   return {
     ok: true,
     missionary: {

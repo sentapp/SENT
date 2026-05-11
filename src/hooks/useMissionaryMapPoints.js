@@ -1,7 +1,5 @@
 import { useMemo } from 'react';
 
-const PREVIEW_CHARS = 150;
-
 function ProfileCoords(profile) {
   if (!profile) return null;
   const lat = profile.latitude != null ? Number(profile.latitude) : null;
@@ -33,21 +31,12 @@ export function postTypeBadgeClass(type) {
   }
 }
 
-function truncateBody(body) {
-  const raw = (body || '').trim();
-  if (raw.length <= PREVIEW_CHARS) return { preview: raw, truncated: false };
-  const slice = raw.slice(0, PREVIEW_CHARS).trimEnd();
-  return { preview: `${slice}…`, truncated: true };
-}
-
 /**
  * Build pins: home base (profile) first, then posts with coords in chronological order (route order).
  * profile: Supabase profiles row (latitude, longitude, location_name) or legacy shape with locationCoords.
- * @param options.readMoreHref Optional `(post) => string` deep link for truncated popup body (e.g. updates feed anchor).
+ * Post markers use a Leaflet popup with type, location, date, and full body (scrollable when long).
  */
-export function useMissionaryMapPoints(profile, posts, options = {}) {
-  const readMoreHref = typeof options.readMoreHref === 'function' ? options.readMoreHref : null;
-
+export function useMissionaryMapPoints(profile, posts) {
   return useMemo(() => {
     let homeCoords = ProfileCoords(profile);
     const locationName = profile?.location_name ?? profile?.locationName ?? '';
@@ -82,36 +71,30 @@ export function useMissionaryMapPoints(profile, posts, options = {}) {
 
     for (const p of postsWithCoords) {
       const cityLabel = (p.locationName || '').trim() || 'Location';
-      const { preview, truncated } = truncateBody(p.body);
-      const moreHref = truncated && readMoreHref ? readMoreHref(p) : null;
+      const typeLabel = (p.type || 'Update').trim();
 
       points.push({
         id: p.id,
         isHome: false,
         coords: p.locationCoords,
-        title: cityLabel,
+        title: `${typeLabel} — ${cityLabel}`,
         popup: (
-          <div className="max-w-[260px] space-y-2">
+          <div className="max-w-[min(92vw,22rem)] space-y-2">
             <span
               className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${postTypeBadgeClass(p.type)}`}
             >
-              {p.type}
+              {typeLabel}
             </span>
             <p className="text-base font-bold leading-snug text-neutral-900">{cityLabel}</p>
             <p className="text-[11px] text-neutral-500">{fmtDate(p.createdAt)}</p>
-            <p className="text-sm leading-snug text-neutral-800 whitespace-pre-wrap">{preview}</p>
-            {truncated && moreHref ? (
-              <a href={moreHref} className="inline-block text-sm font-semibold text-[#185FA5] hover:underline">
-                Read more
-              </a>
-            ) : truncated ? (
-              <p className="text-xs font-medium text-neutral-500">Read more in your updates list</p>
-            ) : null}
+            <div className="max-h-64 overflow-y-auto rounded-btn border border-neutral-100 bg-neutral-50/80 p-2">
+              <p className="text-sm leading-relaxed text-neutral-800 whitespace-pre-wrap">{p.body || ''}</p>
+            </div>
           </div>
         ),
       });
     }
 
     return points;
-  }, [profile, posts, readMoreHref]);
+  }, [profile, posts]);
 }

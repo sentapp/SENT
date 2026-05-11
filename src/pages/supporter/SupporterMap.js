@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
 import { useMissionaryPublicProfile } from '../../hooks/useMissionaryPublicProfile';
@@ -27,8 +27,7 @@ export default function SupporterMap() {
   const { posts } = useMissionaryPosts(missionaryId || null);
 
   const mapProfile = useMemo(() => mapProfileForPins(missionaryDb), [missionaryDb]);
-  const readMoreHref = useCallback((p) => `/supporter#supporter-post-${p.id}`, []);
-  const points = useMissionaryMapPoints(mapProfile, posts, { readMoreHref });
+  const points = useMissionaryMapPoints(mapProfile, posts);
 
   if (!missionaryId) {
     return (

@@ -29,14 +29,16 @@ export async function fetchPrayerRequestsForMissionary(supabaseClient, missionar
 export async function insertPrayerRequest(supabaseClient, { missionaryId, authorId, body, anonymous }) {
   const text = String(body ?? '').trim();
   if (!text || !supabaseClient || !missionaryId) return { error: new Error('Invalid prayer request.') };
+  if (!authorId) return { error: new Error('Missing author.') };
 
   const { data, error } = await supabaseClient
     .from('prayer_requests')
     .insert({
       missionary_id: missionaryId,
-      author_id: anonymous ? null : authorId,
+      author_id: authorId,
       body: text,
       is_anonymous: Boolean(anonymous),
+      prayed_count: 0,
     })
     .select('*')
     .single();

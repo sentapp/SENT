@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
+import { repairSupporterMissionaryLink } from '../lib/supporterConnection';
 
 const tabs = [
   { to: '/supporter', label: 'Feed' },
-  { to: '/supporter/map', label: 'Map' },
   { to: '/supporter/prayer', label: 'Prayer' },
   { to: '/supporter/give', label: 'Give' },
   { to: '/supporter/refer', label: 'Refer' },
@@ -12,7 +14,7 @@ const tabs = [
 function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 backdrop-blur">
-      <ul className="mx-auto grid max-w-6xl grid-cols-6 px-1 py-2 text-[10px] sm:grid-cols-6 sm:px-2 sm:text-xs">
+      <ul className="mx-auto grid max-w-6xl grid-cols-5 px-1 py-2 text-[10px] sm:grid-cols-5 sm:px-2 sm:text-xs">
         {tabs.map((t) => (
           <li key={t.to} className="flex justify-center">
             <NavLink
@@ -35,6 +37,20 @@ function BottomNav() {
 }
 
 export default function SupporterLayout() {
+  const { user, refreshProfile } = useAuth();
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let cancelled = false;
+    (async () => {
+      await repairSupporterMissionaryLink(user.id, user.user_metadata?.invite_code);
+      if (!cancelled) await refreshProfile();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.user_metadata?.invite_code, refreshProfile]);
+
   return (
     <div className="min-h-full bg-mission-canvas text-neutral-900">
       <main className="mx-auto w-full max-w-6xl px-6 py-8 pb-24">

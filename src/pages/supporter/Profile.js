@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../../state/AppState';
 import { useAuth } from '../../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
-import { relinkSupporterToMissionary } from '../../lib/supporterConnection';
+import { relinkSupporterToMissionary, linkSupporterToMissionary } from '../../lib/supporterConnection';
+import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
 import { Button, Card, Input, Label } from '../../components/ui';
 import FeedbackSection from '../../components/FeedbackSection';
 import LocalPinSettingsSection from '../../components/LocalPinSettingsSection';
@@ -71,7 +72,9 @@ export default function SupporterProfile() {
       }
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, email, phone, connected_missionary_id, notify_in_app, notify_email, notify_text, notify_prayer')
+        .select(
+          'full_name, email, phone, connected_missionary_id, invite_code_used, notify_in_app, notify_email, notify_text, notify_prayer',
+        )
         .eq('id', authUser.id)
         .single();
       if (!mounted) return;
@@ -88,18 +91,45 @@ export default function SupporterProfile() {
         setNotifyEmail(Boolean(data.notify_email));
         setNotifyText(Boolean(data.notify_text));
         setNotifyPrayer(data.notify_prayer !== false);
-        const mid = data.connected_missionary_id || null;
+
+        let mid = data.connected_missionary_id || null;
+        const inviteUsed = String(data.invite_code_used ?? '').trim();
+
+        if (inviteUsed && !mid) {
+          const linked = await linkSupporterToMissionary(authUser.id, inviteUsed);
+          if (linked.ok && linked.missionary?.id) {
+            mid = linked.missionary.id;
+            if (mounted) await refreshProfile();
+            const { data: refreshed } = await supabase
+              .from('profiles')
+              .select('connected_missionary_id')
+              .eq('id', authUser.id)
+              .maybeSingle();
+            if (mounted && refreshed?.connected_missionary_id) {
+              mid = refreshed.connected_missionary_id;
+            }
+          }
+        }
+
         setLinkedMissionaryId(mid);
         if (mid) {
-          const { data: missionary } = await supabase
+          const { data: missionary, error: mErr } = await supabase
             .from('profiles')
             .select('full_name, organization')
             .eq('id', mid)
-            .single();
-          if (mounted && missionary) {
+            .maybeSingle();
+          if (mounted && missionary && !mErr) {
             setConnectedMissionary(missionary);
           } else if (mounted) {
-            setConnectedMissionary(null);
+            const rpc = await fetchConnectedMissionaryPublic();
+            if (rpc?.id === mid) {
+              setConnectedMissionary({
+                full_name: rpc.full_name,
+                organization: rpc.organization,
+              });
+            } else {
+              setConnectedMissionary(null);
+            }
           }
         } else if (mounted) {
           setConnectedMissionary(null);

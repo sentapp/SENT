@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPublicProfile } from '../../hooks/useMissionaryPublicProfile';
 import { fetchActiveMissionPushForMissionary } from '../../lib/missionPushesRepository';
+import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
 import { Card, EmptyState } from '../../components/ui';
 
 function normalizeUrl(url) {
@@ -24,7 +25,31 @@ export default function SupporterGive() {
   const missionaryId = profile?.connected_missionary_id;
   const { profile: missionary } = useMissionaryPublicProfile(missionaryId);
 
+  const [givingFromRpc, setGivingFromRpc] = useState(null);
   const [missionPush, setMissionPush] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!missionaryId) {
+      setGivingFromRpc(null);
+      return undefined;
+    }
+    (async () => {
+      const rpc = await fetchConnectedMissionaryPublic();
+      if (cancelled) return;
+      if (rpc?.id === missionaryId) {
+        setGivingFromRpc({
+          tax_deductible_url: rpc.tax_deductible_url,
+          non_tax_deductible_url: rpc.non_tax_deductible_url,
+        });
+      } else {
+        setGivingFromRpc(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [missionaryId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,8 +82,8 @@ export default function SupporterGive() {
   const photoUrl = missionary?.photo_url || '';
   const location = missionary?.location_name?.trim() || 'the field';
 
-  const taxUrl = normalizeUrl(missionary?.tax_deductible_url || '');
-  const nonTaxUrl = normalizeUrl(missionary?.non_tax_deductible_url || '');
+  const taxUrl = normalizeUrl(missionary?.tax_deductible_url || givingFromRpc?.tax_deductible_url || '');
+  const nonTaxUrl = normalizeUrl(missionary?.non_tax_deductible_url || givingFromRpc?.non_tax_deductible_url || '');
 
   const pushGoal = missionPush ? Number(missionPush.goal_amount || 0) : 0;
   const pushRaised = missionPush ? Number(missionPush.raised_amount || 0) : 0;

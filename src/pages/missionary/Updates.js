@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
 import { useMissionaryMapPoints } from '../../hooks/useMissionaryMapPoints';
@@ -77,8 +77,7 @@ export default function MissionaryUpdates() {
   const { user, profile } = useAuth();
   const mid = user?.id;
   const { posts, loading, addPost, updatePost, deletePost } = useMissionaryPosts(mid);
-  const readMoreHref = useCallback((p) => `/missionary/updates#post-${p.id}`, []);
-  const mapPoints = useMissionaryMapPoints(profile, posts, { readMoreHref });
+  const mapPoints = useMissionaryMapPoints(profile, posts);
 
   const [type, setType] = useState(POST_TYPES[0]);
   const [locationName, setLocationName] = useState('');

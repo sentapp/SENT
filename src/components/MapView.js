@@ -37,9 +37,14 @@ export default function MapView({
               key={p.id}
               position={[p.coords.lat, p.coords.lng]}
               icon={p.isHome ? homeMapIcon : fireMapIcon}
+              eventHandlers={{
+                click: (e) => {
+                  e.target.openPopup();
+                },
+              }}
             >
               {p.popup ? (
-                <Popup>
+                <Popup keepInView autoPan maxWidth={560}>
                   <div className="space-y-2">{p.popup}</div>
                 </Popup>
               ) : null}
