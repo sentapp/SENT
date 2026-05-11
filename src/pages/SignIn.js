@@ -39,8 +39,15 @@ function SignIn() {
           .select('invite_code_used, connected_missionary_id')
           .eq('id', user.id)
           .maybeSingle();
-        if (prof?.invite_code_used && !prof?.connected_missionary_id) {
-          await linkSupporterToMissionary(user.id, prof.invite_code_used);
+        let code = prof?.invite_code_used?.trim();
+        if (!code && user.user_metadata?.invite_code) {
+          code = String(user.user_metadata.invite_code).trim();
+          if (code) {
+            await supabase.from('profiles').update({ invite_code_used: code }).eq('id', user.id);
+          }
+        }
+        if (code && !prof?.connected_missionary_id) {
+          await linkSupporterToMissionary(user.id, code);
         }
       }
       if (role === 'missionary') {

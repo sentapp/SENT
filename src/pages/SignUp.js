@@ -8,6 +8,7 @@ import {
   upsertOwnProfile,
   waitForProfileRow,
 } from '../lib/authApi';
+import { useAuth } from '../auth/AuthContext';
 import { ensureMissionarySupporterCode, linkSupporterToMissionary } from '../lib/supporterConnection';
 import { saveLocalPin } from '../lib/localPin';
 import { PinDots, PinKeypad } from '../components/PinEntry';
@@ -46,6 +47,7 @@ function RoleCard({ title, subtitle, selected, onSelect }) {
 
 function SignUp() {
   const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
   const [step, setStep] = useState(1);
   const [role, setRole] = useState(null);
   const [name, setName] = useState('');
@@ -167,6 +169,7 @@ function SignUp() {
           saveLocalPin(uid, String(pinToSave));
         }
 
+        await refreshProfile();
         navigate(navRole === 'missionary' ? '/missionary' : '/supporter', { replace: true });
         return;
       }
@@ -178,7 +181,7 @@ function SignUp() {
       setSubmitting(false);
       confirmSubmitLock.current = false;
     }
-  }, [email, password, name, role, inviteCode, navigate]);
+  }, [email, password, name, role, inviteCode, navigate, refreshProfile]);
 
   useEffect(() => {
     if (step !== 3 || step3Sub !== 'first' || pinBuf.length < 4) return;

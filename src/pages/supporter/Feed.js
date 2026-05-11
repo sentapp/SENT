@@ -1,5 +1,6 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, useRef } from 'react';
 import { useAuth } from '../../auth/AuthContext';
+import { linkSupporterToMissionary } from '../../lib/supporterConnection';
 import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
 import { useMissionaryPublicProfile } from '../../hooks/useMissionaryPublicProfile';
 import {
@@ -43,8 +44,30 @@ function normalizeUrl(url) {
 }
 
 export default function SupporterFeed() {
-  const { profile: supporterProfile, user } = useAuth();
+  const { profile: supporterProfile, user, refreshProfile } = useAuth();
   const missionaryId = supporterProfile?.connected_missionary_id;
+  const inviteCodeUsed = supporterProfile?.invite_code_used;
+  const lastLinkAttemptCode = useRef('');
+
+  useEffect(() => {
+    if (missionaryId || !user?.id) return;
+    const code = inviteCodeUsed?.trim();
+    if (!code) return;
+    if (lastLinkAttemptCode.current === code) return;
+    lastLinkAttemptCode.current = code;
+    let cancelled = false;
+    (async () => {
+      const res = await linkSupporterToMissionary(user.id, code);
+      if (cancelled) return;
+      if (res.ok && !res.skipped && res.missionary) {
+        await refreshProfile();
+        lastLinkAttemptCode.current = '';
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, missionaryId, inviteCodeUsed, refreshProfile]);
 
   const { profile: missionaryDb } = useMissionaryPublicProfile(missionaryId);
   const { posts } = useMissionaryPosts(missionaryId || null);

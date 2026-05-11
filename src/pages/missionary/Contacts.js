@@ -27,6 +27,7 @@ import {
   categoryLabel,
   normalizeCategoryForSave,
 } from '../../lib/contactCategories';
+import { CONTACT_STATUS_FORM_OPTIONS, normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { Button, Card, EmptyState, Input, Label, LoadingSpinner, Modal, Textarea } from '../../components/ui';
 
 const FILTERS = CONTACT_CATEGORY_FILTER_TABS;
@@ -37,8 +38,9 @@ const emptyForm = {
   fullName: '',
   phone: '',
   email: '',
+  address: '',
   category: 'supporter',
-  status: 'prospect',
+  status: 'partner',
   monthlyAmount: '',
   notes: '',
 };
@@ -236,8 +238,9 @@ export default function MissionaryContacts() {
           full_name: String(d.full_name ?? d.fullName ?? d.name ?? '').trim() || 'Imported contact',
           phone,
           email,
+          address: String(d.address ?? '').trim(),
           category: normalizeCategoryForSave(d.category),
-          status: d.status || 'prospect',
+          status: normalizeStatusForSave(d.status),
           notes,
           monthly_amount: Number.isFinite(Number(d.monthly_amount)) ? Number(d.monthly_amount) : 0,
         };
@@ -474,9 +477,10 @@ export default function MissionaryContacts() {
       fullName: c.fullName,
       phone: c.phone,
       email: c.email,
+      address: c.address || '',
       // Map legacy categories into the current enum set for the form.
       category: normalizeCategoryForSave(c.category),
-      status: c.status,
+      status: normalizeStatusFromDb(c.status),
       monthlyAmount: c.monthlyAmount ? String(c.monthlyAmount) : '',
       notes: c.notes,
     });
@@ -494,9 +498,14 @@ export default function MissionaryContacts() {
 
     if (editingId) {
       const payload = {
-        ...form,
+        fullName: form.fullName.trim(),
+        phone: form.phone,
+        email: form.email,
+        address: form.address,
         category: normalizeCategoryForSave(form.category),
+        status: normalizeStatusForSave(form.status),
         monthlyAmount: form.monthlyAmount,
+        notes: form.notes,
       };
       const res = await updateContact(editingId, payload);
       if (!res.ok) {
@@ -510,37 +519,43 @@ export default function MissionaryContacts() {
     }
 
     if (!supabase) {
-      setSaveError('Supabase is not configured.');
+      setSaveError('Supabase is not configured. Check your .env file.');
       return;
     }
 
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      const { error } = await supabase
-        .from('contacts')
-        .insert({
-          missionary_id: user.id,
-          full_name: form.fullName.trim(),
-          phone: form.phone || '',
-          email: form.email || '',
-          category: normalizeCategoryForSave(form.category),
-          status: 'prospect',
-          notes: form.notes || '',
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      await refetch();
-      setModalOpen(false);
-      setContactSaveSuccess('Contact saved');
-    } catch (err) {
-      setSaveError('Could not save contact: ' + (err?.message || String(err)));
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.id) {
+      setSaveError('Not signed in.');
+      return;
     }
+
+    const categorySaved = normalizeCategoryForSave(form.category);
+    const statusSaved = normalizeStatusForSave(form.status);
+    const monthlyNum = Number(String(form.monthlyAmount ?? '').replace(/,/g, ''));
+    const monthly_amount =
+      statusSaved === 'partner' && Number.isFinite(monthlyNum) ? monthlyNum : 0;
+
+    const { error: insErr } = await supabase.from('contacts').insert({
+      missionary_id: user.id,
+      full_name: form.fullName.trim(),
+      phone: (form.phone || '').trim(),
+      email: (form.email || '').trim(),
+      address: (form.address || '').trim(),
+      category: categorySaved,
+      status: statusSaved,
+      notes: (form.notes || '').trim(),
+      monthly_amount,
+    });
+
+    if (insErr) {
+      setSaveError(insErr.message || 'Could not save contact.');
+      return;
+    }
+    await refetch();
+    setModalOpen(false);
+    setContactSaveSuccess('Contact saved');
   };
 
   const confirmDelete = async () => {
@@ -561,7 +576,8 @@ export default function MissionaryContacts() {
       return (
         (c.fullName || '').toLowerCase().includes(q) ||
         (c.email || '').toLowerCase().includes(q) ||
-        (c.phone || '').toLowerCase().includes(q)
+        (c.phone || '').toLowerCase().includes(q) ||
+        (c.address || '').toLowerCase().includes(q)
       );
     });
 
@@ -766,11 +782,12 @@ export default function MissionaryContacts() {
                 <div className="min-w-0 flex-1 flex flex-col gap-1">
                   <p className="text-base font-semibold text-neutral-900">{c.fullName || 'Unnamed contact'}</p>
                   <p className="text-xs text-neutral-500">
-                    {categoryLabel(c.category)} · {c.status || '—'}
+                    {categoryLabel(c.category)} · {statusLabel(c.status)}
                     {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
                   </p>
                   {c.phone ? <p className="text-sm text-neutral-700">{c.phone}</p> : null}
                   {c.email ? <p className="text-sm text-neutral-700">{c.email}</p> : null}
+                  {c.address ? <p className="text-sm text-neutral-700">{c.address}</p> : null}
                   {c.notes ? <p className="mt-1 text-sm text-neutral-600">{c.notes}</p> : null}
                 </div>
                 <div className="flex shrink-0 gap-2 self-start" onClick={(e) => e.stopPropagation()}>
@@ -856,11 +873,25 @@ export default function MissionaryContacts() {
               ) : null}
             </div>
           </div>
+          <Label title="Address">
+            <Input
+              value={form.address}
+              onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+              placeholder="Street, city, state, ZIP"
+            />
+          </Label>
           <div className="grid gap-3 md:grid-cols-2">
             <Label title="Category">
               <select
                 value={form.category}
-                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                onChange={(e) => {
+                  const nextCat = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    category: nextCat,
+                    ...(nextCat === 'supporter' ? { status: 'partner' } : {}),
+                  }));
+                }}
                 className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[16px] outline-none focus:border-mission-blue"
               >
                 {CATEGORY_OPTIONS.map((opt) => (
@@ -876,11 +907,11 @@ export default function MissionaryContacts() {
                 onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
                 className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[16px] outline-none focus:border-mission-blue"
               >
-                <option value="prospect">Prospect</option>
-                <option value="asked">Asked</option>
-                <option value="followup">Follow up</option>
-                <option value="partner">Partner</option>
-                <option value="declined">Declined</option>
+                {CONTACT_STATUS_FORM_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </Label>
           </div>

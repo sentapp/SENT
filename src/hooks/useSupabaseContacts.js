@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { normalizeCategoryForSave, normalizeCategoryFromDb } from '../lib/contactCategories';
+import { normalizeStatusForSave, normalizeStatusFromDb } from '../lib/contactStatuses';
 
 const CONTACT_SELECT =
-  'id, missionary_id, full_name, phone, email, category, status, monthly_amount, notes, created_at, updated_at';
+  'id, missionary_id, full_name, phone, email, address, category, status, monthly_amount, notes, created_at, updated_at';
 
 /**
  * Privacy: contacts are **never** loaded without scoping to the signed-in missionary.
@@ -28,8 +29,9 @@ function mapRow(row) {
     fullName: row.full_name || '',
     phone: row.phone || '',
     email: row.email || '',
+    address: row.address || '',
     category: normalizeCategoryFromDb(row.category),
-    status: row.status || 'prospect',
+    status: normalizeStatusFromDb(row.status),
     monthlyAmount: row.monthly_amount != null ? Number(row.monthly_amount) : 0,
     notes: row.notes || '',
     updatedAt: row.updated_at,
@@ -48,6 +50,13 @@ function toRow(payload, missionaryId) {
         : 0;
 
   const category = normalizeCategoryForSave(payload.category || 'supporter');
+  const statusPick = payload.status ?? payload.contact_status;
+  const status =
+    statusPick !== undefined && statusPick !== null && String(statusPick).trim() !== ''
+      ? normalizeStatusForSave(statusPick)
+      : 'prospect';
+  const monthlyNum = Number.isFinite(Number(monthly)) ? Number(monthly) : 0;
+  const monthly_amount = status === 'partner' ? monthlyNum : 0;
 
   return {
     missionary_id: missionaryId,
@@ -55,9 +64,10 @@ function toRow(payload, missionaryId) {
     phone: String(payload.phone ?? '').trim(),
     email: String(payload.email ?? '').trim(),
     category,
-    status: payload.status || 'prospect',
-    monthly_amount: Number.isFinite(Number(monthly)) ? Number(monthly) : 0,
+    status,
+    monthly_amount,
     notes: String(payload.notes ?? '').trim(),
+    address: String(payload.address ?? '').trim(),
   };
 }
 

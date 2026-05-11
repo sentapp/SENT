@@ -1,5 +1,18 @@
 import { supabase } from './supabaseClient';
 
+function parseRpcJson(data) {
+  if (data == null) return null;
+  if (typeof data === 'object' && data !== null && !Array.isArray(data)) return data;
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function initialsFromFullName(name) {
   const parts = String(name ?? '')
     .trim()
@@ -48,7 +61,8 @@ export async function findMissionaryIdBySupporterCode(rawCode) {
 }
 
 /**
- * Ensures a missionary has a unique `supporter_code` (initials + year, e.g. HH-2025) for invite linking.
+ * Ensures a missionary has a unique `supporter_code`: first initial + last initial + hyphen + calendar year
+ * (e.g. Hannah Holt → HH-2026). Collision-safe suffix if needed.
  */
 export async function ensureMissionarySupporterCode(userId, fullNameHint) {
   if (!supabase || !userId) return { ok: false, error: 'Not signed in.' };
@@ -84,6 +98,39 @@ export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed)
   const normalized = String(inviteCodeUsed ?? '').trim().toUpperCase();
   if (!normalized) return { ok: true, skipped: true };
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user?.id === supporterUserId) {
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('link_supporter_by_invite_code', {
+      p_code: String(inviteCodeUsed ?? '').trim(),
+    });
+    const row = parseRpcJson(rpcData);
+    const rpcUnavailable =
+      rpcErr &&
+      (String(rpcErr.message || '').includes('does not exist') ||
+        String(rpcErr.message || '').includes('schema cache') ||
+        String(rpcErr.code || '') === 'PGRST202');
+
+    if (!rpcUnavailable) {
+      if (rpcErr && !row) return { ok: false, error: rpcErr.message };
+      if (row?.skipped) return { ok: true, skipped: true };
+      if (row?.ok === false) return { ok: false, error: String(row.error || 'Could not link.') };
+      const m = row?.missionary;
+      if (row?.ok && m?.id) {
+        return {
+          ok: true,
+          missionary: {
+            id: m.id,
+            full_name: String(m.full_name ?? ''),
+            organization: String(m.organization ?? ''),
+          },
+        };
+      }
+    }
+  }
+
   const { data: existing } = await supabase
     .from('profiles')
     .select('connected_missionary_id')
@@ -102,8 +149,7 @@ export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed)
       connected_missionary_id: missionary.id,
       invite_code_used: normalized,
     })
-    .eq('id', supporterUserId)
-    .eq('role', 'supporter');
+    .eq('id', supporterUserId);
 
   if (error) return { ok: false, error: error.message };
   return {
@@ -136,8 +182,7 @@ export async function relinkSupporterToMissionary(supporterUserId, inviteCodeUse
       connected_missionary_id: missionary.id,
       invite_code_used: normalized,
     })
-    .eq('id', supporterUserId)
-    .eq('role', 'supporter');
+    .eq('id', supporterUserId);
 
   if (error) return { ok: false, error: error.message };
   return {
