@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 export const PIN_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'back'];
 
@@ -18,7 +18,40 @@ export function PinDots({ digits, max = 4 }) {
   );
 }
 
-export function PinKeypad({ onKey }) {
+export function PinKeypad({ onKey, keyboard = true }) {
+  useEffect(() => {
+    if (!keyboard || typeof window === 'undefined') return undefined;
+
+    const onDown = (e) => {
+      const el = e.target;
+      if (
+        el &&
+        (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        onKey('back');
+        return;
+      }
+      let digit = null;
+      if (e.key.length === 1 && e.key >= '0' && e.key <= '9') {
+        digit = e.key;
+      } else if (e.code?.startsWith('Numpad') && e.code.length === 7) {
+        const d = e.code.slice(6);
+        if (d >= '0' && d <= '9') digit = d;
+      }
+      if (digit != null) {
+        e.preventDefault();
+        onKey(digit);
+      }
+    };
+
+    window.addEventListener('keydown', onDown);
+    return () => window.removeEventListener('keydown', onDown);
+  }, [onKey, keyboard]);
+
   return (
     <div className="grid grid-cols-3 gap-x-10 gap-y-5 px-6">
       {PIN_KEYS.map((k, idx) =>

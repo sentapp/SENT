@@ -20,15 +20,13 @@ async function resolveMissionaryId(client) {
   return user.id;
 }
 
-// Normalize the legacy 'warm' enum value (pre-`potential_partner` migration)
-// to the current canonical value so UI filters, badges, and forms only ever
-// have to deal with the four supported categories. The DB row keeps its
-// 'warm' value until the contact is saved again, which is fine since the
-// enum still allows it.
+const ALLOWED_CATEGORIES = new Set(['supporter', 'church', 'former']);
+
+/** Map legacy / removed categories into one of the three live enum values. */
 function normalizeCategoryFromRow(value) {
-  if (!value) return 'potential_partner';
-  if (value === 'warm') return 'potential_partner';
-  return value;
+  if (!value || value === 'warm' || value === 'potential_partner') return 'church';
+  if (ALLOWED_CATEGORIES.has(value)) return value;
+  return 'church';
 }
 
 function mapRow(row) {
@@ -57,10 +55,11 @@ function toRow(payload, missionaryId) {
         ? payload.monthly_amount
         : 0;
 
-  // Migrate legacy 'warm' values on write so any contact saved through the app
-  // gets the new canonical enum value. New rows default to 'potential_partner'.
-  const rawCategory = payload.category || 'potential_partner';
-  const category = rawCategory === 'warm' ? 'potential_partner' : rawCategory;
+  const rawCategory = payload.category || 'supporter';
+  const category =
+    ALLOWED_CATEGORIES.has(rawCategory) && rawCategory !== 'warm' && rawCategory !== 'potential_partner'
+      ? rawCategory
+      : 'church';
 
   return {
     missionary_id: missionaryId,

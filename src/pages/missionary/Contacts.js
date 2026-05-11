@@ -10,7 +10,12 @@ import {
 } from '../../lib/contactImport';
 import { cleanEmail, cleanNotes, cleanPhone, mergeImportNotes } from '../../lib/contactImportClean';
 import { phaseLabelFromPct } from '../../lib/importProgressText';
-import { findEmailConflict, findPhoneConflict } from '../../lib/contactDuplicates';
+import {
+  findEmailConflict,
+  findPhoneConflict,
+  isImportDuplicateByPhoneOrName,
+  isImportDuplicateByPhoneOrNameAgainstRows,
+} from '../../lib/contactDuplicates';
 import {
   contactPickerResultsToDrafts,
   isContactPickerSupported,
@@ -18,25 +23,21 @@ import {
 import { supabase } from '../../lib/supabaseClient';
 import { Button, Card, EmptyState, Input, Label, LoadingSpinner, Modal, Textarea } from '../../components/ui';
 
-// Filter ids map directly to public.contact_category enum values, except 'all'.
-// Legacy 'warm' rows are normalized to 'potential_partner' when read from Supabase
-// (see useSupabaseContacts.mapRow), so they show up under "Potential partners".
+// Filter ids map to public.contact_category enum values, except 'all'.
+// Order: All → Supporters → Churches / Organizations → Previous Partners.
 const FILTERS = [
   { id: 'all', label: 'All' },
-  { id: 'potential_partner', label: 'Potential partners' },
-  { id: 'former', label: 'Former partners' },
-  { id: 'church', label: 'Churches' },
   { id: 'supporter', label: 'Supporters' },
+  { id: 'church', label: 'Churches / Organizations' },
+  { id: 'former', label: 'Previous Partners' },
 ];
 
-// Display labels for the four allowed contact_category values.
-// 'warm' is intentionally absent — legacy values are mapped to 'potential_partner'
-// when contacts are loaded from Supabase.
+const ALLOWED_CATEGORIES = new Set(['supporter', 'church', 'former']);
+
 const CATEGORY_OPTIONS = [
-  { value: 'potential_partner', label: 'Potential partner' },
-  { value: 'former', label: 'Former partner' },
-  { value: 'church', label: 'Church / org' },
-  { value: 'supporter', label: 'Supporter (monthly giver)' },
+  { value: 'supporter', label: 'Supporters' },
+  { value: 'church', label: 'Churches / Organizations' },
+  { value: 'former', label: 'Previous Partners' },
 ];
 
 const CATEGORY_LABELS = CATEGORY_OPTIONS.reduce((acc, opt) => {
@@ -44,24 +45,23 @@ const CATEGORY_LABELS = CATEGORY_OPTIONS.reduce((acc, opt) => {
   return acc;
 }, {});
 
-// Defensive: if a stale 'warm' value sneaks through (e.g. realtime row), still
-// show the user-friendly label.
 function categoryLabel(value) {
-  if (value === 'warm') return CATEGORY_LABELS.potential_partner;
+  if (value === 'warm' || value === 'potential_partner') return CATEGORY_LABELS.church;
   return CATEGORY_LABELS[value] || value || '—';
 }
 
-// Migrate any legacy 'warm' value to the new 'potential_partner' enum value.
+/** Coerce to one of the three live categories before save. */
 function normalizeCategoryForSave(value) {
-  if (value === 'warm') return 'potential_partner';
-  return value || 'potential_partner';
+  if (ALLOWED_CATEGORIES.has(value)) return value;
+  if (value === 'warm' || value === 'potential_partner') return 'church';
+  return 'church';
 }
 
 const emptyForm = {
   fullName: '',
   phone: '',
   email: '',
-  category: 'potential_partner',
+  category: 'supporter',
   status: 'prospect',
   monthlyAmount: '',
   notes: '',
@@ -233,41 +233,57 @@ export default function MissionaryContacts() {
     resetImportWizard();
   };
 
-  const bulkInsertParsedContacts = useCallback(async (items) => {
-    if (!supabase) throw new Error('Supabase is not configured.');
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user?.id) throw new Error('Not signed in.');
-    if (!items?.length) return [];
+  const bulkInsertParsedContacts = useCallback(
+    async (items) => {
+      if (!supabase) throw new Error('Supabase is not configured.');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user?.id) throw new Error('Not signed in.');
+      if (!items?.length) return { inserted: 0, skippedDuplicates: 0 };
 
-    const rows = items.map((d) => {
-      const originalPhone = String(d.phone ?? '').trim();
-      const originalEmail = String(d.email ?? '').trim();
-      const phone = cleanPhone(originalPhone);
-      const email = cleanEmail(originalEmail);
-      const extras = cleanNotes(phone, email, originalPhone, originalEmail);
-      const notes = mergeImportNotes(String(d.notes ?? '').trim(), extras);
-      return {
-        missionary_id: user.id,
-        full_name: String(d.full_name ?? d.fullName ?? d.name ?? '').trim() || 'Imported contact',
-        phone,
-        email,
-        category: normalizeCategoryForSave(d.category),
-        status: d.status || 'prospect',
-        notes,
-        monthly_amount: Number.isFinite(Number(d.monthly_amount)) ? Number(d.monthly_amount) : 0,
-      };
-    });
+      let skippedDuplicates = 0;
+      const rows = [];
 
-    const { data, error } = await supabase.from('contacts').insert(rows).select();
-    if (error) throw error;
-    return data ?? [];
-  }, []);
+      for (const d of items) {
+        const originalPhone = String(d.phone ?? '').trim();
+        const originalEmail = String(d.email ?? '').trim();
+        const phone = cleanPhone(originalPhone);
+        const email = cleanEmail(originalEmail);
+        const extras = cleanNotes(phone, email, originalPhone, originalEmail);
+        const notes = mergeImportNotes(String(d.notes ?? '').trim(), extras);
+        const row = {
+          missionary_id: user.id,
+          full_name: String(d.full_name ?? d.fullName ?? d.name ?? '').trim() || 'Imported contact',
+          phone,
+          email,
+          category: normalizeCategoryForSave(d.category),
+          status: d.status || 'prospect',
+          notes,
+          monthly_amount: Number.isFinite(Number(d.monthly_amount)) ? Number(d.monthly_amount) : 0,
+        };
 
-  const finalizeImportSuccess = async (count) => {
+        if (isImportDuplicateByPhoneOrName(row, contacts) || isImportDuplicateByPhoneOrNameAgainstRows(row, rows)) {
+          skippedDuplicates += 1;
+          continue;
+        }
+        rows.push(row);
+      }
+
+      if (!rows.length) {
+        return { inserted: 0, skippedDuplicates };
+      }
+
+      const { data, error } = await supabase.from('contacts').insert(rows).select();
+      if (error) throw error;
+      return { inserted: data?.length ?? rows.length, skippedDuplicates };
+    },
+    [contacts],
+  );
+
+  const finalizeImportSuccess = async (imported, skippedDuplicates = 0) => {
     await refetch();
-    setImportSummary({ imported: count, skipped: 0, updated: 0 });
+    setImportSummary({ imported, skipped: skippedDuplicates, updated: 0 });
     setImportOpen(false);
     setImportBusy(false);
     setImportReading(false);
@@ -439,7 +455,7 @@ export default function MissionaryContacts() {
       fullName: c.fullName,
       phone: c.phone,
       email: c.email,
-      // Map legacy 'warm' to 'potential_partner' so the dropdown has a valid
+      // Map legacy categories so the dropdown only uses supporter / church / former.
       // selection. When the user saves, the row is rewritten with the new value.
       category: normalizeCategoryForSave(c.category),
       status: c.status,

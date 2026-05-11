@@ -44,6 +44,45 @@ export function findDuplicateMatch(incoming, existingContacts) {
 }
 
 /**
+ * Import duplicate rule: skip if same phone (7+ digits) OR same full name as an existing contact.
+ * Does not use email (import spec).
+ */
+export function isImportDuplicateByPhoneOrName(candidate, existingContacts) {
+  if (!existingContacts?.length) return false;
+  const inPhone = normalizePhone(candidate.phone);
+  const inName = normalizeFullName(candidate.full_name ?? candidate.fullName ?? candidate.name);
+  for (const ex of existingContacts) {
+    const exPhone = normalizePhone(ex.phone);
+    if (inPhone.length >= MIN_PHONE_DIGITS && exPhone.length >= MIN_PHONE_DIGITS && inPhone === exPhone) {
+      return true;
+    }
+    if (inName.length > 0) {
+      const exName = normalizeFullName(ex.fullName ?? ex.full_name);
+      if (exName.length > 0 && exName === inName) return true;
+    }
+  }
+  return false;
+}
+
+/** Same rules as {@link isImportDuplicateByPhoneOrName} but against already-built insert rows (same import batch). */
+export function isImportDuplicateByPhoneOrNameAgainstRows(candidate, rows) {
+  if (!rows?.length) return false;
+  const inPhone = normalizePhone(candidate.phone);
+  const inName = normalizeFullName(candidate.full_name);
+  for (const r of rows) {
+    const exPhone = normalizePhone(r.phone);
+    if (inPhone.length >= MIN_PHONE_DIGITS && exPhone.length >= MIN_PHONE_DIGITS && inPhone === exPhone) {
+      return true;
+    }
+    if (inName.length > 0) {
+      const exName = normalizeFullName(r.full_name);
+      if (exName.length > 0 && exName === inName) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Annotate import drafts: duplicateOf, default selected false if duplicate.
  */
 export function annotateDraftsWithDuplicates(drafts, existingContacts) {
@@ -80,7 +119,10 @@ export function draftToInsertPayload(d) {
     full_name,
     phone: d.phone || '',
     email: d.email || '',
-    category: d.category === 'warm' ? 'potential_partner' : d.category || 'potential_partner',
+    category:
+      d.category === 'warm' || d.category === 'potential_partner' || !['supporter', 'church', 'former'].includes(d.category)
+        ? 'church'
+        : d.category || 'church',
     status: d.status || 'prospect',
     monthly_amount: Number.isFinite(Number(d.monthly_amount)) ? Number(d.monthly_amount) : 0,
     notes: d.notes || '',
