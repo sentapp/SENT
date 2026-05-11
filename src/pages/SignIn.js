@@ -73,6 +73,14 @@ function SignIn() {
     };
   }, []);
 
+  useEffect(() => {
+    const msg = location.state?.passwordResetSuccess;
+    if (typeof msg === 'string' && msg.trim()) {
+      setInfo(msg.trim());
+      navigate('.', { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
+
   const attemptPinUnlock = useCallback(async () => {
     if (view !== 'pin' || pin.length < 4 || pinUnlockInFlight.current) return;
     pinUnlockInFlight.current = true;

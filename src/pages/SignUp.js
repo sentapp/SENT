@@ -139,6 +139,22 @@ function SignUp() {
             setSubmitting(false);
             return;
           }
+          const retry = await upsertOwnProfile({
+            userId: uid,
+            email: userEmail,
+            fullName: name,
+            role,
+            inviteCodeUsed: role === 'supporter' ? inviteCode : null,
+          });
+          if (!retry.ok) {
+            setError(
+              retry.error
+                ? `Could not update your profile: ${retry.error}. Try signing in if you already have an account.`
+                : 'Could not update your profile. Try signing in.',
+            );
+            setSubmitting(false);
+            return;
+          }
         }
 
         const { role: resolvedRole } = await ensureProfileRole(data.session.user);

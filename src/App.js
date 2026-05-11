@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Landing from './pages/Landing';
 import SignUp from './pages/SignUp';
 import SignIn from './pages/SignIn';
+import ResetPassword from './pages/ResetPassword';
 import MissionaryLayout from './layouts/MissionaryLayout';
 import SupporterLayout from './layouts/SupporterLayout';
 
@@ -26,6 +27,7 @@ function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/signin" element={<SignIn />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route
         path="/missionary"

@@ -1,5 +1,15 @@
 import { supabase } from './supabaseClient';
 
+/** Where Supabase redirects after "Reset password" email (must match Dashboard → Auth → URL Configuration). */
+export function getPasswordResetRedirectTo() {
+  const fromEnv = (process.env.REACT_APP_PASSWORD_RESET_REDIRECT || '').trim();
+  if (fromEnv) return fromEnv;
+  if (typeof window !== 'undefined' && window.location?.origin && /^https?:\/\//i.test(window.location.origin)) {
+    return `${window.location.origin}/reset-password`;
+  }
+  return 'https://sent-kohl.vercel.app/reset-password';
+}
+
 /**
  * @param {{ email: string; password: string; fullName: string; role: 'missionary' | 'supporter'; inviteCode?: string }} params
  */
@@ -36,8 +46,14 @@ export async function requestPasswordReset(email) {
     return { error: new Error('Supabase is not configured.') };
   }
   return supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/signin` : undefined,
+    redirectTo: getPasswordResetRedirectTo(),
   });
+}
+
+/** Same as `requestPasswordReset` but throws on error (matches common helper style). */
+export async function resetPassword(email) {
+  const { error } = await requestPasswordReset(email);
+  if (error) throw error;
 }
 
 /** Supabase returns various messages when the email is already registered. */
@@ -67,8 +83,9 @@ export async function waitForProfileRow(userId, { attempts = 12, delayMs = 250 }
 }
 
 /**
- * Ensures a `profiles` row exists (upsert). Requires an authenticated session as that user.
- * Use when the `handle_new_user` trigger is slow or missing — RLS must allow self-insert (see migration).
+ * Ensures a `profiles` row exists for `userId` (insert or update on conflict).
+ * Handles leftover rows if auth was removed but `profiles` was not cleaned up: same `id` on re-signup updates in place.
+ * Requires an authenticated session as that user. RLS must allow self-insert/update (see migration).
  */
 export async function upsertOwnProfile({ userId, email, fullName, role, inviteCodeUsed }) {
   if (!supabase || !userId) {
@@ -81,12 +98,12 @@ export async function upsertOwnProfile({ userId, email, fullName, role, inviteCo
   const { error } = await supabase.from('profiles').upsert(
     {
       id: userId,
-      email: email?.trim() || null,
+      email: (email || '').trim() || null,
       full_name: (fullName || '').trim(),
       role: r,
       invite_code_used: invite,
     },
-    { onConflict: 'id' },
+    { onConflict: 'id', ignoreDuplicates: false },
   );
 
   if (error) {

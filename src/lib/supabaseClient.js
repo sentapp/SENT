@@ -5,7 +5,8 @@ const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
 /**
  * Production (e.g. https://sent-kohl.vercel.app):
- * 1) Supabase Dashboard → Authentication → URL Configuration — set Site URL + Redirect URLs for that host.
+ * 1) Supabase Dashboard → Authentication → URL Configuration — set Site URL and add Redirect URLs, including
+ *    `https://sent-kohl.vercel.app/reset-password` (password reset email). Optional: `REACT_APP_PASSWORD_RESET_REDIRECT`.
  * 2) Vercel env: REACT_APP_SUPABASE_URL, REACT_APP_SUPABASE_ANON_KEY (optional: REACT_APP_SITE_URL).
  *
  * `redirectTo` uses REACT_APP_SITE_URL when set; otherwise the browser’s current origin at load time
