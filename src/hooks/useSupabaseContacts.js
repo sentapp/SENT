@@ -3,8 +3,44 @@ import { supabase } from '../lib/supabaseClient';
 import { normalizeCategoryForSave, normalizeCategoryFromDb } from '../lib/contactCategories';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../lib/contactStatuses';
 
-const CONTACT_SELECT =
-  'id, missionary_id, full_name, phone, email, address, category, status, monthly_amount, notes, is_one_time_donor, one_time_donation_amount, one_time_donation_date, created_at, updated_at';
+/** Columns present in the original schema — safe before optional migrations. */
+const CONTACT_SELECT_MINIMAL =
+  'id, missionary_id, full_name, phone, email, category, status, monthly_amount, notes, created_at, updated_at';
+
+/** Optional CRM columns — only used when they exist in the database. */
+const CONTACT_SELECT_OPTIONAL_SUFFIX =
+  'address, is_one_time_donor, one_time_donation_amount, one_time_donation_date';
+
+const CONTACT_SELECT_FULL = `${CONTACT_SELECT_MINIMAL}, ${CONTACT_SELECT_OPTIONAL_SUFFIX}`;
+
+function isMissingColumnError(err) {
+  if (!err) return false;
+  const code = String(err.code ?? '');
+  const msg = String(err.message ?? '').toLowerCase();
+  if (code === '42703') return true;
+  if (msg.includes('column') && msg.includes('does not exist')) return true;
+  if (msg.includes('undefined column')) return true;
+  return false;
+}
+
+function friendlyContactsFetchError(err) {
+  const raw = String(err?.message ?? err ?? 'Unknown error');
+  if (isMissingColumnError(err)) {
+    return `${raw} If you recently added columns, run the latest Supabase migrations for the contacts table.`;
+  }
+  return raw;
+}
+
+/** Omit optional CRM columns when the database has not been migrated yet (avoids insert/update errors). */
+export function stripOptionalContactColumnsFromRow(row, schemaPartial) {
+  if (!schemaPartial || !row || typeof row !== 'object') return row;
+  const out = { ...row };
+  delete out.address;
+  delete out.is_one_time_donor;
+  delete out.one_time_donation_amount;
+  delete out.one_time_donation_date;
+  return out;
+}
 
 /**
  * Privacy: contacts are **never** loaded without scoping to the signed-in missionary.
@@ -29,12 +65,13 @@ function mapRow(row) {
     fullName: row.full_name || '',
     phone: row.phone || '',
     email: row.email || '',
-    address: row.address || '',
+    address: row.address != null ? String(row.address) : '',
     category: normalizeCategoryFromDb(row.category),
     status: normalizeStatusFromDb(row.status),
     monthlyAmount: row.monthly_amount != null ? Number(row.monthly_amount) : 0,
     isOneTimeDonor: Boolean(row.is_one_time_donor),
-    oneTimeDonationAmount: row.one_time_donation_amount != null ? Number(row.one_time_donation_amount) : 0,
+    oneTimeDonationAmount:
+      row.one_time_donation_amount != null ? Number(row.one_time_donation_amount) : 0,
     oneTimeDonationDate: row.one_time_donation_date
       ? String(row.one_time_donation_date).slice(0, 10)
       : '',
@@ -99,34 +136,55 @@ export function useSupabaseContacts(authUserId) {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  /** True when optional columns were omitted because they are not in the DB yet. */
+  const [schemaPartial, setSchemaPartial] = useState(false);
 
   const refetch = useCallback(async () => {
     if (!supabase) {
       setContacts([]);
       setLoading(false);
+      setSchemaPartial(false);
       return;
     }
     setLoading(true);
     setError(null);
-    const missionaryId = await resolveMissionaryId(supabase);
-    if (!missionaryId) {
-      setContacts([]);
-      setLoading(false);
-      return;
-    }
-    const { data, error: qErr } = await supabase
-      .from('contacts')
-      .select(CONTACT_SELECT)
-      .eq('missionary_id', missionaryId)
-      .order('created_at', { ascending: false });
+    setSchemaPartial(false);
 
-    if (qErr) {
-      setError(qErr.message);
+    try {
+      const missionaryId = await resolveMissionaryId(supabase);
+      if (!missionaryId) {
+        setContacts([]);
+        setLoading(false);
+        return;
+      }
+
+      let q = await supabase
+        .from('contacts')
+        .select(CONTACT_SELECT_FULL)
+        .eq('missionary_id', missionaryId)
+        .order('created_at', { ascending: false });
+
+      if (q.error && isMissingColumnError(q.error)) {
+        setSchemaPartial(true);
+        q = await supabase
+          .from('contacts')
+          .select(CONTACT_SELECT_MINIMAL)
+          .eq('missionary_id', missionaryId)
+          .order('created_at', { ascending: false });
+      }
+
+      if (q.error) {
+        setError(friendlyContactsFetchError(q.error));
+        setContacts([]);
+      } else {
+        setContacts((q.data || []).map(mapRow));
+      }
+    } catch (e) {
+      setError(friendlyContactsFetchError(e));
       setContacts([]);
-    } else {
-      setContacts((data || []).map(mapRow));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -138,13 +196,13 @@ export function useSupabaseContacts(authUserId) {
       if (!supabase) return { ok: false, error: 'Not signed in.' };
       const missionaryId = await resolveMissionaryId(supabase);
       if (!missionaryId) return { ok: false, error: 'Not signed in.' };
-      const row = toRow(payload, missionaryId);
+      const row = stripOptionalContactColumnsFromRow(toRow(payload, missionaryId), schemaPartial);
       const { error: insErr } = await supabase.from('contacts').insert(row);
       if (insErr) return { ok: false, error: insErr.message };
       await refetch();
       return { ok: true };
     },
-    [refetch],
+    [refetch, schemaPartial],
   );
 
   const updateContact = useCallback(
@@ -154,12 +212,17 @@ export function useSupabaseContacts(authUserId) {
       if (!missionaryId) return { ok: false, error: 'Not signed in.' };
       const row = toRow(payload, missionaryId);
       delete row.missionary_id;
-      const { error: upErr } = await supabase.from('contacts').update(row).eq('id', id).eq('missionary_id', missionaryId);
+      const safeRow = stripOptionalContactColumnsFromRow(row, schemaPartial);
+      const { error: upErr } = await supabase
+        .from('contacts')
+        .update(safeRow)
+        .eq('id', id)
+        .eq('missionary_id', missionaryId);
       if (upErr) return { ok: false, error: upErr.message };
       await refetch();
       return { ok: true };
     },
-    [refetch],
+    [refetch, schemaPartial],
   );
 
   const deleteContact = useCallback(
@@ -167,7 +230,12 @@ export function useSupabaseContacts(authUserId) {
       if (!supabase || !id) return { ok: false, error: 'Missing id.' };
       const missionaryId = await resolveMissionaryId(supabase);
       if (!missionaryId) return { ok: false, error: 'Not signed in.' };
-      const { error: delErr } = await supabase.from('contacts').delete().eq('id', id).eq('missionary_id', missionaryId);
+      // Safety: never delete without scoping to the signed-in missionary's CRM rows.
+      const { error: delErr } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', id)
+        .eq('missionary_id', missionaryId);
       if (delErr) return { ok: false, error: delErr.message };
       await refetch();
       return { ok: true };
@@ -185,6 +253,7 @@ export function useSupabaseContacts(authUserId) {
     contacts,
     loading,
     error,
+    schemaPartial,
     refetch,
     insertContact,
     updateContact,

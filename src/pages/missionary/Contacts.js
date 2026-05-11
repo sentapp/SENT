@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
+import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import {
   NO_CONTACTS_IN_SHEET_MSG,
   flexibleImportFromSplitMatrix,
@@ -121,6 +121,7 @@ export default function MissionaryContacts() {
     contacts,
     loading,
     error: loadError,
+    schemaPartial,
     refetch,
     updateContact,
     deleteContact,
@@ -270,7 +271,9 @@ export default function MissionaryContacts() {
       let inserted = 0;
       const total = rows.length;
       for (let i = 0; i < rows.length; i += BATCH) {
-        const chunk = rows.slice(i, i + BATCH);
+        const chunk = rows
+          .slice(i, i + BATCH)
+          .map((r) => stripOptionalContactColumnsFromRow(r, schemaPartial));
         const { data, error } = await supabase.from('contacts').insert(chunk).select();
         if (error) throw error;
         inserted += data?.length ?? chunk.length;
@@ -278,7 +281,7 @@ export default function MissionaryContacts() {
       }
       return { inserted, skippedDuplicates };
     },
-    [contacts],
+    [contacts, schemaPartial],
   );
 
   const finalizeImportSuccess = async (imported, skippedDuplicates = 0) => {
@@ -564,20 +567,25 @@ export default function MissionaryContacts() {
         ? form.oneTimeDonationDate.trim().slice(0, 10)
         : null;
 
-    const { error: insErr } = await supabase.from('contacts').insert({
-      missionary_id: user.id,
-      full_name: form.fullName.trim(),
-      phone: (form.phone || '').trim(),
-      email: (form.email || '').trim(),
-      address: (form.address || '').trim(),
-      category: categorySaved,
-      status: statusSaved,
-      notes: (form.notes || '').trim(),
-      monthly_amount,
-      is_one_time_donor: isDonor,
-      one_time_donation_amount,
-      one_time_donation_date,
-    });
+    const insertRow = stripOptionalContactColumnsFromRow(
+      {
+        missionary_id: user.id,
+        full_name: form.fullName.trim(),
+        phone: (form.phone || '').trim(),
+        email: (form.email || '').trim(),
+        address: (form.address || '').trim(),
+        category: categorySaved,
+        status: statusSaved,
+        notes: (form.notes || '').trim(),
+        monthly_amount,
+        is_one_time_donor: isDonor,
+        one_time_donation_amount,
+        one_time_donation_date,
+      },
+      schemaPartial,
+    );
+
+    const { error: insErr } = await supabase.from('contacts').insert(insertRow);
 
     if (insErr) {
       setSaveError(insErr.message || 'Could not save contact.');
@@ -661,7 +669,12 @@ export default function MissionaryContacts() {
         setBulkDeleteError('Not signed in.');
         return;
       }
-      const { error } = await supabase.from('contacts').delete().in('id', ids).eq('missionary_id', authUser.id);
+      // Safety: only delete rows owned by this missionary (never delete without missionary_id filter).
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .in('id', ids)
+        .eq('missionary_id', authUser.id);
       if (error) {
         setBulkDeleteError(error.message);
         return;
@@ -764,6 +777,16 @@ export default function MissionaryContacts() {
 
       {loadError ? (
         <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>
+      ) : null}
+
+      {schemaPartial ? (
+        <div className="rounded-btn border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold">Database upgrade suggested</p>
+          <p className="mt-1 text-amber-900/90">
+            Your contacts are loading with core fields only. Run the latest Supabase migrations for optional columns
+            (address, one-time donor fields). Until then, those fields won&apos;t save.
+          </p>
+        </div>
       ) : null}
 
       <Card className="p-4">
