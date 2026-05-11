@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply h-full min-h-0 antialiased font-sans text-neutral-900;
+  }
+}
+
+/* Leaflet — readable popups for emoji markers (custom icons in src/lib/mapMarkers.js) */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+.leaflet-popup-content {
+  margin: 12px 14px;
+  line-height: 1.4;
+  min-width: 0;
+}
+.leaflet-container a.leaflet-popup-close-button {
+  padding: 10px 12px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #737373;
+}
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: #171717;
+}

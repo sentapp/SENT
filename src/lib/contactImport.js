@@ -1,0 +1,829 @@
+import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// CDN worker (version must match pdfjs-dist in package.json — Safari is picky about workers)
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+function normalizeHeader(h) {
+  return String(h || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+}
+
+function scoreColumn(name, keywords) {
+  const n = normalizeHeader(name);
+  return keywords.some((k) => n.includes(k)) ? 1 : 0;
+}
+
+/**
+ * Ultra-flexible column detection: header keywords, first-row content heuristics, then 0/1/2 fallback.
+ */
+export function findBestColumns(headers, firstRow) {
+  const h = headers.map((x) => (x || '').toString().toLowerCase().trim());
+
+  let nameIdx = h.findIndex((x) => x.includes('name') || x.includes('full') || x.includes('contact'));
+
+  let phoneIdx = h.findIndex(
+    (x) =>
+      x.includes('phone') ||
+      x.includes('mobile') ||
+      x.includes('cell') ||
+      x.includes('tel') ||
+      x.includes('number'),
+  );
+
+  let emailIdx = h.findIndex((x) => x.includes('email') || x.includes('mail'));
+
+  if (nameIdx === -1 || phoneIdx === -1) {
+    (firstRow || []).forEach((val, i) => {
+      const v = (val || '').toString();
+      if (phoneIdx === -1 && /\d{7,}/.test(v.replace(/\D/g, ''))) phoneIdx = i;
+      if (emailIdx === -1 && v.includes('@')) emailIdx = i;
+      if (nameIdx === -1 && /^[a-zA-Z\s]{3,}$/.test(v) && i !== phoneIdx && i !== emailIdx) nameIdx = i;
+    });
+  }
+
+  if (nameIdx === -1) nameIdx = 0;
+  if (phoneIdx === -1) phoneIdx = 1;
+  if (emailIdx === -1) emailIdx = 2;
+
+  return { nameIdx, phoneIdx, emailIdx };
+}
+
+function padRowToWidth(row, width) {
+  const a = Array.isArray(row) ? row.map((c) => c) : [];
+  while (a.length < width) a.push('');
+  return a;
+}
+
+function padRawRows(rawRows) {
+  const filtered = (rawRows || []).filter(
+    (r) => Array.isArray(r) && r.some((c) => String(c ?? '').trim() !== ''),
+  );
+  if (!filtered.length) return [];
+  const width = Math.max(...filtered.map((r) => r.length), 0);
+  if (width === 0) return [];
+  return filtered.map((r) => padRowToWidth(r, width));
+}
+
+function rowLooksLikeHeaderRow(cells) {
+  if (!cells?.length) return false;
+  return cells.some((c) => {
+    const s = (c || '').toString().toLowerCase().trim();
+    if (!s) return false;
+    if (s.includes('name') || s.includes('contact')) return true;
+    if (s.includes('phone') || s.includes('mobile') || s.includes('cell') || s.includes('tel')) return true;
+    if (s.includes('email') || s.includes('mail')) return true;
+    return false;
+  });
+}
+
+/** Reject placeholder / header / URL “names” — not real contacts. */
+export function shouldRejectImportName(rawName) {
+  const name = String(rawName || '').trim();
+  if (!name) return true;
+  if (/^\d+$/.test(name)) return true;
+  if (name.length > 50) return true;
+  const lower = name.toLowerCase();
+  if (
+    lower.includes('instagram') ||
+    lower.includes('facebook') ||
+    lower.includes('twitter') ||
+    lower.includes('linkedin')
+  ) {
+    return true;
+  }
+  if (/\b(n\/a|none)\b/i.test(lower) || lower === 'n/a' || lower === 'none') return true;
+  if (/https?:\/\//i.test(name) || /\bwww\./i.test(name)) return true;
+  if (lower.includes('contact collection phase') || lower.includes('netcasting phase') || lower.includes('dashboard')) {
+    return true;
+  }
+  const hasLower = /[a-z]/.test(name);
+  if (/[A-Za-z]/.test(name) && !hasLower && name.length >= 8) return true;
+  return false;
+}
+
+/** @deprecated use shouldRejectImportName */
+export function shouldSkipImportNameCandidate(rawName) {
+  return shouldRejectImportName(rawName);
+}
+
+function resolveImportColumnIndices(width, headerCells) {
+  if (width <= 0) return { nameIdx: 0, phoneIdx: 0, emailIdx: 0 };
+  const h = headerCells.map((x) => (x || '').toString().toLowerCase().trim());
+
+  let nameIdx = -1;
+  let phoneIdx = -1;
+  let emailIdx = -1;
+
+  for (let i = 0; i < h.length; i += 1) {
+    const x = h[i];
+    if (!x) continue;
+    if (x.includes('email') || x === 'e-mail') emailIdx = i;
+    else if (x.includes('phone') || x.includes('mobile') || x.includes('cell') || x.includes('tel')) phoneIdx = i;
+    else if (x.includes('name') && !x.includes('company') && !x.includes('user name')) nameIdx = i;
+  }
+
+  const hinted = nameIdx >= 0 && phoneIdx >= 0 && nameIdx < phoneIdx;
+  if (hinted) {
+    if (emailIdx < 0) emailIdx = Math.min(phoneIdx + 1, width - 1);
+    if (emailIdx <= phoneIdx) emailIdx = Math.min(width - 1, phoneIdx + 1);
+    return {
+      nameIdx: Math.min(nameIdx, width - 1),
+      phoneIdx: Math.min(phoneIdx, width - 1),
+      emailIdx: Math.min(Math.max(emailIdx, 0), width - 1),
+    };
+  }
+
+  if (width >= 4) {
+    return { nameIdx: 1, phoneIdx: 2, emailIdx: 3 };
+  }
+  if (width === 3) return { nameIdx: 0, phoneIdx: 1, emailIdx: 2 };
+  if (width === 2) return { nameIdx: 0, phoneIdx: 1, emailIdx: 1 };
+  return { nameIdx: 0, phoneIdx: 0, emailIdx: 0 };
+}
+
+function strictPhoneFromCell(val) {
+  const raw = String(val ?? '').trim();
+  if (!raw) return { phone: '', extra: '' };
+  if (/[a-zA-Z]/.test(raw)) return { phone: '', extra: raw };
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length >= 7) return { phone: digits, extra: '' };
+  return { phone: '', extra: raw };
+}
+
+function strictEmailFromCell(val) {
+  const raw = String(val ?? '').trim();
+  if (!raw) return { email: '', extra: '' };
+  if (!raw.includes('@')) return { email: '', extra: raw };
+  return { email: raw, extra: '' };
+}
+
+function countRowsWithNameAndPhone(dataRows, nameIdx, phoneIdx) {
+  let n = 0;
+  for (const row of dataRows) {
+    const nameStr = String(row[nameIdx] ?? '').trim();
+    if (shouldRejectImportName(nameStr)) continue;
+    const { phone } = strictPhoneFromCell(row[phoneIdx]);
+    if (nameStr && /[a-zA-Z]/.test(nameStr) && phone.length >= 7) n += 1;
+  }
+  return n;
+}
+
+/**
+ * @returns {{ sheetName: string, bothCount: number, drafts: object[] } | null}
+ */
+export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
+  const padded = padRawRows(rawRows);
+  if (!padded.length) return null;
+
+  let headerCells;
+  let dataRows;
+  if (rowLooksLikeHeaderRow(padded[0])) {
+    headerCells = padded[0].map((c) => String(c ?? ''));
+    dataRows = padded.slice(1);
+  } else {
+    headerCells = new Array(padded[0].length).fill('');
+    dataRows = padded;
+  }
+
+  dataRows = dataRows.filter((r) => r.some((c) => String(c ?? '').trim() !== ''));
+  if (!dataRows.length) return null;
+
+  const width = padded[0].length;
+  console.log('[import] Sheet:', sheetName);
+  console.log('Raw headers:', headerCells);
+  console.log('First 3 rows:', dataRows.slice(0, 3));
+
+  let { nameIdx, phoneIdx, emailIdx } = resolveImportColumnIndices(width, headerCells);
+  const clamp = (idx) => Math.min(Math.max(0, idx), Math.max(0, width - 1));
+  nameIdx = clamp(nameIdx);
+  phoneIdx = clamp(phoneIdx);
+  emailIdx = clamp(emailIdx);
+  if (nameIdx >= phoneIdx) {
+    const fixed = resolveImportColumnIndices(width, []);
+    nameIdx = clamp(fixed.nameIdx);
+    phoneIdx = clamp(fixed.phoneIdx);
+    emailIdx = clamp(fixed.emailIdx);
+  }
+
+  const bothCount = countRowsWithNameAndPhone(dataRows, nameIdx, phoneIdx);
+
+  const drafts = [];
+  for (let i = 0; i < dataRows.length; i += 1) {
+    const row = dataRows[i];
+    const nameRaw = String(row[nameIdx] ?? '').trim();
+    if (shouldRejectImportName(nameRaw)) continue;
+
+    const phoneRaw = String(row[phoneIdx] ?? '').trim();
+    const emailRaw = String(row[emailIdx] ?? '').trim();
+    const { phone: phoneOut, extra: phoneExtra } = strictPhoneFromCell(phoneRaw);
+    const { email: emailOut, extra: emailExtra } = strictEmailFromCell(emailRaw);
+
+    const notesParts = [];
+    if (phoneExtra) notesParts.push(phoneExtra);
+    if (emailExtra) notesParts.push(emailExtra);
+    for (let j = 4; j < width; j += 1) {
+      const cell = String(row[j] ?? '').trim();
+      if (cell) notesParts.push(cell);
+    }
+    const notes = notesParts.join(' | ');
+
+    const hasRealName = nameRaw.length > 0 && /[a-zA-Z]/.test(nameRaw);
+    if (!hasRealName) continue;
+
+    if (!phoneOut && !emailOut) continue;
+
+    drafts.push({
+      id: `flex-${sheetName}-${i}`,
+      full_name: nameRaw,
+      phone: phoneOut,
+      email: emailOut,
+      category: 'potential_partner',
+      status: 'prospect',
+      monthly_amount: 0,
+      notes,
+    });
+  }
+
+  if (!drafts.length) return null;
+  return { sheetName, bothCount, drafts };
+}
+
+/**
+ * Build a raw grid from `{ headers, rows }` (e.g. Google Sheets API) and run flexible import.
+ */
+export function flexibleImportFromSplitMatrix(matrix, sheetName = 'Sheet') {
+  const headers = matrix?.headers || [];
+  const rows = matrix?.rows || [];
+  if (!headers.length && !rows.length) return [];
+  const width = Math.max(headers.length, ...rows.map((r) => (Array.isArray(r) ? r.length : 0)), 0);
+  if (width === 0) return [];
+  const rawGrid = [padRowToWidth(headers, width)];
+  for (const r of rows) {
+    rawGrid.push(padRowToWidth(r, width));
+  }
+  const evaluated = flexibleImportEvaluateRawSheet(rawGrid, sheetName);
+  return evaluated?.drafts ?? [];
+}
+
+/**
+ * Parse CSV / Excel to contact drafts: raw grids, flexible columns, multi-sheet Excel (skip dashboard tabs).
+ */
+export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}) {
+  const name = (file?.name || '').toLowerCase();
+  const ext = name.split('.').pop() || '';
+
+  const sheetResults = [];
+
+  if (ext === 'csv') {
+    onProgress?.({ pct: 5, note: 'Reading CSV…' });
+    const text = await file.text();
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const parsed = Papa.parse(text, { header: false, skipEmptyLines: true });
+    const rawRows = parsed.data || [];
+    sheetResults.push({ name: 'CSV', rawRows });
+  } else if (ext === 'xlsx' || ext === 'xls') {
+    onProgress?.({ pct: 5, note: 'Reading workbook…' });
+    const buf = await file.arrayBuffer();
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const wb = XLSX.read(buf, { type: 'array' });
+    for (let s = 0; s < wb.SheetNames.length; s += 1) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const sheetName = wb.SheetNames[s];
+      const sheet = wb.Sheets[sheetName];
+      const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      sheetResults.push({ name: sheetName, rawRows });
+      onProgress?.({
+        pct: Math.round(10 + (s / Math.max(1, wb.SheetNames.length)) * 40),
+        note: `Scanning “${sheetName}”…`,
+      });
+    }
+  } else {
+    throw new Error('Use .csv, .xlsx, or .xls');
+  }
+
+  const evaluated = [];
+  for (const { name: sheetName, rawRows } of sheetResults) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const ev = flexibleImportEvaluateRawSheet(rawRows, sheetName);
+    if (ev) evaluated.push(ev);
+  }
+
+  let candidates = evaluated.filter((e) => e.bothCount >= 3);
+  if (!candidates.length) candidates = evaluated.slice();
+  candidates.sort((a, b) => b.bothCount - a.bothCount || b.drafts.length - a.drafts.length);
+
+  const best = candidates[0];
+  if (!best?.drafts?.length) {
+    console.log('[import] Flexible spreadsheet: total contacts to insert: 0');
+    return [];
+  }
+
+  console.log(
+    `[import] Using sheet “${best.sheetName}” (${best.bothCount} rows with name+phone). Contacts found: ${best.drafts.length}`,
+  );
+  console.log('[import] Flexible spreadsheet: total contacts to insert:', best.drafts.length);
+  onProgress?.({ pct: 100, note: 'Ready to save…' });
+  return best.drafts;
+}
+
+/** Pick columns for name / phone / email from header row */
+export function detectColumns(headers) {
+  const list = headers.map((h, i) => ({ raw: h, index: i }));
+  let fullNameIdx = list.findIndex((_, i) => scoreColumn(headers[i], ['name', 'fullname', 'full_name', 'contact']) >= 1);
+  if (fullNameIdx < 0) fullNameIdx = 0;
+
+  let phoneIdx = list.findIndex((_, i) => scoreColumn(headers[i], ['phone', 'tel', 'mobile', 'cell']) >= 1);
+  let emailIdx = list.findIndex((_, i) => scoreColumn(headers[i], ['email', 'e-mail', 'mail']) >= 1);
+
+  return { fullNameIdx, phoneIdx, emailIdx };
+}
+
+export function rowsToContacts(rows, headers) {
+  const { fullNameIdx, phoneIdx, emailIdx } = detectColumns(headers);
+  const out = [];
+  for (const row of rows) {
+    if (!Array.isArray(row) && typeof row !== 'object') continue;
+    const arr = Array.isArray(row) ? row : headers.map((h) => row[h]);
+    const fullName = String(arr[fullNameIdx] ?? '').trim();
+    const phone = phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '';
+    const email = emailIdx >= 0 ? String(arr[emailIdx] ?? '').trim() : '';
+    if (!fullName && !email && !phone) continue;
+    out.push({
+      full_name: fullName || email || phone || 'Imported contact',
+      phone,
+      email,
+      category: 'potential_partner',
+      status: 'prospect',
+      monthly_amount: 0,
+      notes: '',
+    });
+  }
+  return out;
+}
+
+export function parseCsvText(text) {
+  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+  if (!parsed.data?.length) return [];
+  const headers = parsed.meta.fields || Object.keys(parsed.data[0]);
+  const rows = parsed.data.map((obj) => headers.map((h) => obj[h]));
+  return rowsToContacts(rows, headers);
+}
+
+/** Raw matrix: row 0 = headers (for mapping + preview). */
+export function parseCsvTextToMatrix(text) {
+  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+  if (!parsed.data?.length) return { headers: [], rows: [] };
+  const headers = (parsed.meta.fields || Object.keys(parsed.data[0])).map((h) => String(h ?? ''));
+  const rows = parsed.data.map((obj) => headers.map((h) => obj[h]));
+  return { headers, rows };
+}
+
+/**
+ * Build matrix row-by-row with progress every 10 rows (matches worker behavior).
+ * Progress: (processed / totalRows) * 100
+ */
+export function parseCsvTextToMatrixWithProgress(text, onProgress, { signal } = {}) {
+  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+  if (!parsed.data?.length) return { headers: [], rows: [] };
+  const headers = (parsed.meta.fields || Object.keys(parsed.data[0])).map((h) => String(h ?? ''));
+  const total = parsed.data.length;
+  const rows = [];
+  for (let i = 0; i < total; i += 1) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const obj = parsed.data[i];
+    rows.push(headers.map((h) => obj[h]));
+    const done = i + 1;
+    if (done % 10 === 0 || done === total) {
+      const pct = Math.round((done / total) * 100);
+      onProgress?.({ pct, processed: done, total });
+    }
+  }
+  return { headers, rows };
+}
+
+export async function parseExcelFile(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const sheetName = wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  if (!rows?.length) return [];
+  const headers = rows[0].map((c) => String(c ?? ''));
+  const dataRows = rows.slice(1).filter((r) => r.some((c) => String(c ?? '').trim()));
+  return rowsToContacts(dataRows, headers);
+}
+
+export async function parseSpreadsheetFileToMatrix(file) {
+  const name = (file?.name || '').toLowerCase();
+  const ext = name.split('.').pop() || '';
+  if (ext === 'csv') {
+    const text = await file.text();
+    return parseCsvTextToMatrix(text);
+  }
+  if (ext === 'xlsx' || ext === 'xls') {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheetName = wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    if (!rows?.length) return { headers: [], rows: [] };
+    const headers = rows[0].map((c) => String(c ?? ''));
+    const dataRows = rows.slice(1).filter((r) => r.some((c) => String(c ?? '').trim()));
+    return { headers, rows: dataRows };
+  }
+  throw new Error('Use .csv, .xlsx, or .xls');
+}
+
+/** Main-thread fallback with real row progress (every 10 rows). */
+export async function parseSpreadsheetFileToMatrixWithProgress(file, onProgress, { signal } = {}) {
+  const name = (file?.name || '').toLowerCase();
+  const ext = name.split('.').pop() || '';
+  if (ext === 'csv') {
+    const text = await file.text();
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    return parseCsvTextToMatrixWithProgress(text, onProgress, { signal });
+  }
+  if (ext === 'xlsx' || ext === 'xls') {
+    const buf = await file.arrayBuffer();
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheetName = wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    if (!rawRows?.length) return { headers: [], rows: [] };
+    const headers = rawRows[0].map((c) => String(c ?? ''));
+    const dataRows = rawRows.slice(1).filter((r) => r.some((c) => String(c ?? '').trim()));
+    const total = dataRows.length;
+    if (total === 0) return { headers, rows: [] };
+    const rows = [];
+    for (let i = 0; i < total; i += 1) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      rows.push(dataRows[i]);
+      const done = i + 1;
+      if (done % 10 === 0 || done === total) {
+        const pct = Math.round((done / total) * 100);
+        onProgress?.({ pct, processed: done, total });
+      }
+    }
+    return { headers, rows };
+  }
+  throw new Error('Use .csv, .xlsx, or .xls');
+}
+
+/** Email pattern for PDF text extraction */
+const PDF_EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+/** North-American style phone (legacy fallback parser) */
+const PDF_PHONE_RE = /(\+?1?\s?)?(\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/g;
+
+/**
+ * NetCasting-style tracker: 10 digits or formatted US phone (PDF table rows).
+ * @see parseNetCastingTrackerLines
+ */
+const NETCAST_PHONE_RE = /\b\d{10}\b|\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/g;
+
+function draftFromParts(full_name, phone, email) {
+  return {
+    full_name: full_name || email || phone || 'Imported contact',
+    phone: phone || '',
+    email: email || '',
+    category: 'potential_partner',
+    status: 'prospect',
+    monthly_amount: 0,
+    notes: '',
+  };
+}
+
+/** Join pdf.js text items with spaces / newlines so table rows stay line-separated. */
+function extractPageTextWithLineBreaks(textContent) {
+  let out = '';
+  for (const item of textContent.items || []) {
+    const s = typeof item.str === 'string' ? item.str : '';
+    out += s;
+    if (item.hasEOL) out += '\n';
+    else out += ' ';
+  }
+  return out;
+}
+
+function normalizeUsPhoneDigits(raw) {
+  const d = String(raw || '').replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('1')) return d.slice(1);
+  return d.slice(-10);
+}
+
+/** Detect header like: # Full Name | Phone Number | Email (NetCasting Tracker). */
+function isNetCastingHeaderLine(line) {
+  const t = String(line || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!t.includes('full') || !t.includes('name')) return false;
+  if (!t.includes('phone')) return false;
+  return true;
+}
+
+function findNetCastPhoneOnLine(line) {
+  const re = new RegExp(NETCAST_PHONE_RE.source, 'g');
+  let last = null;
+  let m;
+  while ((m = re.exec(line)) !== null) {
+    const raw = m[0];
+    const digits = normalizeUsPhoneDigits(raw);
+    if (digits.length === 10) {
+      last = { raw, index: m.index, digits };
+    }
+  }
+  return last;
+}
+
+function parseNetCastingDataLine(trimmedLine) {
+  const trimmed = trimmedLine.trim();
+  if (trimmed.length < 14) return null;
+
+  const phoneInfo = findNetCastPhoneOnLine(trimmed);
+  if (!phoneInfo) return null;
+
+  const beforePhone = trimmed.slice(0, phoneInfo.index).trim();
+  const afterPhone = trimmed.slice(phoneInfo.index + phoneInfo.raw.length).trim();
+
+  const rowMatch = beforePhone.match(/^(\d{1,5})\s+(.+)$/);
+  if (!rowMatch) return null;
+
+  let full_name = rowMatch[2].trim().replace(/\s+/g, ' ');
+  if (!full_name || full_name.length < 2) return null;
+  const ln = full_name.toLowerCase();
+  if (ln === 'full name' || ln.includes('phone number') || ln === 'email') return null;
+
+  let email = '';
+  const em = afterPhone.match(PDF_EMAIL_RE);
+  if (em) email = em[0];
+
+  return draftFromParts(full_name, phoneInfo.digits, email);
+}
+
+/**
+ * Hannah's NetCasting Tracker–style tables: row index, full name, US phone, optional email.
+ * Parses line-by-line after optional header row detection.
+ */
+export function parseNetCastingTrackerLines(lines) {
+  const rawLines = Array.isArray(lines) ? lines : String(lines || '').split(/\r?\n/);
+  const trimmed = rawLines.map((l) => l.trim()).filter(Boolean);
+
+  let startIdx = 0;
+  const headerIdx = trimmed.findIndex((l) => isNetCastingHeaderLine(l));
+  if (headerIdx >= 0) startIdx = headerIdx + 1;
+
+  const byPhone = new Map();
+
+  for (let i = startIdx; i < trimmed.length; i += 1) {
+    const line = trimmed[i];
+    if (isNetCastingHeaderLine(line)) continue;
+
+    const draft = parseNetCastingDataLine(line);
+    if (!draft) continue;
+
+    const key = normalizeUsPhoneDigits(draft.phone);
+    if (key.length !== 10) continue;
+    if (!byPhone.has(key)) byPhone.set(key, draft);
+  }
+
+  return Array.from(byPhone.values());
+}
+
+/**
+ * Extract contacts from PDF plain text: NetCasting tracker tables first, then legacy heuristics.
+ */
+export function parsePdfContactsFromText(text) {
+  const raw = String(text || '');
+  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+  const netCast = parseNetCastingTrackerLines(lines);
+  if (netCast.length > 0) return netCast;
+
+  const contacts = [];
+  const seenEmail = new Set();
+
+  for (const line of lines) {
+    const emails = [...line.matchAll(new RegExp(PDF_EMAIL_RE.source, 'gi'))].map((m) => m[0]);
+    const phones = [...line.matchAll(new RegExp(PDF_PHONE_RE.source, 'g'))].map((m) => m[0].trim());
+
+    for (const email of emails) {
+      const key = email.toLowerCase();
+      if (seenEmail.has(key)) continue;
+      seenEmail.add(key);
+
+      const lowerLine = line.toLowerCase();
+      const idx = lowerLine.indexOf(email.toLowerCase());
+      let namePart = idx >= 0 ? line.slice(0, idx) : line;
+      namePart = namePart.replace(new RegExp(PDF_PHONE_RE.source, 'g'), '').trim();
+      namePart = namePart.replace(/^[-•*–—\t\s\d.)]+/, '').trim();
+      const full_name = namePart || email.split('@')[0] || 'Imported contact';
+
+      contacts.push(draftFromParts(full_name, phones[0] || '', email));
+    }
+  }
+
+  if (contacts.length > 0) return contacts;
+
+  const emailsGlobal = [...raw.matchAll(new RegExp(PDF_EMAIL_RE.source, 'gi'))].map((m) => m[0]);
+  const phonesGlobal = [...raw.matchAll(new RegExp(PDF_PHONE_RE.source, 'g'))].map((m) => m[0].trim());
+
+  if (emailsGlobal.length === 0 && phonesGlobal.length === 0 && lines.length) {
+    return lines.slice(0, 80).map((line, i) =>
+      draftFromParts(line.length > 120 ? `${line.slice(0, 117)}…` : line, '', ''),
+    );
+  }
+
+  const n = Math.max(emailsGlobal.length, phonesGlobal.length, 1);
+  const out = [];
+  for (let i = 0; i < n; i += 1) {
+    out.push(
+      draftFromParts(
+        lines[i] || `Contact ${i + 1}`,
+        phonesGlobal[i] || '',
+        emailsGlobal[i] || '',
+      ),
+    );
+  }
+  return out.filter((c) => c.full_name?.trim() || c.email?.trim() || c.phone?.trim());
+}
+
+/**
+ * If PDF.js / workers fail (e.g. Safari), scan decoded bytes for phone-like patterns.
+ */
+function parsePdfContactsFromRawBytesLatin1(arrayBuffer) {
+  const raw = new TextDecoder('latin1').decode(arrayBuffer);
+  const phones = [...raw.matchAll(new RegExp(PDF_PHONE_RE.source, 'g'))].map((m) => m[0].trim());
+  const netcast = [...raw.matchAll(new RegExp(NETCAST_PHONE_RE.source, 'g'))].map((m) => m[0]);
+  const combined = [...phones, ...netcast];
+  const byDigits = new Map();
+  for (const p of combined) {
+    const digits = String(p || '').replace(/\D/g, '');
+    const norm = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits.slice(-10);
+    if (norm.length !== 10) continue;
+    if (!byDigits.has(norm)) {
+      byDigits.set(norm, draftFromParts('Imported contact', norm, ''));
+    }
+  }
+  const emails = [...raw.matchAll(new RegExp(PDF_EMAIL_RE.source, 'gi'))].map((m) => m[0]);
+  const out = Array.from(byDigits.values());
+  for (const email of emails) {
+    if (!out.some((c) => c.email === email)) {
+      out.push(draftFromParts(email.split('@')[0] || 'Imported contact', '', email));
+    }
+  }
+  return out.filter((c) => c.full_name?.trim() || c.email?.trim() || c.phone?.trim());
+}
+
+export async function parsePdfFile(file, { shouldCancel, onProgress } = {}) {
+  let arrayBuffer;
+  try {
+    arrayBuffer = await file.arrayBuffer();
+  } catch (e) {
+    console.error('PDF error:', e);
+    throw new Error(`PDF error: ${e?.message || String(e)}`);
+  }
+
+  try {
+    onProgress?.({ pct: 2, note: 'Loading PDF…', processed: 0, total: 1 });
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const numPages = pdf.numPages || 1;
+    let fullText = '';
+    for (let i = 1; i <= numPages; i += 1) {
+      if (shouldCancel?.()) return [];
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += extractPageTextWithLineBreaks(content);
+      fullText += '\n';
+      const pct = Math.round((i / numPages) * 85);
+      onProgress?.({ pct, note: `Reading page ${i} of ${numPages}…`, processed: i, total: numPages });
+      if (shouldCancel?.()) return [];
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    onProgress?.({ pct: 92, note: 'Parsing contacts…', processed: numPages, total: numPages });
+    const contacts = parsePdfContactsFromText(fullText);
+    onProgress?.({ pct: 100, processed: numPages, total: numPages });
+    return contacts;
+  } catch (err) {
+    console.error('PDF error:', err);
+    onProgress?.({ pct: 40, note: 'PDF viewer unavailable — scanning file for phone numbers…', processed: 0, total: 1 });
+    try {
+      const fallback = parsePdfContactsFromRawBytesLatin1(arrayBuffer);
+      if (fallback.length) {
+        onProgress?.({ pct: 100, note: 'Imported from text scan', processed: 1, total: 1 });
+        return fallback;
+      }
+    } catch (fallbackErr) {
+      console.error('PDF fallback error:', fallbackErr);
+    }
+    throw new Error(`PDF error: ${err?.message || String(err)}`);
+  }
+}
+
+/**
+ * Prefer Web Worker + Papa/xlsx; fall back to main-thread parse if workers fail.
+ */
+export async function parseSpreadsheetFileToMatrixReliable(file, { onProgress, signal } = {}) {
+  const { parseSpreadsheetFileWithWorker } = await import('./spreadsheetWorkerClient');
+  try {
+    return await parseSpreadsheetFileWithWorker(file, {
+      onProgress,
+      signal,
+    });
+  } catch (e) {
+    if (e?.name === 'AbortError') throw e;
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    console.warn('[import] Worker parse unavailable, using main-thread fallback', e);
+    return parseSpreadsheetFileToMatrixWithProgress(file, onProgress, { signal });
+  }
+}
+
+/** Returns spreadsheet ID or null (matches Google Sheets URL shape). */
+export function extractGoogleSheetId(url) {
+  const u = String(url || '').trim();
+  const m = u.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return m ? m[1] : null;
+}
+
+/** Public CSV export URLs — try plain `format=csv` first, then `gid=0` for the first tab. */
+export function buildGoogleSheetCsvExportUrls(sheetId) {
+  const id = String(sheetId || '').trim();
+  return [
+    `https://docs.google.com/spreadsheets/d/${id}/export?format=csv`,
+    `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=0`,
+  ];
+}
+
+export const INVALID_GOOGLE_SHEET_LINK_MSG = 'Please paste a valid Google Sheets link';
+export const SHEET_NOT_PUBLIC_MSG =
+  'This sheet is not publicly accessible. Please change sharing settings to Anyone with the link';
+export const NO_CONTACTS_IN_SHEET_MSG =
+  'No contacts found in this sheet — make sure your sheet has name, phone, and email columns';
+
+function looksLikeHtmlSignInPage(text) {
+  const t = String(text || '').slice(0, 500).trim().toLowerCase();
+  return t.startsWith('<!') || (t.startsWith('<html') && (t.includes('sign in') || t.includes('login')));
+}
+
+/**
+ * Fetch CSV from `docs.google.com/.../export?format=csv`: direct fetch when CORS allows,
+ * then corsproxy.io and allorigins for each export URL variant.
+ */
+export async function fetchGoogleSheetAsCsv(sheetUrl) {
+  const sheetId = extractGoogleSheetId(sheetUrl);
+  if (!sheetId) {
+    throw new Error(INVALID_GOOGLE_SHEET_LINK_MSG);
+  }
+
+  const exportUrls = buildGoogleSheetCsvExportUrls(sheetId);
+
+  async function fetchDirect(url) {
+    try {
+      const res = await fetch(url, { method: 'GET', mode: 'cors' });
+      if (!res.ok) return null;
+      let text = await res.text();
+      text = text.replace(/^\uFEFF/, '');
+      if (!text.trim() || looksLikeHtmlSignInPage(text)) return null;
+      return text;
+    } catch {
+      return null;
+    }
+  }
+
+  for (const url of exportUrls) {
+    const direct = await fetchDirect(url);
+    if (direct) return direct;
+  }
+
+  async function tryProxy(proxiedUrl) {
+    try {
+      const res = await fetch(proxiedUrl);
+      const text = (await res.text()).replace(/^\uFEFF/, '');
+      const ok = res.ok && Boolean(text?.trim()) && !looksLikeHtmlSignInPage(text);
+      return { text, ok };
+    } catch {
+      return { text: '', ok: false };
+    }
+  }
+
+  const proxies = [
+    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  ];
+
+  for (const exportUrl of exportUrls) {
+    for (const wrap of proxies) {
+      const attempt = await tryProxy(wrap(exportUrl));
+      if (attempt.ok && attempt.text?.trim()) return attempt.text;
+    }
+  }
+
+  throw new Error(SHEET_NOT_PUBLIC_MSG);
+}

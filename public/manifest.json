@@ -1,0 +1,9 @@
+{
+  "short_name": "SENT",
+  "name": "SENT",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#185FA5",
+  "background_color": "#ffffff"
+}
