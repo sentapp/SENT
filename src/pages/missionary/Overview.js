@@ -2,29 +2,12 @@ import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
+import { useMissionaryPipelineContacts } from '../../hooks/useMissionaryPipelineContacts';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { useAppState } from '../../state/AppState';
 import MissionPushSection from '../../components/MissionPushSection';
-import { CONTACT_STATUS_FORM_OPTIONS, statusLabel } from '../../lib/contactStatuses';
+import MissionaryPipelineSection from '../../components/MissionaryPipelineSection';
 import { Button, Card, EmptyState, Input } from '../../components/ui';
-
-const FOLLOW_UP_STATUSES = new Set(['asked', 'contacted', 'meeting_scheduled']);
-
-function contactPayloadForUpdate(c) {
-  return {
-    fullName: c.fullName,
-    phone: c.phone,
-    email: c.email,
-    address: c.address,
-    category: c.category,
-    status: c.status,
-    monthlyAmount: c.monthlyAmount,
-    notes: c.notes,
-    isOneTimeDonor: c.isOneTimeDonor,
-    oneTimeDonationAmount: c.oneTimeDonationAmount,
-    oneTimeDonationDate: c.oneTimeDonationDate,
-  };
-}
 
 function MetricCard({ label, value, onActivate, ariaLabel, tint, Icon }) {
   return (
@@ -77,7 +60,13 @@ const metricIconBook = (
 export default function MissionaryOverview() {
   const navigate = useNavigate();
   const { profile, user, loading: authLoading } = useAuth();
-  const { contacts, updateContact, loading: contactsLoading } = useSupabaseContacts(user?.id, { authLoading });
+  const { contacts, refetch: refetchContacts } = useSupabaseContacts(user?.id, {
+    authLoading,
+  });
+  const { pipelineContacts, pipelineLoading, updatePipelineContactStatus } = useMissionaryPipelineContacts(
+    user?.id,
+    { authLoading, onAfterMutation: () => void refetchContacts() },
+  );
   const { prayerRequests: prayer, loading: prayerLoading } = useMissionaryPrayerRequests(user?.id);
   const { state, actions } = useAppState();
   const [newTask, setNewTask] = useState('');
@@ -105,16 +94,6 @@ export default function MissionaryOverview() {
     () => oneTimeDonors.reduce((sum, c) => sum + (Number(c.oneTimeDonationAmount) || 0), 0),
     [oneTimeDonors],
   );
-  const recentOneTimeDonors = useMemo(() => {
-    return [...oneTimeDonors]
-      .sort((a, b) => {
-        const da = a.oneTimeDonationDate || '';
-        const db = b.oneTimeDonationDate || '';
-        if (db !== da) return db.localeCompare(da);
-        return (a.fullName || '').localeCompare(b.fullName || '');
-      })
-      .slice(0, 12);
-  }, [oneTimeDonors]);
 
   const goal = Number(profile?.monthly_goal ?? state.missionary.profile.monthlyGoal ?? 0) || 0;
   const gap = Math.max(goal - monthlySupport, 0);
@@ -122,27 +101,11 @@ export default function MissionaryOverview() {
 
   const tasks = state.missionary.tasks;
 
-  const pipelineContacts = useMemo(
-    () =>
-      [...contacts]
-        .filter((c) => FOLLOW_UP_STATUSES.has(c.status))
-        .sort((a, b) => {
-          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return tb - ta;
-        })
-        .slice(0, 10),
-    [contacts],
-  );
-
   const changePipelineStatus = async (contact, nextStatus) => {
     if (!contact?.id || nextStatus === contact.status) return;
     setPipelineError('');
     setPipelineSavingId(contact.id);
-    const res = await updateContact(contact.id, {
-      ...contactPayloadForUpdate(contact),
-      status: nextStatus,
-    });
+    const res = await updatePipelineContactStatus(contact.id, nextStatus);
     setPipelineSavingId(null);
     if (!res.ok) setPipelineError(res.error || 'Could not update status.');
   };
@@ -212,52 +175,10 @@ export default function MissionaryOverview() {
         </div>
       </Card>
 
-      {user?.id ? <MissionPushSection missionaryId={user.id} /> : null}
-
       <Card className="p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-neutral-900">One-time gifts</p>
-            <p className="mt-1 text-xs text-neutral-500">
-              Separate from recurring monthly support — track single gifts here.
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Total received</p>
-            <p className="text-2xl font-semibold tracking-tight text-neutral-900">${totalOneTimeGifts.toFixed(2)}</p>
-          </div>
-        </div>
-
-        {recentOneTimeDonors.length === 0 ? (
-          <p className="mt-4 text-sm text-neutral-500">
-            No one-time donors yet — mark contacts as one-time donors on the Contacts tab.
-          </p>
-        ) : (
-          <ul className="mt-4 divide-y divide-neutral-100 rounded-card border border-neutral-200">
-            {recentOneTimeDonors.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-                <span className="font-medium text-neutral-900">{c.fullName || 'Unnamed'}</span>
-                <span className="shrink-0 font-semibold text-neutral-800">
-                  ${Number(c.oneTimeDonationAmount || 0).toLocaleString(undefined, {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 2,
-                  })}
-                  {c.oneTimeDonationDate ? (
-                    <span className="ml-2 font-normal text-neutral-500">
-                      ·{' '}
-                      {new Date(`${c.oneTimeDonationDate}T12:00:00`).toLocaleDateString()}
-                    </span>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-3">
-          <p className="text-sm font-semibold text-neutral-900">Supporter prayer requests</p>
+        <p className="text-sm font-semibold text-neutral-900">Supporter prayer requests</p>
+        <p className="mt-1 text-xs text-neutral-500">Requests shared by supporters on their prayer wall.</p>
+        <div className="mt-4">
           {prayerLoading ? (
             <p className="text-sm text-neutral-500">Loading prayer wall…</p>
           ) : prayer.length === 0 ? (
@@ -269,7 +190,7 @@ export default function MissionaryOverview() {
           ) : (
             <div className="space-y-3">
               {prayer.map((r) => (
-                <Card key={r.id} className="p-4">
+                <Card key={r.id} className="border-neutral-100 p-4 shadow-none">
                   <p className="text-sm text-neutral-800">{r.body}</p>
                   <p className="mt-2 text-xs text-neutral-500">{(r.prayedCount ?? 0).toString()} prayers</p>
                 </Card>
@@ -277,59 +198,17 @@ export default function MissionaryOverview() {
             </div>
           )}
         </div>
+      </Card>
 
-        <div className="space-y-3">
-          <p className="text-sm font-semibold text-neutral-900">Pipeline</p>
-          <p className="text-xs text-neutral-500">Contacts in asked, contacted, or meeting scheduled — newest first.</p>
-          {pipelineError ? <p className="text-xs font-medium text-red-600">{pipelineError}</p> : null}
-          {contactsLoading ? (
-            <p className="text-sm text-neutral-500">Loading contacts…</p>
-          ) : pipelineContacts.length === 0 ? (
-            <EmptyState
-              icon="clipboard"
-              title="Pipeline is clear"
-              subtitle="Contacts in Asked, Contacted, or Meeting scheduled will appear here when it’s time to follow up."
-            />
-          ) : (
-            <div className="space-y-3">
-              {pipelineContacts.map((c) => (
-                <Card key={c.id} className="p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-sm font-semibold text-neutral-900">{c.fullName || 'Unnamed'}</p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">
-                          {statusLabel(c.status)}
-                        </span>
-                        {Number(c.monthlyAmount) > 0 ? (
-                          <span className="text-xs font-medium text-neutral-600">
-                            ${Number(c.monthlyAmount).toFixed(0)}/mo
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <label className="shrink-0 text-xs font-medium text-neutral-600">
-                      <span className="sr-only">Update status for {c.fullName || 'contact'}</span>
-                      <select
-                        className="mt-0.5 max-w-[200px] rounded-btn border border-neutral-200 bg-white py-2 pl-2 pr-8 text-sm font-semibold text-neutral-800"
-                        value={c.status}
-                        disabled={pipelineSavingId === c.id}
-                        onChange={(e) => void changePipelineStatus(c, e.target.value)}
-                      >
-                        {CONTACT_STATUS_FORM_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      <MissionaryPipelineSection
+        pipelineContacts={pipelineContacts}
+        pipelineLoading={pipelineLoading}
+        pipelineError={pipelineError}
+        pipelineSavingId={pipelineSavingId}
+        onChangeStatus={changePipelineStatus}
+      />
+
+      {user?.id ? <MissionPushSection missionaryId={user.id} /> : null}
 
       <Card className="p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">

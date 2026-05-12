@@ -135,11 +135,21 @@ export function EmptyState({ title, subtitle, action, icon }) {
   );
 }
 
-export function Modal({ open, title, children, onClose, footer }) {
+export function Modal({ open, title, children, onClose, footer, backdropClose = true }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 md:items-center">
-      <div className="w-full max-w-lg rounded-card border border-mission-line bg-white shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 md:items-center"
+      role="presentation"
+      onClick={() => {
+        if (backdropClose) onClose?.();
+      }}
+    >
+      <div
+        className="w-full max-w-lg rounded-card border border-mission-line bg-white shadow-xl"
+        role="presentation"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between border-b border-mission-line px-5 py-4">
           <p className="sent-section-title">{title}</p>
           <button

@@ -167,6 +167,7 @@ export default function MissionaryContacts() {
   const [dedupeBanner, setDedupeBanner] = useState(null);
 
   const sessionRef = useRef(0);
+  const contactUrlHandledRef = useRef(null);
   const importAbortRef = useRef(null);
   const [importReading, setImportReading] = useState(false);
   const [importProgress, setImportProgress] = useState(null);
@@ -511,7 +512,7 @@ export default function MissionaryContacts() {
     setModalOpen(true);
   };
 
-  const openEdit = (c) => {
+  const openEdit = useCallback((c) => {
     setContactSaveSuccess('');
     setEditingId(c.id);
     setForm({
@@ -533,7 +534,7 @@ export default function MissionaryContacts() {
     });
     setSaveError('');
     setModalOpen(true);
-  };
+  }, []);
 
   const saveContact = async () => {
     setSaveError('');
@@ -717,6 +718,38 @@ export default function MissionaryContacts() {
       document.getElementById(`contact-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }, []);
+
+  useEffect(() => {
+    const id = searchParams.get('contact');
+    if (!id) {
+      contactUrlHandledRef.current = null;
+      return;
+    }
+    if (loading) return;
+    const c = contacts.find((x) => x.id === id);
+    if (!c) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('contact');
+          return next;
+        },
+        { replace: true },
+      );
+      return;
+    }
+    if (contactUrlHandledRef.current === id) return;
+    contactUrlHandledRef.current = id;
+    openEdit(c);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('contact');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, loading, contacts, setSearchParams, openEdit]);
 
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
 
