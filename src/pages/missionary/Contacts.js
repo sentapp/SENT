@@ -538,7 +538,12 @@ export default function MissionaryContacts() {
 
   const editFromUrl = searchParams.get('edit') ?? searchParams.get('contact');
   useEffect(() => {
-    if (!editFromUrl || loading || authLoading) return;
+    if (!editFromUrl) {
+      contactUrlHandledRef.current = null;
+      return;
+    }
+    if (loading || authLoading) return;
+    if (contactUrlHandledRef.current === editFromUrl) return;
     const c = contacts.find((x) => String(x.id) === String(editFromUrl));
     const stripEditParams = () => {
       setSearchParams(
@@ -552,9 +557,11 @@ export default function MissionaryContacts() {
       );
     };
     if (!c) {
+      contactUrlHandledRef.current = null;
       stripEditParams();
       return;
     }
+    contactUrlHandledRef.current = editFromUrl;
     openEdit(c);
     stripEditParams();
   }, [editFromUrl, loading, authLoading, contacts, openEdit, setSearchParams]);
@@ -741,38 +748,6 @@ export default function MissionaryContacts() {
       document.getElementById(`contact-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }, []);
-
-  useEffect(() => {
-    const id = searchParams.get('contact');
-    if (!id) {
-      contactUrlHandledRef.current = null;
-      return;
-    }
-    if (loading) return;
-    const c = contacts.find((x) => x.id === id);
-    if (!c) {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete('contact');
-          return next;
-        },
-        { replace: true },
-      );
-      return;
-    }
-    if (contactUrlHandledRef.current === id) return;
-    contactUrlHandledRef.current = id;
-    openEdit(c);
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('contact');
-        return next;
-      },
-      { replace: true },
-    );
-  }, [searchParams, loading, contacts, setSearchParams, openEdit]);
 
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
 

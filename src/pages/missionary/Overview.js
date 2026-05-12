@@ -70,9 +70,34 @@ export default function MissionaryOverview() {
   );
   const { prayerRequests: prayer, loading: prayerLoading } = useMissionaryPrayerRequests(user?.id);
   const { state, actions } = useAppState();
+  const [newTask, setNewTask] = useState('');
+  const [pipelineSavingId, setPipelineSavingId] = useState(null);
+  const [pipelineError, setPipelineError] = useState('');
+  const taskInputRef = useRef(null);
   const [oneTimeModalOpen, setOneTimeModalOpen] = useState(false);
   const [oneTimeModalRows, setOneTimeModalRows] = useState([]);
   const [oneTimeModalLoading, setOneTimeModalLoading] = useState(false);
+
+  const partners = useMemo(
+    () =>
+      contacts.filter(
+        (c) =>
+          c.category === 'supporter' ||
+          c.status === 'partner' ||
+          Number(c.monthlyAmount) > 0,
+      ),
+    [contacts],
+  );
+  const monthlySupport = useMemo(
+    () => partners.reduce((sum, p) => sum + (Number(p.monthlyAmount) || 0), 0),
+    [partners],
+  );
+
+  const oneTimeDonors = useMemo(() => contacts.filter((c) => c.isOneTimeDonor), [contacts]);
+  const totalOneTimeGifts = useMemo(
+    () => oneTimeDonors.reduce((sum, c) => sum + (Number(c.oneTimeDonationAmount) || 0), 0),
+    [oneTimeDonors],
+  );
 
   const oneTimeModalTotal = useMemo(
     () => oneTimeModalRows.reduce((sum, r) => sum + (Number(r.one_time_donation_amount) || 0), 0),
@@ -117,27 +142,6 @@ export default function MissionaryOverview() {
       cancelled = true;
     };
   }, [oneTimeModalOpen, user?.id, oneTimeDonors]);
-
-  const partners = useMemo(
-    () =>
-      contacts.filter(
-        (c) =>
-          c.category === 'supporter' ||
-          c.status === 'partner' ||
-          Number(c.monthlyAmount) > 0,
-      ),
-    [contacts],
-  );
-  const monthlySupport = useMemo(
-    () => partners.reduce((sum, p) => sum + (Number(p.monthlyAmount) || 0), 0),
-    [partners],
-  );
-
-  const oneTimeDonors = useMemo(() => contacts.filter((c) => c.isOneTimeDonor), [contacts]);
-  const totalOneTimeGifts = useMemo(
-    () => oneTimeDonors.reduce((sum, c) => sum + (Number(c.oneTimeDonationAmount) || 0), 0),
-    [oneTimeDonors],
-  );
 
   const goal = Number(profile?.monthly_goal ?? state.missionary.profile.monthlyGoal ?? 0) || 0;
   const gap = Math.max(goal - monthlySupport, 0);

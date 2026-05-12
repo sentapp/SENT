@@ -6,7 +6,7 @@ import {
   updateMissionPush,
 } from '../lib/missionPushesRepository';
 import { isMissingMissionPushesTableError } from '../lib/supabaseRelationErrors';
-import { Button, Card, EmptyState, Input, Label, Modal, Textarea } from './ui';
+import { Button, Card, Input, Label, Modal, Textarea } from './ui';
 
 function num(v) {
   const n = Number(String(v ?? '').replace(/,/g, ''));
@@ -146,9 +146,7 @@ export default function MissionPushSection({ missionaryId }) {
     clearFeedback();
     const { error: e } = await updateMissionPush(id, { is_active: false });
     if (e) {
-      if (isMissingMissionPushesTableError(e)) {
-        /* treat like no pushes */
-      } else {
+      if (!isMissingMissionPushesTableError(e)) {
         setMutedNote('Could not close this push. Try again later.');
       }
     } else {
@@ -163,9 +161,7 @@ export default function MissionPushSection({ missionaryId }) {
     try {
       const { error: e } = await updateMissionPush(id, { raised_amount: num(raisedDraft) });
       if (e) {
-        if (isMissingMissionPushesTableError(e)) {
-          /* no-op */
-        } else {
+        if (!isMissingMissionPushesTableError(e)) {
           setMutedNote('Could not update amount raised. Try again later.');
         }
       } else {
@@ -184,35 +180,19 @@ export default function MissionPushSection({ missionaryId }) {
 
   const daysLine = active ? daysRemainingLabel(active.deadline) : null;
 
-  const showEmptyState = !loading && !active && !showForm;
-
   return (
-    <Card className="p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-neutral-900">Mission push</p>
-          <p className="mt-1 text-xs text-neutral-500">Fundraising goal supporters see on their feed.</p>
-        </div>
-        {!showForm && active ? (
-          <Button type="button" variant="secondary" onClick={openCreate}>
-            Start new push
-          </Button>
-        ) : null}
-      </div>
-
-      {formError ? <p className="mt-3 text-sm text-amber-800">{formError}</p> : null}
+    <div className="space-y-3">
+      {formError ? <p className="text-sm text-amber-800">{formError}</p> : null}
       {msg ? (
-        <p className="mt-3 rounded-btn border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+        <p className="rounded-btn border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
           {msg}
         </p>
       ) : null}
       {mutedNote ? (
-        <p className="mt-3 rounded-btn border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+        <p className="rounded-btn border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
           {mutedNote}
         </p>
       ) : null}
-
-      {loading ? <p className="mt-4 text-sm text-neutral-500">Loading…</p> : null}
 
       <Modal
         open={showForm}
@@ -259,57 +239,76 @@ export default function MissionPushSection({ missionaryId }) {
         </div>
       </Modal>
 
-      {!loading && active && !showForm ? (
-        <div className="mt-4 space-y-4">
-          <div>
-            <p className="text-lg font-semibold text-neutral-900">{active.title}</p>
-            {active.description ? <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{active.description}</p> : null}
-          </div>
-          <div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-600">
-                ${Number(active.raised_amount || 0).toLocaleString()} raised of ${Number(active.goal_amount || 0).toLocaleString()}
-              </span>
-              <span className="font-semibold text-mission-blue">{pct}%</span>
+      {!showForm && active ? (
+        <Card className="p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-neutral-900">Mission push</p>
+              <p className="mt-1 text-xs text-neutral-500">Fundraising goal supporters see on their feed.</p>
             </div>
-            <div className="mt-2 h-3 w-full rounded-full bg-neutral-200">
-              <div className="h-3 rounded-full bg-mission-blue" style={{ width: `${pct}%` }} />
-            </div>
-          </div>
-          {daysLine ? <p className="text-sm font-medium text-neutral-700">{daysLine}</p> : null}
-          {active.deadline ? (
-            <p className="text-xs text-neutral-500">Deadline: {new Date(`${active.deadline}T12:00:00`).toLocaleDateString()}</p>
-          ) : null}
-          <div className="flex flex-wrap items-end gap-2 border-t border-neutral-100 pt-4">
-            <Label title="Update amount raised ($)">
-              <Input inputMode="decimal" value={raisedDraft} onChange={(e) => setRaisedDraft(e.target.value)} className="max-w-xs" />
-            </Label>
-            <Button type="button" disabled={raisedSaving} onClick={() => void saveRaised(active.id)}>
-              {raisedSaving ? 'Saving…' : 'Update amount raised'}
+            <Button type="button" variant="secondary" onClick={openCreate}>
+              Start new push
             </Button>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="danger" onClick={() => void closePush(active.id)}>
-              Close push
-            </Button>
-          </div>
-        </div>
+
+          {!loading ? (
+            <div className="mt-4 space-y-4">
+              <div>
+                <p className="text-lg font-semibold text-neutral-900">{active.title}</p>
+                {active.description ? (
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{active.description}</p>
+                ) : null}
+              </div>
+              <div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-neutral-600">
+                    ${Number(active.raised_amount || 0).toLocaleString()} raised of $
+                    {Number(active.goal_amount || 0).toLocaleString()}
+                  </span>
+                  <span className="font-semibold text-mission-blue">{pct}%</span>
+                </div>
+                <div className="mt-2 h-3 w-full rounded-full bg-neutral-200">
+                  <div className="h-3 rounded-full bg-mission-blue" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+              {daysLine ? <p className="text-sm font-medium text-neutral-700">{daysLine}</p> : null}
+              {active.deadline ? (
+                <p className="text-xs text-neutral-500">Deadline: {new Date(`${active.deadline}T12:00:00`).toLocaleDateString()}</p>
+              ) : null}
+              <div className="flex flex-wrap items-end gap-2 border-t border-neutral-100 pt-4">
+                <Label title="Update amount raised ($)">
+                  <Input
+                    inputMode="decimal"
+                    value={raisedDraft}
+                    onChange={(e) => setRaisedDraft(e.target.value)}
+                    className="max-w-xs"
+                  />
+                </Label>
+                <Button type="button" disabled={raisedSaving} onClick={() => void saveRaised(active.id)}>
+                  {raisedSaving ? 'Saving…' : 'Update amount raised'}
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="danger" onClick={() => void closePush(active.id)}>
+                  Close push
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-neutral-500">Loading…</p>
+          )}
+        </Card>
       ) : null}
 
-      {showEmptyState ? (
-        <div className="mt-4">
-          <EmptyState
-            icon="compass"
-            title="No active mission push"
-            subtitle="Create a push to share a goal, deadline, and giving link with supporters on their feed."
-            action={
-              <Button type="button" className="min-h-[52px] px-8 text-base font-semibold shadow-sm" onClick={openCreate}>
-                Create a push
-              </Button>
-            }
-          />
-        </div>
+      {!showForm && !active ? (
+        loading ? (
+          <p className="text-sm text-neutral-500">Loading…</p>
+        ) : (
+          <Button type="button" variant="secondary" onClick={openCreate}>
+            Create a mission push
+          </Button>
+        )
       ) : null}
-    </Card>
+    </div>
   );
 }
