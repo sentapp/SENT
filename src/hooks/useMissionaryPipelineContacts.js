@@ -35,7 +35,7 @@ function mapRow(row) {
 }
 
 /**
- * Pipeline slice: contacts in asked / contacted / meeting_scheduled (newest first, max 8).
+ * Pipeline slice: contacts in asked / contacted / meeting_scheduled (newest first, max 10).
  * Uses the same missionary scope as the main contacts hook.
  */
 export function useMissionaryPipelineContacts(authUserId, options = {}) {
@@ -62,7 +62,7 @@ export function useMissionaryPipelineContacts(authUserId, options = {}) {
         .eq('missionary_id', missionaryId)
         .in('status', ['asked', 'contacted', 'meeting_scheduled'])
         .order('created_at', { ascending: false })
-        .limit(8);
+        .limit(10);
       if (error) {
         // eslint-disable-next-line no-console
         console.error('[pipeline] Fetch failed:', error);
