@@ -16,14 +16,14 @@ export function cleanPinIcon({ fill, size = 18, stroke = '#ffffff', strokeWidth 
   });
 }
 
-/** Missionary home base — green, slightly larger. */
-export const homeMapIcon = cleanPinIcon({ fill: '#15803D', size: 26, strokeWidth: 3 });
+/** Missionary home base — larger, accent blue. */
+export const homeMapIcon = cleanPinIcon({ fill: '#185FA5', size: 26, strokeWidth: 3 });
 
-/** Most recent post location. */
-export const mapPinCurrent = cleanPinIcon({ fill: '#185FA5', size: 18 });
+/** Most recent post location on the route timeline. */
+export const mapPinCurrent = cleanPinIcon({ fill: '#0F6E56', size: 18 });
 
 /** Older post locations. */
-export const mapPinPast = cleanPinIcon({ fill: '#A16207', size: 18 });
+export const mapPinPast = cleanPinIcon({ fill: '#854F0B', size: 18 });
 
 /** @deprecated Use `mapPinCurrent` */
 export const postMapIcon = mapPinCurrent;

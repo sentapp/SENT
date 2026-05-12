@@ -33,6 +33,18 @@ import { CONTACT_STATUS_FORM_OPTIONS, normalizeStatusForSave, normalizeStatusFro
 import { Button, Card, EmptyState, Input, Label, LoadingSpinner, Modal, Textarea } from '../../components/ui';
 
 const PIPELINE_STRIP_SET = new Set(CONTACTS_PIPELINE_STRIP_STATUSES);
+const STRIP_DOT = {
+  contacted: '#185FA5',
+  asked: '#D97706',
+  meeting_scheduled: '#0F6E56',
+  committed: '#7C3AED',
+};
+const STRIP_STAGE_LABEL = {
+  contacted: 'Contacted',
+  asked: 'Asked',
+  meeting_scheduled: 'Meeting',
+  committed: 'Committed',
+};
 
 const FILTERS = CONTACT_CATEGORY_FILTER_TABS;
 const VALID_CONTACT_FILTER_IDS = new Set(FILTERS.map((f) => f.id));
@@ -138,7 +150,12 @@ export default function MissionaryContacts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const oneTimeDonorFilter = searchParams.get('filter') === 'one_time';
 
-  const editFromUrl = searchParams.get('edit') ?? searchParams.get('contact');
+  const urlContactIntent = useMemo(() => {
+    const edit = searchParams.get('edit');
+    const contact = searchParams.get('contact');
+    const id = edit || contact;
+    return { id, forceEdit: Boolean(edit) };
+  }, [searchParams]);
 
   const { user, loading: authLoading } = useAuth();
   const {
@@ -185,6 +202,13 @@ export default function MissionaryContacts() {
   const [bulkDeleteBanner, setBulkDeleteBanner] = useState(null);
   const [dedupeLoading, setDedupeLoading] = useState(false);
   const [dedupeBanner, setDedupeBanner] = useState(null);
+
+  const [detailContact, setDetailContact] = useState(null);
+  const [commModal, setCommModal] = useState(null);
+  const [commNotes, setCommNotes] = useState('');
+  const [commSaving, setCommSaving] = useState(false);
+  const [commError, setCommError] = useState('');
+  const [lastTouchAt, setLastTouchAt] = useState(null);
 
   const sessionRef = useRef(0);
   const contactUrlHandledRef = useRef(null);
@@ -568,7 +592,7 @@ export default function MissionaryContacts() {
     );
   }, [setSearchParams]);
 
-  const contactFromUrl = editFromUrl;
+  const contactFromUrl = urlContactIntent.id;
   useEffect(() => {
     if (!contactFromUrl) {
       contactUrlHandledRef.current = null;
@@ -583,9 +607,32 @@ export default function MissionaryContacts() {
       return;
     }
     contactUrlHandledRef.current = contactFromUrl;
-    openEdit(c);
+    if (urlContactIntent.forceEdit) openEdit(c);
+    else setDetailContact(c);
     stripContactParams();
-  }, [contactFromUrl, loading, authLoading, contacts, openEdit, stripContactParams]);
+  }, [contactFromUrl, urlContactIntent.forceEdit, loading, authLoading, contacts, openEdit, stripContactParams]);
+
+  useEffect(() => {
+    if (!detailContact?.id || !supabase) {
+      setLastTouchAt(null);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('communication_logs')
+        .select('created_at')
+        .eq('contact_id', detailContact.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (cancelled) return;
+      if (!error && data?.[0]?.created_at) setLastTouchAt(data[0].created_at);
+      else setLastTouchAt(null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detailContact?.id]);
 
   const saveContact = async () => {
     setSaveError('');
@@ -778,10 +825,50 @@ export default function MissionaryContacts() {
 
   const scrollToContact = useCallback((id) => {
     setModalOpen(false);
+    setDetailContact(null);
     requestAnimationFrame(() => {
       document.getElementById(`contact-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }, []);
+
+  const openDetail = useCallback((c) => {
+    if (!c) return;
+    setDetailContact(c);
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    setDetailContact(null);
+    setCommModal(null);
+    setCommNotes('');
+    setCommError('');
+  }, []);
+
+  const submitCommLog = useCallback(async () => {
+    if (!supabase || !user?.id || !detailContact?.id || !commModal) return;
+    setCommError('');
+    setCommSaving(true);
+    try {
+      const row = {
+        missionary_id: user.id,
+        contact_id: detailContact.id,
+        comm_type: commModal === 'meeting' ? 'note' : commModal,
+        notes: commModal === 'meeting' ? (commNotes.trim() ? `Meeting — ${commNotes.trim()}` : 'Meeting') : commNotes.trim(),
+        created_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('communication_logs').insert(row);
+      if (error) {
+        setCommError(error.message || 'Could not save log.');
+        return;
+      }
+      setLastTouchAt(new Date().toISOString());
+      setCommModal(null);
+      setCommNotes('');
+    } catch (e) {
+      setCommError(e?.message || 'Could not save log.');
+    } finally {
+      setCommSaving(false);
+    }
+  }, [user?.id, detailContact?.id, commModal, commNotes]);
 
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
 
@@ -954,26 +1041,30 @@ export default function MissionaryContacts() {
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-mission-muted">Pipeline</p>
           <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 pt-0.5 [-webkit-overflow-scrolling:touch]">
-            {pipelineStripContacts.map((c) => (
+            {pipelineStripContacts.map((c) => {
+              const st = normalizeStatusFromDb(c.status);
+              return (
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => openEdit(c)}
+                  onClick={() => openDetail(c)}
                   className="w-[min(200px,72vw)] shrink-0 rounded-card border border-mission-line bg-surface p-3 text-left shadow-none transition hover:border-accent/40"
                 >
                   <div className="flex items-center gap-2">
                     <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${pipelineStripStageDotClass(c.status)}`}
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: STRIP_DOT[st] || '#78716c' }}
                       aria-hidden
                     />
                     <span className="truncate text-[10px] font-bold uppercase tracking-wide text-mission-muted">
-                      {statusLabel(c.status)}
+                      {STRIP_STAGE_LABEL[st] || statusLabel(c.status)}
                     </span>
                   </div>
                   <p className="mt-1 truncate text-sm font-semibold text-ink">{c.fullName || 'Unnamed'}</p>
                   <p className="mt-0.5 truncate text-xs text-neutral-600">{c.phone || '—'}</p>
                 </button>
-            ))}
+              );
+            })}
             <button
               type="button"
               onClick={openAdd}
@@ -1006,7 +1097,7 @@ export default function MissionaryContacts() {
               id={`contact-${c.id}`}
               onClick={() => {
                 if (selectMode) toggleContactSelected(c.id);
-                else openEdit(c);
+                else openDetail(c);
               }}
               className="scroll-mt-4 cursor-pointer border-mission-line p-4 text-left shadow-none"
             >
@@ -1069,16 +1160,6 @@ export default function MissionaryContacts() {
                 <div className="flex shrink-0 gap-2 self-start" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
-                    disabled={selectMode}
-                    onClick={() => openEdit(c)}
-                    className="rounded-btn border border-neutral-200 p-2 text-neutral-600 hover:bg-neutral-50 disabled:pointer-events-none disabled:opacity-40"
-                    aria-label="Edit contact"
-                    title="Edit"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setDeleteTarget(c)}
                     className="rounded-btn border border-neutral-200 p-2 text-red-600 hover:bg-red-50"
                     aria-label="Delete contact"
@@ -1092,6 +1173,173 @@ export default function MissionaryContacts() {
           ))}
         </div>
       )}
+
+      <Modal
+        open={Boolean(detailContact)}
+        title="Contact"
+        onClose={closeDetail}
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" type="button" onClick={closeDetail}>
+              Close
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!detailContact) return;
+                openEdit(detailContact);
+                closeDetail();
+              }}
+            >
+              Edit
+            </Button>
+          </div>
+        }
+      >
+        {detailContact ? (
+          <div className="space-y-4 text-sm">
+            <p className="text-2xl font-bold tracking-tight text-ink">{detailContact.fullName || 'Unnamed contact'}</p>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full border border-mission-line bg-[color:var(--color-bg)] px-3 py-1 text-xs font-semibold text-ink">
+                {categoryLabel(detailContact.category)}
+              </span>
+              <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+                {statusLabel(detailContact.status)}
+              </span>
+            </div>
+            {detailContact.phone ? (
+              <div>
+                <span className="sent-section-label mb-1 block">Phone</span>
+                <a href={`tel:${detailContact.phone}`} className="text-base font-semibold text-accent underline">
+                  {detailContact.phone}
+                </a>
+              </div>
+            ) : (
+              <p className="text-neutral-500">No phone on file</p>
+            )}
+            {detailContact.email ? (
+              <div>
+                <span className="sent-section-label mb-1 block">Email</span>
+                <a href={`mailto:${encodeURIComponent(detailContact.email)}`} className="break-all text-accent underline">
+                  {detailContact.email}
+                </a>
+              </div>
+            ) : null}
+            {Number(detailContact.monthlyAmount) > 0 ? (
+              <p>
+                <span className="sent-section-label mb-1 block">Monthly amount</span>
+                <span className="font-semibold text-ink">${Number(detailContact.monthlyAmount).toFixed(0)} / month</span>
+              </p>
+            ) : null}
+            <div>
+              <span className="sent-section-label mb-1 block">Notes</span>
+              <p className="whitespace-pre-wrap leading-relaxed text-neutral-800">{detailContact.notes || '—'}</p>
+            </div>
+            <p className="text-xs text-neutral-600">
+              <span className="font-semibold text-ink">Last contacted: </span>
+              {lastTouchAt
+                ? new Date(lastTouchAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                : '—'}
+            </p>
+            <div className="grid grid-cols-2 gap-2 border-t border-mission-line pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-0 py-2.5 text-xs"
+                onClick={() => {
+                  setCommModal('call');
+                  setCommNotes('');
+                  setCommError('');
+                }}
+              >
+                Call
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-0 py-2.5 text-xs"
+                onClick={() => {
+                  setCommModal('text');
+                  setCommNotes('');
+                  setCommError('');
+                }}
+              >
+                Text
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-0 py-2.5 text-xs"
+                onClick={() => {
+                  setCommModal('meeting');
+                  setCommNotes('');
+                  setCommError('');
+                }}
+              >
+                Meeting
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-0 py-2.5 text-xs"
+                onClick={() => {
+                  setCommModal('note');
+                  setCommNotes('');
+                  setCommError('');
+                }}
+              >
+                Note
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={Boolean(commModal)}
+        title={
+          commModal === 'call'
+            ? 'Log call'
+            : commModal === 'text'
+              ? 'Log text'
+              : commModal === 'meeting'
+                ? 'Log meeting'
+                : 'Log note'
+        }
+        onClose={() => {
+          if (commSaving) return;
+          setCommModal(null);
+          setCommNotes('');
+          setCommError('');
+        }}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={commSaving}
+              onClick={() => {
+                setCommModal(null);
+                setCommNotes('');
+                setCommError('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" disabled={commSaving} onClick={() => void submitCommLog()}>
+              {commSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        }
+      >
+        {commError ? <p className="mb-2 text-sm text-red-600">{commError}</p> : null}
+        <Textarea
+          rows={3}
+          value={commNotes}
+          onChange={(e) => setCommNotes(e.target.value)}
+          placeholder="Notes (optional for call/text)…"
+        />
+      </Modal>
 
       <Modal
         open={modalOpen}
