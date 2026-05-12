@@ -223,31 +223,6 @@ export default function MissionaryOverview() {
         </div>
       </Card>
 
-      <Card className="p-5">
-        <p className="text-sm font-semibold text-neutral-900">Supporter prayer requests</p>
-        <p className="mt-1 text-xs text-neutral-500">Requests shared by supporters on their prayer wall.</p>
-        <div className="mt-4">
-          {prayerLoading ? (
-            <p className="text-sm text-neutral-500">Loading prayer wall…</p>
-          ) : prayer.length === 0 ? (
-            <EmptyState
-              icon="sparkles"
-              title="No prayer requests yet"
-              subtitle="When supporters share requests on their prayer wall, they’ll land here for you."
-            />
-          ) : (
-            <div className="space-y-3">
-              {prayer.map((r) => (
-                <Card key={r.id} className="border-neutral-100 p-4 shadow-none">
-                  <p className="text-sm text-neutral-800">{r.body}</p>
-                  <p className="mt-2 text-xs text-neutral-500">{(r.prayedCount ?? 0).toString()} prayers</p>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      </Card>
-
       <MissionaryPipelineSection
         pipelineContacts={pipelineContacts}
         pipelineLoading={pipelineLoading}
@@ -357,6 +332,31 @@ export default function MissionaryOverview() {
             ))}
           </ul>
         )}
+      </Card>
+
+      <Card className="p-5">
+        <p className="text-sm font-semibold text-neutral-900">Supporter prayer requests</p>
+        <p className="mt-1 text-xs text-neutral-500">Requests shared by supporters on their prayer wall.</p>
+        <div className="mt-4">
+          {prayerLoading ? (
+            <p className="text-sm text-neutral-500">Loading prayer wall…</p>
+          ) : prayer.length === 0 ? (
+            <EmptyState
+              icon="sparkles"
+              title="No prayer requests yet"
+              subtitle="When supporters share requests on their prayer wall, they’ll land here for you."
+            />
+          ) : (
+            <div className="space-y-3">
+              {prayer.map((r) => (
+                <Card key={r.id} className="border-neutral-100 p-4 shadow-none">
+                  <p className="text-sm text-neutral-800">{r.body}</p>
+                  <p className="mt-2 text-xs text-neutral-500">{(r.prayedCount ?? 0).toString()} prayers</p>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   );

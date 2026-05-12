@@ -6,7 +6,7 @@ import {
   updateMissionPush,
 } from '../lib/missionPushesRepository';
 import { isMissingMissionPushesTableError } from '../lib/supabaseRelationErrors';
-import { Button, Card, Input, Label, Modal, Textarea } from './ui';
+import { Button, Card, EmptyState, Input, Label, Modal, Textarea } from './ui';
 
 function num(v) {
   const n = Number(String(v ?? '').replace(/,/g, ''));
@@ -301,13 +301,26 @@ export default function MissionPushSection({ missionaryId }) {
       ) : null}
 
       {!showForm && !active ? (
-        loading ? (
-          <p className="text-sm text-neutral-500">Loading…</p>
-        ) : (
-          <Button type="button" variant="secondary" onClick={openCreate}>
-            Create a mission push
-          </Button>
-        )
+        <Card className="p-5">
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-neutral-900">Mission push</p>
+            <p className="mt-1 text-xs text-neutral-500">Fundraising goal supporters see on their feed.</p>
+          </div>
+          {loading ? (
+            <p className="text-sm text-neutral-500">Loading…</p>
+          ) : (
+            <EmptyState
+              icon="compass"
+              title="No active mission push"
+              subtitle="Create a push to share a goal, deadline, and giving link with supporters on their feed."
+              action={
+                <Button type="button" className="min-h-[52px] px-8 text-base font-semibold shadow-sm" onClick={openCreate}>
+                  Create a push
+                </Button>
+              }
+            />
+          )}
+        </Card>
       ) : null}
     </div>
   );
