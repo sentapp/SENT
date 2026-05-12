@@ -10,3 +10,14 @@ export function isMissingDbRelationError(err) {
   if (msg.includes('undefined table')) return true;
   return false;
 }
+
+/** True when the error is about the `mission_pushes` table missing or not exposed (PostgREST / Postgres). */
+export function isMissingMissionPushesTableError(err) {
+  if (!err) return false;
+  const blob = `${err.message ?? ''} ${err.details ?? ''} ${err.hint ?? ''}`.toLowerCase();
+  if (!blob.includes('mission_pushes')) return false;
+  if (isMissingDbRelationError(err)) return true;
+  if (blob.includes('does not exist') || blob.includes('could not find') || blob.includes('not found')) return true;
+  if (blob.includes('schema cache')) return true;
+  return false;
+}

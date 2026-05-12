@@ -536,6 +536,29 @@ export default function MissionaryContacts() {
     setModalOpen(true);
   }, []);
 
+  const editFromUrl = searchParams.get('edit') ?? searchParams.get('contact');
+  useEffect(() => {
+    if (!editFromUrl || loading || authLoading) return;
+    const c = contacts.find((x) => String(x.id) === String(editFromUrl));
+    const stripEditParams = () => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('edit');
+          next.delete('contact');
+          return next;
+        },
+        { replace: true },
+      );
+    };
+    if (!c) {
+      stripEditParams();
+      return;
+    }
+    openEdit(c);
+    stripEditParams();
+  }, [editFromUrl, loading, authLoading, contacts, openEdit, setSearchParams]);
+
   const saveContact = async () => {
     setSaveError('');
     setContactSaveSuccess('');

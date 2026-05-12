@@ -1,13 +1,14 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
 import { useMissionaryPipelineContacts } from '../../hooks/useMissionaryPipelineContacts';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { useAppState } from '../../state/AppState';
+import { supabase } from '../../lib/supabaseClient';
 import MissionPushSection from '../../components/MissionPushSection';
 import MissionaryPipelineSection from '../../components/MissionaryPipelineSection';
-import { Button, Card, EmptyState, Input } from '../../components/ui';
+import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
 
 function MetricCard({ label, value, onActivate, ariaLabel, tint, Icon }) {
   return (
@@ -69,10 +70,53 @@ export default function MissionaryOverview() {
   );
   const { prayerRequests: prayer, loading: prayerLoading } = useMissionaryPrayerRequests(user?.id);
   const { state, actions } = useAppState();
-  const [newTask, setNewTask] = useState('');
-  const [pipelineSavingId, setPipelineSavingId] = useState(null);
-  const [pipelineError, setPipelineError] = useState('');
-  const taskInputRef = useRef(null);
+  const [oneTimeModalOpen, setOneTimeModalOpen] = useState(false);
+  const [oneTimeModalRows, setOneTimeModalRows] = useState([]);
+  const [oneTimeModalLoading, setOneTimeModalLoading] = useState(false);
+
+  const oneTimeModalTotal = useMemo(
+    () => oneTimeModalRows.reduce((sum, r) => sum + (Number(r.one_time_donation_amount) || 0), 0),
+    [oneTimeModalRows],
+  );
+
+  useEffect(() => {
+    if (!oneTimeModalOpen || !user?.id) return undefined;
+    let cancelled = false;
+    const fallbackRows = () =>
+      oneTimeDonors.map((c) => ({
+        id: c.id,
+        full_name: c.fullName,
+        one_time_donation_amount: c.oneTimeDonationAmount,
+        one_time_donation_date: c.oneTimeDonationDate || null,
+      }));
+
+    if (!supabase) {
+      setOneTimeModalRows(fallbackRows());
+      setOneTimeModalLoading(false);
+      return undefined;
+    }
+
+    setOneTimeModalLoading(true);
+    (async () => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, full_name, one_time_donation_amount, one_time_donation_date')
+        .eq('missionary_id', user.id)
+        .eq('is_one_time_donor', true)
+        .order('one_time_donation_date', { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        setOneTimeModalRows(fallbackRows());
+      } else {
+        setOneTimeModalRows(data || []);
+      }
+      setOneTimeModalLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [oneTimeModalOpen, user?.id, oneTimeDonors]);
 
   const partners = useMemo(
     () =>
@@ -129,8 +173,8 @@ export default function MissionaryOverview() {
         <MetricCard
           label="One-time gifts"
           value={`$${totalOneTimeGifts.toFixed(0)}`}
-          ariaLabel="One-time gifts — open one-time donors on contacts"
-          onActivate={() => navigate('/missionary/contacts?filter=one_time')}
+          ariaLabel="One-time gifts — open details"
+          onActivate={() => setOneTimeModalOpen(true)}
           tint="bg-amber-500/[0.08]"
           Icon={<span className="text-amber-700">{metricIconGift}</span>}
         />
@@ -209,6 +253,40 @@ export default function MissionaryOverview() {
       />
 
       {user?.id ? <MissionPushSection missionaryId={user.id} /> : null}
+
+      <Modal open={oneTimeModalOpen} title="One-time gifts" onClose={() => setOneTimeModalOpen(false)}>
+        <p className="text-base font-semibold text-neutral-900">
+          Total one-time gifts:{' '}
+          <span className="text-mission-blue">${oneTimeModalTotal.toFixed(2)}</span>
+        </p>
+        {oneTimeModalLoading ? (
+          <p className="mt-4 text-sm text-neutral-500">Loading…</p>
+        ) : oneTimeModalRows.length === 0 ? (
+          <p className="mt-4 text-sm text-neutral-600">
+            No one-time gifts yet — mark a contact as a one-time donor in Contacts
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-neutral-100 rounded-card border border-neutral-200">
+            {oneTimeModalRows.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                <span className="font-medium text-neutral-900">{r.full_name || 'Unnamed'}</span>
+                <span className="shrink-0 text-right font-semibold text-neutral-800">
+                  $
+                  {Number(r.one_time_donation_amount || 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2,
+                  })}
+                  {r.one_time_donation_date ? (
+                    <span className="ml-2 block font-normal text-neutral-500 sm:ml-2 sm:inline">
+                      · {new Date(`${String(r.one_time_donation_date).slice(0, 10)}T12:00:00`).toLocaleDateString()}
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
 
       <Card className="p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">

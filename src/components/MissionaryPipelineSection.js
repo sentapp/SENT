@@ -26,7 +26,7 @@ export default function MissionaryPipelineSection({
   };
 
   const openContact = (id) => {
-    navigate(`/missionary/contacts?contact=${encodeURIComponent(id)}`);
+    navigate(`/missionary/contacts?edit=${encodeURIComponent(id)}`);
   };
 
   const headerKeyNav = (e) => {
