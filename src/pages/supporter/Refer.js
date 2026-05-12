@@ -40,7 +40,7 @@ export default function SupporterRefer() {
       <Card className="p-5">
         <p className="text-sm font-semibold">Share link</p>
         <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <p className="break-all rounded-btn border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-semibold text-neutral-900">
+          <p className="break-all rounded-btn border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-semibold text-ink">
             {shareLink}
           </p>
           <div className="flex gap-2">

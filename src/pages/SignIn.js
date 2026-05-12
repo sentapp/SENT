@@ -192,15 +192,15 @@ function SignIn() {
 
   if (view === 'checking') {
     return (
-      <div className="flex min-h-full items-center justify-center bg-white md:bg-mission-canvas px-6">
-        <p className="text-sm font-medium text-neutral-600">Loading...</p>
+      <div className="flex min-h-full items-center justify-center bg-background md:bg-mission-canvas px-6">
+        <p className="text-sm font-medium text-muted">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-white md:bg-mission-canvas">
-      <div className="mx-auto flex min-h-full max-w-mobile flex-col px-6 py-8 md:min-h-[100dvh] md:max-w-lg md:bg-white md:shadow-sm md:rounded-card md:border md:border-neutral-200 md:my-8">
+    <div className="min-h-full bg-background md:bg-mission-canvas">
+      <div className="mx-auto flex min-h-full max-w-mobile flex-col px-6 py-8 md:min-h-[100dvh] md:max-w-lg md:bg-surface md:shadow-sm md:rounded-card md:border md:border-border md:my-8">
         {view === 'form' && (
           <>
             <h1 className="mb-8 text-center text-2xl font-semibold tracking-tight">Welcome back</h1>
@@ -226,7 +226,7 @@ function SignIn() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[17px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring"
+                  className="w-full rounded-btn border border-border px-4 py-[14px] text-[17px] outline-none ring-accent/30 focus:border-accent focus:ring"
                   placeholder="you@example.com"
                 />
               </label>
@@ -237,7 +237,7 @@ function SignIn() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[17px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring"
+                  className="w-full rounded-btn border border-border px-4 py-[14px] text-[17px] outline-none ring-accent/30 focus:border-accent focus:ring"
                   placeholder="••••••••"
                 />
               </label>
@@ -255,7 +255,7 @@ function SignIn() {
               </button>
             </form>
 
-            <details className="mb-8 rounded-card border border-neutral-200 bg-neutral-50/80 px-4 py-3 text-sm text-neutral-600">
+            <details className="mb-8 rounded-card border border-border bg-neutral-50/80 px-4 py-3 text-sm text-neutral-600">
               <summary className="cursor-pointer font-semibold text-neutral-800">Testing: remove a test account</summary>
               <p className="mt-2 leading-relaxed">
                 In the{' '}

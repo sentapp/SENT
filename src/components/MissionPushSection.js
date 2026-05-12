@@ -243,7 +243,7 @@ export default function MissionPushSection({ missionaryId }) {
         <Card className="p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-neutral-900">Mission push</p>
+              <p className="text-sm font-semibold text-ink">Mission push</p>
               <p className="mt-1 text-xs text-neutral-500">Fundraising goal supporters see on their feed.</p>
             </div>
             <Button type="button" variant="secondary" onClick={openCreate}>
@@ -254,7 +254,7 @@ export default function MissionPushSection({ missionaryId }) {
           {!loading ? (
             <div className="mt-4 space-y-4">
               <div>
-                <p className="text-lg font-semibold text-neutral-900">{active.title}</p>
+                <p className="text-lg font-semibold text-ink">{active.title}</p>
                 {active.description ? (
                   <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{active.description}</p>
                 ) : null}
@@ -303,7 +303,7 @@ export default function MissionPushSection({ missionaryId }) {
       {!showForm && !active ? (
         <Card className="p-5">
           <div className="mb-4">
-            <p className="text-sm font-semibold text-neutral-900">Mission push</p>
+            <p className="text-sm font-semibold text-ink">Mission push</p>
             <p className="mt-1 text-xs text-neutral-500">Fundraising goal supporters see on their feed.</p>
           </div>
           {loading ? (

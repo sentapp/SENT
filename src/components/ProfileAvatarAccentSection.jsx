@@ -74,14 +74,14 @@ export function ProfileAvatarAccentSection({
           onChange={onFile}
         />
         <div className="max-w-md text-center sm:text-left">
-          <p className="text-sm font-semibold text-neutral-900">Profile photo</p>
+          <p className="text-sm font-semibold text-ink">Profile photo</p>
           <p className="mt-1 text-sm text-neutral-600">Tap the circle to upload JPG, PNG, or GIF (shown on your profile and for supporters).</p>
           {busy ? <p className="mt-2 text-xs font-medium text-neutral-500">Uploading…</p> : null}
         </div>
       </div>
 
       <div>
-        <p className="text-sm font-semibold text-neutral-900">Your color</p>
+        <p className="text-sm font-semibold text-ink">Your color</p>
         <p className="mt-1 text-xs text-neutral-600">Used on your profile and, for missionaries, on your supporters&apos; feed.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {ACCENT_PRESETS.map(({ hex, label }) => {

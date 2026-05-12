@@ -124,14 +124,14 @@ function IconGear({ className }) {
 function FullPageLoading() {
   return (
     <div className="flex min-h-full items-center justify-center bg-mission-canvas px-6">
-      <p className="text-sm font-medium text-neutral-600">Loading…</p>
+      <p className="text-sm font-medium text-muted">Loading…</p>
     </div>
   );
 }
 
 function SideNav() {
   return (
-    <aside className="hidden w-[240px] shrink-0 border-r border-mission-line bg-white md:flex md:flex-col">
+    <aside className="hidden w-[240px] shrink-0 border-r border-mission-line bg-surface md:flex md:flex-col">
       <div className="border-b border-mission-line px-6 py-5">
         <p className="sent-section-title">SENT</p>
         <p className="sent-caption mt-1">For missionaries and the people who send them.</p>
@@ -164,7 +164,7 @@ function SideNav() {
 function BottomNav() {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-mission-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-mission-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
       aria-label="Missionary navigation"
     >
       <ul className="mx-auto grid h-14 max-w-mobile grid-cols-6 items-stretch px-0.5">
@@ -211,7 +211,7 @@ export default function MissionaryLayout() {
   }
 
   return (
-    <div className="flex min-h-full bg-mission-canvas text-neutral-900">
+    <div className="flex min-h-full bg-mission-canvas text-ink">
       <SideNav />
       <main className="flex-1 px-6 py-8 md:px-10">
         <div className="mx-auto w-full max-w-mobile pb-[max(7rem,calc(4rem+env(safe-area-inset-bottom)))] md:max-w-6xl md:pb-0">

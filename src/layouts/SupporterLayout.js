@@ -70,7 +70,7 @@ function IconProfile({ className }) {
 function BottomNav() {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-mission-line bg-white pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-mission-line bg-surface pb-[env(safe-area-inset-bottom)]"
       aria-label="Supporter navigation"
     >
       <ul className="mx-auto grid h-14 max-w-6xl grid-cols-5 items-stretch px-1">
@@ -116,7 +116,7 @@ export default function SupporterLayout() {
   }, [user?.id, user?.user_metadata?.invite_code, refreshProfile]);
 
   return (
-    <div className="min-h-full bg-mission-canvas text-neutral-900">
+    <div className="min-h-full bg-mission-canvas text-ink">
       <main className="mx-auto w-full max-w-6xl px-6 py-8 pb-28">
         <div key={location.pathname} className="sent-outlet-enter">
           <Outlet />

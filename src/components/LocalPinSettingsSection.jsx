@@ -148,7 +148,7 @@ export default function LocalPinSettingsSection({ userId }) {
           aria-labelledby="local-pin-settings-title"
         >
           <div className="w-full max-w-md rounded-card border border-neutral-200 bg-white p-6 shadow-lg">
-            <p id="local-pin-settings-title" className="text-center text-sm font-semibold text-neutral-900">
+            <p id="local-pin-settings-title" className="text-center text-sm font-semibold text-ink">
               {pinStepTitle(pinStep)}
             </p>
             {pinMsg ? <p className="mt-2 text-center text-sm text-red-600">{pinMsg}</p> : null}

@@ -234,7 +234,7 @@ export default function MissionaryOverview() {
       {user?.id ? <MissionPushSection missionaryId={user.id} /> : null}
 
       <Modal open={oneTimeModalOpen} title="One-time gifts" onClose={() => setOneTimeModalOpen(false)}>
-        <p className="text-base font-semibold text-neutral-900">
+        <p className="text-base font-semibold text-ink">
           Total one-time gifts:{' '}
           <span className="text-mission-blue">${oneTimeModalTotal.toFixed(2)}</span>
         </p>
@@ -248,7 +248,7 @@ export default function MissionaryOverview() {
           <ul className="mt-4 divide-y divide-neutral-100 rounded-card border border-neutral-200">
             {oneTimeModalRows.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-                <span className="font-medium text-neutral-900">{r.full_name || 'Unnamed'}</span>
+                <span className="font-medium text-ink">{r.full_name || 'Unnamed'}</span>
                 <span className="shrink-0 text-right font-semibold text-neutral-800">
                   $
                   {Number(r.one_time_donation_amount || 0).toLocaleString(undefined, {
@@ -336,7 +336,7 @@ export default function MissionaryOverview() {
       </Card>
 
       <Card className="p-5">
-        <p className="text-sm font-semibold text-neutral-900">Supporter prayer requests</p>
+        <p className="text-sm font-semibold text-ink">Supporter prayer requests</p>
         <p className="mt-1 text-xs text-neutral-500">Requests shared by supporters on their prayer wall.</p>
         <div className="mt-4">
           {prayerLoading ? (

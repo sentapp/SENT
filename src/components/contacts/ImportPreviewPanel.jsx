@@ -78,9 +78,9 @@ export function ImportPreviewPanel({
       ) : null}
 
       <div>
-        <p className="mb-2 text-sm font-semibold text-neutral-900">{previewHeadline}</p>
+        <p className="mb-2 text-sm font-semibold text-ink">{previewHeadline}</p>
         <p className="mb-3 text-sm text-neutral-700">
-          <span className="font-semibold text-neutral-900">{newCount} new contacts</span>
+          <span className="font-semibold text-ink">{newCount} new contacts</span>
           <span className="text-neutral-500">, </span>
           <span className="font-semibold text-amber-800">{dupCount} duplicates found</span>
         </p>
@@ -120,7 +120,7 @@ export function ImportPreviewPanel({
                       aria-label={`Select ${d.full_name}`}
                     />
                   </td>
-                  <td className="px-3 py-2 font-medium text-neutral-900">{d.full_name || '—'}</td>
+                  <td className="px-3 py-2 font-medium text-ink">{d.full_name || '—'}</td>
                   <td className="px-3 py-2 text-neutral-700">{d.phone || '—'}</td>
                   <td className="max-w-[200px] truncate px-3 py-2 text-neutral-700">{d.email || '—'}</td>
                   <td className="px-3 py-2">

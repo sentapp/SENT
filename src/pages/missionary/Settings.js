@@ -326,7 +326,7 @@ export default function MissionarySettings() {
 
       <Card className="border-2 border-[color:color-mix(in_srgb,var(--profile-accent)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--profile-accent)_10%,white)] p-5 md:p-6">
         <p className="text-xs font-semibold uppercase tracking-wide profile-accent-text">Your missionary / supporter code</p>
-        <p className="mt-3 break-all font-mono text-2xl font-bold tracking-wide text-neutral-900 md:text-3xl">
+        <p className="mt-3 break-all font-mono text-2xl font-bold tracking-wide text-ink md:text-3xl">
           {supporterCodeDisplay}
         </p>
         <p className="mt-3 text-sm text-neutral-700">

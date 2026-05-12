@@ -40,7 +40,7 @@ function RoleCard({ title, subtitle, selected, onSelect }) {
           : 'border-neutral-200 hover:border-neutral-300'
       }`}
     >
-      <span className="text-[17px] font-semibold text-neutral-900">{title}</span>
+      <span className="text-[17px] font-semibold text-ink">{title}</span>
       <span className="mt-1 text-sm leading-snug text-neutral-600">{subtitle}</span>
     </button>
   );
@@ -272,20 +272,20 @@ function SignUp() {
   };
 
   return (
-    <div className="min-h-full bg-white md:bg-mission-canvas">
-      <div className="mx-auto flex min-h-full max-w-mobile flex-col px-6 py-6 md:min-h-[100dvh] md:max-w-lg md:bg-white md:shadow-sm md:rounded-card md:border md:border-neutral-200 md:my-8">
+    <div className="min-h-full bg-background md:bg-mission-canvas">
+      <div className="mx-auto flex min-h-full max-w-mobile flex-col px-6 py-6 md:min-h-[100dvh] md:max-w-lg md:bg-surface md:shadow-sm md:rounded-card md:border md:border-border md:my-8">
         <header className="mb-8 flex shrink-0 items-center gap-4">
           <button
             type="button"
             onClick={goBack}
-            className="flex h-10 w-10 items-center justify-center rounded-btn border border-neutral-200 bg-white text-lg text-neutral-700 hover:bg-neutral-50"
+            className="flex h-10 w-10 items-center justify-center rounded-btn border border-border bg-surface text-lg text-neutral-700 hover:bg-subtle"
             aria-label="Go back"
           >
             ←
           </button>
           <div className="flex-1 space-y-2">
             <Progress step={step} />
-            <p className="text-center text-xs text-neutral-500">Step {step} of 3</p>
+            <p className="text-center text-xs text-muted">Step {step} of 3</p>
           </div>
           <span className="w-10" aria-hidden />
         </header>
@@ -334,7 +334,7 @@ function SignUp() {
               <button
                 type="submit"
                 disabled={!canProceedStep1}
-                className="block w-full rounded-btn bg-mission-blue py-[14px] text-center font-medium text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
+                className="block w-full rounded-btn bg-accent py-[14px] text-center font-medium text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
               >
                 Continue
               </button>
@@ -364,7 +364,7 @@ function SignUp() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="name"
-                className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[17px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring"
+                className="w-full rounded-btn border border-border px-4 py-[14px] text-[17px] outline-none ring-accent/30 focus:border-accent focus:ring"
                 placeholder="Your name"
               />
             </label>
@@ -378,7 +378,7 @@ function SignUp() {
                   setAlreadyRegistered(false);
                 }}
                 autoComplete="email"
-                className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[17px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring"
+                className="w-full rounded-btn border border-border px-4 py-[14px] text-[17px] outline-none ring-accent/30 focus:border-accent focus:ring"
                 placeholder="you@example.com"
               />
             </label>
@@ -389,7 +389,7 @@ function SignUp() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
-                className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[17px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring"
+                className="w-full rounded-btn border border-border px-4 py-[14px] text-[17px] outline-none ring-accent/30 focus:border-accent focus:ring"
                 placeholder="••••••••"
               />
             </label>
@@ -400,18 +400,18 @@ function SignUp() {
                   type="text"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
-                  className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[17px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring"
+                  className="w-full rounded-btn border border-border px-4 py-[14px] text-[17px] outline-none ring-accent/30 focus:border-accent focus:ring"
                   placeholder="e.g. AB-2025"
                   autoComplete="off"
                 />
-                <p className="mt-2 text-xs text-neutral-500">Your missionary can find their code in Settings.</p>
+                <p className="mt-2 text-xs text-muted">Your missionary can find their code in Settings.</p>
               </label>
             )}
             <div className="mt-auto">
               <button
                 type="submit"
                 disabled={!canProceedStep2}
-                className="block w-full rounded-btn bg-mission-blue py-[14px] text-center font-medium text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
+                className="block w-full rounded-btn bg-accent py-[14px] text-center font-medium text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
               >
                 Continue
               </button>
@@ -445,7 +445,7 @@ function SignUp() {
                   setPinBuf('');
                   setFirstPin('');
                 }}
-                className="rounded-btn border border-neutral-200 bg-white px-4 py-[14px] text-left shadow-sm hover:bg-neutral-50 disabled:opacity-60"
+                className="rounded-btn border border-border bg-surface px-4 py-[14px] text-left shadow-sm hover:bg-subtle disabled:opacity-60"
               >
                 <span className="block text-[17px] font-semibold">Set up a PIN</span>
                 <span className="text-sm text-neutral-600">4-digit shortcut on this device after you create your account.</span>
@@ -457,7 +457,7 @@ function SignUp() {
               >
                 {submitting ? 'Creating account…' : 'Skip for now'}
               </button>
-              <p className="text-center text-xs text-neutral-500">Press Enter to skip and finish. Skip uses email and password every time.</p>
+              <p className="text-center text-xs text-muted">Press Enter to skip and finish. Skip uses email and password every time.</p>
             </div>
           </form>
         )}
@@ -477,7 +477,7 @@ function SignUp() {
             <p className="mb-6 text-center text-sm text-neutral-600">Enter the same PIN again.</p>
             <PinDots digits={pinBuf} />
             <PinKeypad onKey={handleSignupPinKey} />
-            {submitting ? <p className="mt-6 text-center text-sm text-neutral-500">Creating account…</p> : null}
+            {submitting ? <p className="mt-6 text-center text-sm text-muted">Creating account…</p> : null}
           </section>
         )}
       </div>

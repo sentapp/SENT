@@ -155,7 +155,7 @@ export default function MissionaryPipeline() {
             return (
               <div key={col.status} className="flex w-[min(100%,280px)] shrink-0 flex-col gap-3 md:w-auto">
                 <div className="rounded-btn border border-neutral-200 bg-neutral-50 px-3 py-2">
-                  <p className="text-sm font-bold text-neutral-900">
+                  <p className="text-sm font-bold text-ink">
                     {col.label} ({columnContacts.length})
                   </p>
                 </div>
@@ -164,7 +164,7 @@ export default function MissionaryPipeline() {
                     const canAdvance = Boolean(PIPELINE_NEXT_STATUS[c.status]);
                     return (
                       <Card key={c.id} className="border-neutral-200 p-4 shadow-sm">
-                        <p className="text-sm font-bold text-neutral-900">{c.fullName || 'Unnamed'}</p>
+                        <p className="text-sm font-bold text-ink">{c.fullName || 'Unnamed'}</p>
                         <p className="mt-1 text-xs text-neutral-600">{c.phone || '—'}</p>
                         <p className="mt-2">
                           <span className={CATEGORY_BADGE}>{categoryLabel(c.category)}</span>
@@ -222,7 +222,7 @@ export default function MissionaryPipeline() {
                 className="flex flex-wrap items-center justify-between gap-2 rounded-btn border border-neutral-200 px-3 py-2"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-neutral-900">{c.fullName || 'Unnamed'}</p>
+                  <p className="truncate text-sm font-semibold text-ink">{c.fullName || 'Unnamed'}</p>
                   <p className="truncate text-xs text-neutral-500">{c.phone || c.email || '—'}</p>
                 </div>
                 <Button

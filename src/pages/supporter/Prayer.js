@@ -120,7 +120,7 @@ export default function SupporterPrayer() {
           </Card>
 
           <div className="space-y-3">
-            <p className="text-sm font-semibold text-neutral-900">Requests</p>
+            <p className="text-sm font-semibold text-ink">Requests</p>
             {loading ? (
               <p className="text-sm text-neutral-500">Loading…</p>
             ) : requests.length === 0 ? (

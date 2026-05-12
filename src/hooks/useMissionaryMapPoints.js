@@ -64,7 +64,7 @@ export function useMissionaryMapPoints(profile, posts) {
             <span className="inline-flex rounded-full bg-slate-200/90 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-800">
               Home base
             </span>
-            <p className="text-base font-bold leading-snug text-neutral-900">{locationName || 'Mission base'}</p>
+            <p className="text-base font-bold leading-snug text-ink">{locationName || 'Mission base'}</p>
             <p className="text-[11px] text-neutral-500">Your home location on the map</p>
           </div>
         ),
@@ -87,7 +87,7 @@ export function useMissionaryMapPoints(profile, posts) {
             >
               {typeLabel}
             </span>
-            <p className="text-base font-bold leading-snug text-neutral-900">{cityLabel}</p>
+            <p className="text-base font-bold leading-snug text-ink">{cityLabel}</p>
             <p className="text-[11px] text-neutral-500">{fmtDate(p.createdAt)}</p>
             <div className="max-h-64 overflow-y-auto rounded-btn border border-neutral-100 bg-neutral-50/80 p-2">
               <p className="text-sm leading-relaxed text-neutral-800 whitespace-pre-wrap">{p.body || ''}</p>

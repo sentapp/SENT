@@ -137,16 +137,16 @@ export default function ResetPassword() {
 
   if (phase === 'checking') {
     return (
-      <div className="flex min-h-full items-center justify-center bg-white px-6 md:bg-mission-canvas">
-        <p className="text-sm font-medium text-neutral-600">Verifying reset link…</p>
+      <div className="flex min-h-full items-center justify-center bg-background px-6 md:bg-mission-canvas">
+        <p className="text-sm font-medium text-muted">Verifying reset link…</p>
       </div>
     );
   }
 
   if (phase === 'error') {
     return (
-      <div className="min-h-full bg-white md:bg-mission-canvas">
-        <div className="mx-auto flex min-h-full max-w-mobile flex-col px-6 py-8 md:my-8 md:max-w-lg md:rounded-card md:border md:border-neutral-200 md:bg-white md:shadow-sm">
+      <div className="min-h-full bg-background md:bg-mission-canvas">
+        <div className="mx-auto flex min-h-full max-w-mobile flex-col px-6 py-8 md:my-8 md:max-w-lg md:rounded-card md:border md:border-border md:bg-surface md:shadow-sm">
           <h1 className="mb-4 text-center text-2xl font-semibold tracking-tight">Reset password</h1>
           <p className="mb-6 rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{initError}</p>
           <Link
@@ -161,8 +161,8 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-full bg-white md:bg-mission-canvas">
-      <div className="mx-auto flex min-h-full max-w-mobile flex-col px-6 py-8 md:my-8 md:max-w-lg md:rounded-card md:border md:border-neutral-200 md:bg-white md:shadow-sm">
+    <div className="min-h-full bg-background md:bg-mission-canvas">
+      <div className="mx-auto flex min-h-full max-w-mobile flex-col px-6 py-8 md:my-8 md:max-w-lg md:rounded-card md:border md:border-border md:bg-surface md:shadow-sm">
         <h1 className="mb-2 text-center text-2xl font-semibold tracking-tight">Choose a new password</h1>
         <p className="mb-6 text-center text-sm text-neutral-600">Enter and confirm your new password below.</p>
 

@@ -16,7 +16,7 @@ function ToggleRow({ title, subtitle, checked, onChange }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-card border border-neutral-200 bg-white p-4">
       <div>
-        <p className="text-sm font-semibold text-neutral-900">{title}</p>
+        <p className="text-sm font-semibold text-ink">{title}</p>
         {subtitle ? <p className="mt-1 text-sm text-neutral-600">{subtitle}</p> : null}
       </div>
       <label className="relative inline-flex cursor-pointer items-center">
@@ -421,7 +421,7 @@ export default function SupporterProfile() {
       </Card>
 
       <div className="space-y-3">
-        <p className="text-sm font-semibold text-neutral-900">Notifications</p>
+        <p className="text-sm font-semibold text-ink">Notifications</p>
         <ToggleRow
           title="In-app"
           subtitle="Receive updates inside the app."

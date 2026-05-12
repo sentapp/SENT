@@ -213,7 +213,7 @@ export default function SupporterFeed() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-lg font-semibold tracking-tight text-neutral-900">{displayName}</p>
+                  <p className="text-lg font-semibold tracking-tight text-ink">{displayName}</p>
                   {orgLine ? <p className="mt-0.5 text-sm text-neutral-600">{orgLine}</p> : null}
                   <p className="mt-2 text-sm leading-relaxed text-neutral-600">
                     Partner with {displayName} through a gift that sends the Gospel further.
@@ -251,7 +251,7 @@ export default function SupporterFeed() {
           {missionPush && missionPush.is_active ? (
             <Card className="feed-accent-card border-2 p-5">
               <p className="feed-accent-text text-xs font-semibold uppercase tracking-wide">Mission push</p>
-              <h2 className="mt-2 text-xl font-semibold text-neutral-900">{missionPush.title}</h2>
+              <h2 className="mt-2 text-xl font-semibold text-ink">{missionPush.title}</h2>
               {missionPush.description ? (
                 <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{missionPush.description}</p>
               ) : null}

@@ -4,6 +4,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        background: '#F7F5F2',
+        surface: '#FFFFFF',
+        border: '#E5E2DD',
+        ink: '#1C1917',
+        muted: '#78716C',
+        accent: '#185FA5',
+        warm: '#C2410C',
+        success: '#15803D',
+        subtle: '#F3F2EF',
         mission: {
           blue: '#185FA5',
           green: '#15803D',
@@ -26,16 +35,7 @@ module.exports = {
         btn: '10px',
       },
       fontFamily: {
-        sans: [
-          'Inter',
-          '-apple-system',
-          'BlinkMacSystemFont',
-          '"Segoe UI"',
-          'Roboto',
-          'Helvetica',
-          'Arial',
-          'sans-serif',
-        ],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
     },
   },

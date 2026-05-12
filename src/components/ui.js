@@ -3,7 +3,7 @@ import React from 'react';
 export function Card({ className = '', children, ...props }) {
   return (
     <div
-      className={`rounded-card border border-mission-line bg-white p-5 transition-colors duration-200 ease-out md:p-5 ${className}`}
+      className={`rounded-card border border-mission-line bg-surface p-5 transition-colors duration-200 ease-out md:p-5 ${className}`}
       {...props}
     >
       {children}
@@ -18,13 +18,13 @@ export function Button({ className = '', variant = 'primary', ...props }) {
     primary:
       'border border-transparent bg-mission-ink text-white hover:bg-mission-ink/90 active:bg-mission-ink/85',
     accent:
-      'border border-transparent bg-mission-blue text-white hover:bg-mission-blue/95 active:bg-mission-blue/90',
+      'border border-transparent bg-accent text-white hover:bg-accent/95 active:bg-accent/90',
     secondary:
-      'border border-mission-line bg-white text-mission-ink hover:bg-[color:var(--color-bg)] active:bg-mission-line/40',
+      'border border-mission-line bg-surface text-mission-ink hover:bg-[color:var(--color-bg)] active:bg-mission-line/40',
     ghost:
       'min-h-0 border-transparent bg-transparent px-3 py-2 text-mission-ink hover:bg-[color:var(--color-bg)] active:bg-mission-line/50',
     outlineBlue:
-      'border border-mission-blue bg-white text-mission-blue hover:bg-mission-blue/[0.06] active:bg-mission-blue/[0.1]',
+      'border border-accent bg-surface text-accent hover:bg-accent/[0.06] active:bg-accent/[0.1]',
     danger: 'border border-transparent bg-mission-danger text-white hover:bg-mission-danger/95 active:bg-mission-danger/90',
   };
   return <button className={`${base} ${variants[variant] ?? variants.primary} ${className}`} {...props} />;
@@ -34,7 +34,7 @@ export const Input = React.forwardRef(function Input({ className = '', ...props 
   return (
     <input
       ref={ref}
-      className={`w-full rounded-btn border border-mission-line bg-white px-4 py-[14px] text-[14px] font-normal text-mission-ink outline-none ring-mission-blue/25 transition-colors duration-200 focus:border-mission-blue focus:ring ${className}`}
+      className={`w-full rounded-btn border border-mission-line bg-surface px-4 py-[14px] text-[14px] font-normal text-mission-ink outline-none ring-accent/25 transition-colors duration-200 focus:border-accent focus:ring ${className}`}
       {...props}
     />
   );
@@ -43,7 +43,7 @@ export const Input = React.forwardRef(function Input({ className = '', ...props 
 export function Textarea({ className = '', ...props }) {
   return (
     <textarea
-      className={`w-full rounded-btn border border-mission-line bg-white px-4 py-3 text-[14px] font-normal text-mission-ink outline-none ring-mission-blue/25 transition-colors duration-200 focus:border-mission-blue focus:ring ${className}`}
+      className={`w-full rounded-btn border border-mission-line bg-surface px-4 py-3 text-[14px] font-normal text-mission-ink outline-none ring-accent/25 transition-colors duration-200 focus:border-accent focus:ring ${className}`}
       {...props}
     />
   );
@@ -62,7 +62,7 @@ export function LoadingSpinner({ className = '', label }) {
   return (
     <div className={`flex flex-col items-center justify-center gap-3 ${className}`}>
       <svg
-        className="h-9 w-9 animate-spin text-mission-blue"
+        className="h-9 w-9 animate-spin text-accent"
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
@@ -130,8 +130,8 @@ const EMPTY_ICON_MAP = {
 export function EmptyState({ title, subtitle, action, icon }) {
   const graphic = icon ? EMPTY_ICON_MAP[icon] : null;
   return (
-    <div className="rounded-card border border-dashed border-mission-line bg-white p-8 text-center">
-      {graphic ? <div className="mb-4 flex justify-center text-mission-blue/80">{graphic}</div> : null}
+    <div className="rounded-card border border-dashed border-mission-line bg-surface p-8 text-center">
+      {graphic ? <div className="mb-4 flex justify-center text-accent/80">{graphic}</div> : null}
       <p className="sent-card-title">{title}</p>
       {subtitle ? <p className="sent-body mt-2 text-mission-muted">{subtitle}</p> : null}
       {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
@@ -150,7 +150,7 @@ export function Modal({ open, title, children, onClose, footer, backdropClose = 
       }}
     >
       <div
-        className="w-full max-w-lg rounded-card border border-mission-line bg-white shadow-lg"
+        className="w-full max-w-lg rounded-card border border-mission-line bg-surface shadow-lg"
         role="presentation"
         onClick={(e) => e.stopPropagation()}
       >

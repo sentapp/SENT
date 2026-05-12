@@ -85,7 +85,7 @@ function ImportBlockingOverlay({ open, progress, onCancel }) {
         >
           <div className="flex flex-col items-center gap-5">
             <LoadingSpinner className="!gap-0" />
-            <p id="import-loading-title" className="text-base font-bold text-neutral-900">
+            <p id="import-loading-title" className="text-base font-bold text-ink">
               {phaseTitle}
             </p>
             <div className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-neutral-800">
@@ -760,7 +760,7 @@ export default function MissionaryContacts() {
         </div>
         {selectMode ? (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-neutral-900">{selectedCount} selected</span>
+            <span className="text-sm font-semibold text-ink">{selectedCount} selected</span>
             <Button variant="secondary" type="button" onClick={selectAllFiltered}>
               Select all
             </Button>
@@ -944,7 +944,7 @@ export default function MissionaryContacts() {
                   </div>
                 ) : null}
                 <div className="min-w-0 flex-1 flex flex-col gap-1">
-                  <p className="text-base font-semibold text-neutral-900">{c.fullName || 'Unnamed contact'}</p>
+                  <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
                   <p className="text-xs text-neutral-500">
                     {categoryLabel(c.category)} · {statusLabel(c.status)}
                     {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
@@ -1114,7 +1114,7 @@ export default function MissionaryContacts() {
                 }))
               }
             />
-            <span className="text-sm font-semibold text-neutral-900">One-time donor</span>
+            <span className="text-sm font-semibold text-ink">One-time donor</span>
           </label>
           {form.isOneTimeDonor ? (
             <div className="grid gap-3 md:grid-cols-2">

@@ -39,7 +39,7 @@ export default function MissionaryPipelineSection({
         className="flex w-full cursor-pointer items-start justify-between gap-4 border-b border-neutral-100 bg-neutral-50/70 px-5 py-5 text-left transition hover:bg-neutral-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 focus-visible:ring-inset md:px-6 md:py-6"
       >
         <div className="min-w-0 space-y-1.5">
-          <h2 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">Pipeline</h2>
+          <h2 className="text-xl font-bold tracking-tight text-ink md:text-2xl">Pipeline</h2>
           <p className="text-sm text-neutral-600">
             Asked, meeting scheduled, contacted, or committed — newest first (up to 10).
           </p>
@@ -74,7 +74,7 @@ export default function MissionaryPipelineSection({
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1 space-y-2">
-                    <p className="text-base font-bold text-neutral-900">{c.fullName || 'Unnamed'}</p>
+                    <p className="text-base font-bold text-ink">{c.fullName || 'Unnamed'}</p>
                     <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${pipelineStatusBadgeClass(c.status)}`}
@@ -101,7 +101,7 @@ export default function MissionaryPipelineSection({
                     <span className="text-xs font-medium text-neutral-600">Update status</span>
                     <select
                       aria-label={`Update status for ${c.fullName || 'contact'}`}
-                      className="w-full max-w-full rounded-btn border border-neutral-200 bg-white py-2.5 pl-3 pr-8 text-sm font-semibold text-neutral-800 lg:max-w-[240px]"
+                      className="w-full max-w-full rounded-btn border border-border bg-surface py-2.5 pl-3 pr-8 text-sm font-semibold text-neutral-800 lg:max-w-[240px]"
                       value={c.status}
                       disabled={pipelineSavingId === c.id}
                       onChange={(e) => void onChangeStatus(c, e.target.value)}

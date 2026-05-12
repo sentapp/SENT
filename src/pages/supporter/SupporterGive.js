@@ -118,12 +118,12 @@ export default function SupporterGive() {
             )}
           </div>
           <div className="mt-4 min-w-0 sm:mt-0">
-            <p className="text-lg font-semibold text-neutral-900">{name}</p>
+            <p className="text-lg font-semibold text-ink">{name}</p>
             {missionary?.organization ? (
               <p className="mt-1 text-sm text-neutral-600">{missionary.organization}</p>
             ) : null}
             <p className="mt-4 text-base leading-relaxed text-neutral-700">
-              Your giving directly fuels the Gospel in <span className="font-semibold text-neutral-900">{location}</span>.
+              Your giving directly fuels the Gospel in <span className="font-semibold text-ink">{location}</span>.
             </p>
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function SupporterGive() {
       {missionPush && missionPush.is_active ? (
         <Card className="feed-accent-card border p-6 shadow-sm">
           <p className="feed-accent-text text-xs font-semibold uppercase tracking-wide">Mission push</p>
-          <h2 className="mt-2 text-xl font-semibold text-neutral-900">{missionPush.title}</h2>
+          <h2 className="mt-2 text-xl font-semibold text-ink">{missionPush.title}</h2>
           {missionPush.description ? (
             <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-neutral-700">{missionPush.description}</p>
           ) : null}

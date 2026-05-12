@@ -77,7 +77,7 @@ export function PinKeypad({ onKey, keyboard = true }) {
             key={k}
             type="button"
             onClick={() => onKey(k)}
-            className="flex h-[52px] items-center justify-center rounded-btn text-2xl font-medium text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200"
+            className="flex h-[52px] items-center justify-center rounded-btn text-2xl font-medium text-ink hover:bg-neutral-100 active:bg-neutral-200"
           >
             {k}
           </button>

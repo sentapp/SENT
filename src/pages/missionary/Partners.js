@@ -156,7 +156,7 @@ export default function MissionaryPartners() {
             {partners.map((p) => (
               <Card key={p.id} className="p-4">
                 <button type="button" className="w-full text-left" onClick={() => setSelectedId(p.id)}>
-                  <p className="text-sm font-semibold text-neutral-900">{p.fullName || 'Unnamed partner'}</p>
+                  <p className="text-sm font-semibold text-ink">{p.fullName || 'Unnamed partner'}</p>
                   <p className="mt-1 text-xs text-neutral-500">
                     {Number(p.monthlyAmount) > 0 ? `$${Number(p.monthlyAmount).toFixed(0)}/mo` : '$0/mo'} ·{' '}
                     {categoryLabel(p.category)}

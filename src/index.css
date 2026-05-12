@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Inter + canvas: `@tailwind base` must stay first for Tailwind’s preflight.
+ * Global font uses @layer base (after @tailwind directives) so the PostCSS pipeline stays valid.
+ * `*, *::before, *::after` matches the design intent (widgets/third-party inherit Inter) without a raw `*` block before @tailwind.
+ */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  }
+}
+
 @layer base {
   :root {
     --color-bg: #f7f5f2;
@@ -28,9 +41,8 @@
   body,
   #root {
     @apply h-full min-h-0 antialiased font-sans transition-colors duration-200 ease-out;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: var(--color-bg);
-    color: var(--color-text);
+    background-color: #f7f5f2 !important;
+    color: #1c1917;
   }
 }
 

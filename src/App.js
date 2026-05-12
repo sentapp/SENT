@@ -23,6 +23,7 @@ import RequireAuth from './components/RequireAuth';
 
 function App() {
   return (
+    <div className="font-sans min-h-screen bg-[#F7F5F2]">
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/signup" element={<SignUp />} />
@@ -65,6 +66,7 @@ function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </div>
   );
 }
 

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 function Landing() {
   return (
-    <div className="flex min-h-full flex-col bg-mission-canvas md:items-center md:justify-center md:p-8">
+    <div className="flex min-h-full flex-col bg-background md:items-center md:justify-center md:p-8">
       <main className="mx-auto flex w-full max-w-mobile flex-1 flex-col px-6 py-12 md:max-w-[480px] md:flex-none md:justify-center md:py-16">
         <div className="mb-auto flex flex-1 flex-col items-center justify-start pt-[max(8vh,2rem)] md:mb-0 md:flex-none md:justify-center md:pt-0 md:self-stretch">
           <div className="flex flex-col items-center text-center">

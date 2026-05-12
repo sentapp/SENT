@@ -48,7 +48,7 @@ function PostActionsMenu({ onEdit, onDelete }) {
           <button
             type="button"
             role="menuitem"
-            className="block w-full px-4 py-2.5 text-left text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+            className="block w-full px-4 py-2.5 text-left text-sm font-medium text-ink hover:bg-neutral-50"
             onClick={() => {
               setOpen(false);
               onEdit();
@@ -291,7 +291,7 @@ export default function MissionaryUpdates() {
       </Card>
 
       <div className="space-y-3">
-        <p className="sent-section-title text-neutral-900">Recent posts</p>
+        <p className="sent-section-title text-ink">Recent posts</p>
         {loading ? (
           <p className="sent-body text-mission-muted">Loading posts…</p>
         ) : recent.length === 0 ? (
@@ -345,7 +345,7 @@ export default function MissionaryUpdates() {
 
       <section className="space-y-3" aria-labelledby="mission-map-heading">
         <div className="space-y-1">
-          <h2 id="mission-map-heading" className="sent-section-title text-neutral-900">
+          <h2 id="mission-map-heading" className="sent-section-title text-ink">
             Mission map
           </h2>
           <p className="sent-body text-mission-muted">
