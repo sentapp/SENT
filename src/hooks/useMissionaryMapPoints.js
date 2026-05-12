@@ -51,12 +51,15 @@ export function useMissionaryMapPoints(profile, posts) {
       .filter((p) => p.locationCoords)
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
+    const lastPostId = postsWithCoords.length ? postsWithCoords[postsWithCoords.length - 1]?.id : null;
+
     const points = [];
 
     if (homeCoords) {
       points.push({
         id: 'home',
         isHome: true,
+        mapPinVariant: 'home',
         coords: homeCoords,
         title: 'Home base',
         popup: (
@@ -78,6 +81,7 @@ export function useMissionaryMapPoints(profile, posts) {
       points.push({
         id: p.id,
         isHome: false,
+        mapPinVariant: p.id === lastPostId ? 'current' : 'past',
         coords: p.locationCoords,
         title: `${typeLabel} — ${cityLabel}`,
         popup: (

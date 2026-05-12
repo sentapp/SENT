@@ -64,15 +64,13 @@ export default function MissionaryOverview() {
   const { contacts, refetch: refetchContacts } = useSupabaseContacts(user?.id, {
     authLoading,
   });
-  const { pipelineContacts, pipelineLoading, updatePipelineContactStatus } = useMissionaryPipelineContacts(
+  const { pipelineContacts, pipelineInProgressCount, pipelineLoading } = useMissionaryPipelineContacts(
     user?.id,
     { authLoading, onAfterMutation: () => void refetchContacts() },
   );
   const { prayerRequests: prayer, loading: prayerLoading } = useMissionaryPrayerRequests(user?.id);
   const { state, actions } = useAppState();
   const [newTask, setNewTask] = useState('');
-  const [pipelineSavingId, setPipelineSavingId] = useState(null);
-  const [pipelineError, setPipelineError] = useState('');
   const taskInputRef = useRef(null);
   const [oneTimeModalOpen, setOneTimeModalOpen] = useState(false);
   const [oneTimeModalRows, setOneTimeModalRows] = useState([]);
@@ -149,15 +147,6 @@ export default function MissionaryOverview() {
 
   const tasks = state.missionary.tasks;
 
-  const changePipelineStatus = async (contact, nextStatus) => {
-    if (!contact?.id || nextStatus === contact.status) return;
-    setPipelineError('');
-    setPipelineSavingId(contact.id);
-    const res = await updatePipelineContactStatus(contact.id, nextStatus);
-    setPipelineSavingId(null);
-    if (!res.ok) setPipelineError(res.error || 'Could not update status.');
-  };
-
   return (
     <div className="space-y-6">
       <header className="space-y-1">
@@ -225,10 +214,8 @@ export default function MissionaryOverview() {
 
       <MissionaryPipelineSection
         pipelineContacts={pipelineContacts}
+        pipelineInProgressCount={pipelineInProgressCount}
         pipelineLoading={pipelineLoading}
-        pipelineError={pipelineError}
-        pipelineSavingId={pipelineSavingId}
-        onChangeStatus={changePipelineStatus}
       />
 
       {user?.id ? <MissionPushSection missionaryId={user.id} /> : null}

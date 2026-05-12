@@ -2,8 +2,8 @@
 export const CONTACT_STATUS_VALUES = [
   'prospect',
   'contacted',
-  'meeting_scheduled',
   'asked',
+  'meeting_scheduled',
   'committed',
   'partner',
   'declined',
@@ -15,10 +15,10 @@ const ALLOWED = new Set(CONTACT_STATUS_VALUES);
 export const CONTACT_STATUS_FORM_OPTIONS = [
   { value: 'prospect', label: 'Prospect' },
   { value: 'contacted', label: 'Contacted' },
-  { value: 'meeting_scheduled', label: 'Meeting scheduled' },
   { value: 'asked', label: 'Asked' },
+  { value: 'meeting_scheduled', label: 'Meeting Scheduled' },
   { value: 'committed', label: 'Committed' },
-  { value: 'partner', label: 'Partner (monthly giver)' },
+  { value: 'partner', label: 'Partner' },
   { value: 'declined', label: 'Declined' },
 ];
 

@@ -117,7 +117,7 @@ export default function SupporterLayout() {
 
   return (
     <div className="min-h-full bg-mission-canvas text-ink">
-      <main className="mx-auto w-full max-w-6xl px-6 py-8 pb-28">
+      <main className="mx-auto w-full max-w-6xl px-5 py-5 pb-28 md:px-8 md:py-8">
         <div key={location.pathname} className="sent-outlet-enter">
           <Outlet />
         </div>

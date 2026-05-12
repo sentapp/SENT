@@ -2,6 +2,11 @@ import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import * as pdfjsLib from 'pdfjs-dist';
 import { normalizeFullName } from './contactDuplicates';
+import {
+  applyImportRowSemantics,
+  findBestMonthlyAmountColumnIndex,
+  findBestStatusColumnIndex,
+} from './importRowSemantics';
 
 // CDN worker (version must match pdfjs-dist in package.json — Safari is picky about workers)
 if (typeof window !== 'undefined') {
@@ -399,6 +404,9 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
 
   const validNameCount = countRowsWithValidName(dataRows, nameIdx);
 
+  const monthlyImportIdx = findBestMonthlyAmountColumnIndex(headerCells);
+  const statusImportIdx = findBestStatusColumnIndex(headerCells);
+
   const drafts = [];
   for (let i = 0; i < dataRows.length; i += 1) {
     const row = dataRows[i];
@@ -415,12 +423,14 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
     if (emailExtra) notesParts.push(emailExtra);
     for (let j = 0; j < width; j += 1) {
       if (j === nameIdx || j === phoneIdx || j === emailIdx) continue;
+      if (monthlyImportIdx >= 0 && j === monthlyImportIdx) continue;
+      if (statusImportIdx >= 0 && j === statusImportIdx) continue;
       const cell = String(row[j] ?? '').trim();
       if (cell) notesParts.push(cell);
     }
     const notes = notesParts.join(' | ');
 
-    drafts.push({
+    const baseDraft = {
       id: `flex-${sheetName}-${i}`,
       full_name: nameRaw,
       phone: phoneOut,
@@ -429,7 +439,14 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
       status: 'prospect',
       monthly_amount: 0,
       notes,
-    });
+    };
+    drafts.push(
+      applyImportRowSemantics(baseDraft, row, {
+        statusIdx: statusImportIdx,
+        monthlyIdx: monthlyImportIdx,
+        width,
+      }),
+    );
   }
 
   if (!drafts.length) return null;
@@ -528,15 +545,19 @@ export function detectColumns(headers) {
 
 export function rowsToContacts(rows, headers) {
   const { fullNameIdx, phoneIdx, emailIdx } = detectColumns(headers);
+  const headerCells = (headers || []).map((h) => String(h ?? ''));
+  const monthlyIdx = findBestMonthlyAmountColumnIndex(headerCells);
+  const statusIdx = findBestStatusColumnIndex(headerCells);
   const out = [];
   for (const row of rows) {
     if (!Array.isArray(row) && typeof row !== 'object') continue;
     const arr = Array.isArray(row) ? row : headers.map((h) => row[h]);
+    const width = Math.max(headerCells.length, arr.length, 1);
     const fullName = String(arr[fullNameIdx] ?? '').trim();
     const phone = phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '';
     const email = emailIdx >= 0 ? String(arr[emailIdx] ?? '').trim() : '';
     if (!isValidImportContactName(fullName)) continue;
-    out.push({
+    const base = {
       full_name: fullName,
       phone,
       email,
@@ -544,7 +565,8 @@ export function rowsToContacts(rows, headers) {
       status: 'prospect',
       monthly_amount: 0,
       notes: '',
-    });
+    };
+    out.push(applyImportRowSemantics(base, arr, { statusIdx, monthlyIdx, width }));
   }
   return out;
 }

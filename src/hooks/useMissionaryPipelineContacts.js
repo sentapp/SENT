@@ -29,6 +29,7 @@ function mapRow(row) {
     fullName: row.full_name || '',
     phone: row.phone || '',
     email: row.email || '',
+    address: row.address != null ? String(row.address) : '',
     category: normalizeCategoryFromDb(row.category),
     status: normalizeStatusFromDb(row.status),
     monthlyAmount: row.monthly_amount != null ? Number(row.monthly_amount) : 0,
@@ -36,11 +37,18 @@ function mapRow(row) {
   };
 }
 
-/** Statuses shown on Pipeline board + Overview pipeline (Supabase `.in()` filter). */
-export const MISSIONARY_PIPELINE_TRACKED_STATUSES = ['contacted', 'asked', 'meeting_scheduled', 'committed'];
+/** Active conversation stages — Overview widget + Contacts pipeline strip. */
+export const CONTACTS_PIPELINE_STRIP_STATUSES = ['contacted', 'asked', 'meeting_scheduled', 'committed'];
 
-/** Advance pipeline stage; final step from the board moves a contact to Partner. */
+/** @deprecated use CONTACTS_PIPELINE_STRIP_STATUSES */
+export const MISSIONARY_PIPELINE_TRACKED_STATUSES = CONTACTS_PIPELINE_STRIP_STATUSES;
+
+/** Full Pipeline Kanban (declined omitted — not shown on board). */
+export const MISSIONARY_KANBAN_STATUSES = ['prospect', 'contacted', 'asked', 'meeting_scheduled', 'committed', 'partner'];
+
+/** Advance toward Partner (Monthly Supporter). */
 export const PIPELINE_NEXT_STATUS = {
+  prospect: 'contacted',
   contacted: 'asked',
   asked: 'meeting_scheduled',
   meeting_scheduled: 'committed',
@@ -69,11 +77,12 @@ export function useMissionaryPipelineContacts(authUserId, options = {}) {
         setContacts([]);
         return;
       }
+      const statusFilter = variant === 'board' ? MISSIONARY_KANBAN_STATUSES : MISSIONARY_PIPELINE_TRACKED_STATUSES;
       let q = supabase
         .from('contacts')
-        .select('id, full_name, phone, email, status, category, monthly_amount, notes, created_at')
+        .select('id, full_name, phone, email, address, status, category, monthly_amount, notes, created_at')
         .eq('missionary_id', missionaryId)
-        .in('status', MISSIONARY_PIPELINE_TRACKED_STATUSES);
+        .in('status', statusFilter);
       if (variant === 'board') {
         q = q.order('full_name', { ascending: true });
       } else {

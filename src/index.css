@@ -59,7 +59,7 @@
   animation: sent-outlet-fade 0.32s ease-out;
 }
 
-/* Leaflet — readable popups for emoji markers (custom icons in src/lib/mapMarkers.js) */
+/* Leaflet — readable popups for custom markers (src/lib/mapMarkers.js) */
 .leaflet-popup-content-wrapper {
   border-radius: 12px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
@@ -77,6 +77,12 @@
 }
 .leaflet-container a.leaflet-popup-close-button:hover {
   color: #171717;
+}
+
+/* L.divIcon — hide Leaflet default marker box */
+.sent-map-pin {
+  background: transparent !important;
+  border: none !important;
 }
 
 @layer components {

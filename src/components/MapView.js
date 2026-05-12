@@ -1,13 +1,13 @@
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
-import { fireMapIcon, homeMapIcon } from '../lib/mapMarkers';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { homeMapIcon, mapPinCurrent, mapPinPast } from '../lib/mapMarkers';
 
-export default function MapView({
-  points = [],
-  route = false,
-  className = '',
-  height = 360,
-  rounded = true,
-}) {
+function iconForPoint(p) {
+  if (p.isHome) return homeMapIcon;
+  if (p.mapPinVariant === 'past') return mapPinPast;
+  return mapPinCurrent;
+}
+
+export default function MapView({ points = [], className = '', height = 360, rounded = true }) {
   const positions = points
     .map((p) => p.coords)
     .filter(Boolean)
@@ -21,9 +21,7 @@ export default function MapView({
   const roundedClass = rounded ? 'rounded-card' : 'rounded-none';
 
   return (
-    <div
-      className={`overflow-hidden border border-neutral-200 bg-white shadow-sm ${roundedClass} ${className}`}
-    >
+    <div className={`overflow-hidden border border-mission-line bg-surface ${roundedClass} ${className}`}>
       <MapContainer
         center={[centerLat, centerLng]}
         zoom={zoom}
@@ -36,7 +34,7 @@ export default function MapView({
             <Marker
               key={p.id}
               position={[p.coords.lat, p.coords.lng]}
-              icon={p.isHome ? homeMapIcon : fireMapIcon}
+              icon={iconForPoint(p)}
               eventHandlers={{
                 click: (e) => {
                   e.target.openPopup();
@@ -51,9 +49,6 @@ export default function MapView({
             </Marker>
           ) : null,
         )}
-        {route && positions.length >= 2 ? (
-          <Polyline positions={positions} pathOptions={{ color: '#185FA5', weight: 3, dashArray: '6 8' }} />
-        ) : null}
       </MapContainer>
     </div>
   );

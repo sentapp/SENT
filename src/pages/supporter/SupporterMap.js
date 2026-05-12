@@ -54,7 +54,7 @@ export default function SupporterMap() {
         <p className="text-sm text-neutral-600">Your missionary&apos;s home base and update locations.</p>
       </header>
       <div className="-mx-6 sm:mx-0">
-        <MapView points={points} route height={420} rounded={false} className="border-x-0 sm:rounded-card sm:border" />
+        <MapView points={points} height={420} rounded={false} className="border-x-0 sm:rounded-card sm:border" />
       </div>
     </div>
   );

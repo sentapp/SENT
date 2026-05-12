@@ -1,0 +1,166 @@
+import { normalizeCategoryForSave } from './contactCategories';
+import { CONTACT_STATUS_VALUES, normalizeStatusForSave } from './contactStatuses';
+
+const STATUS_SET = new Set(CONTACT_STATUS_VALUES);
+
+function normHeader(h) {
+  return String(h ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function compactHeader(h) {
+  return normHeader(h).replace(/\s/g, '');
+}
+
+/** @returns {number} column index or -1 */
+export function findBestMonthlyAmountColumnIndex(headerCells) {
+  if (!headerCells?.length) return -1;
+  let best = -1;
+  let bestScore = 0;
+  headerCells.forEach((raw, i) => {
+    const c = compactHeader(raw);
+    const n = normHeader(raw);
+    let score = 0;
+    if (c.includes('monthly') && (c.includes('amount') || c.includes('gift') || c.includes('pledge') || c.includes('support')))
+      score = 100;
+    else if (c === 'monthlyamount' || c.includes('monthly_amount')) score = 98;
+    else if (c === 'monthly' || n === 'monthly') score = 90;
+    else if (c.includes('pledge') && !c.includes('one')) score = 88;
+    else if ((c === 'amount' || n === 'amount') && !c.includes('one')) score = 72;
+    else if (n.includes('monthly') && n.includes('donation')) score = 85;
+    else if (n.includes('support amount') || n.includes('giving amount')) score = 82;
+    if (score > bestScore) {
+      bestScore = score;
+      best = i;
+    }
+  });
+  return bestScore >= 60 ? best : -1;
+}
+
+/** @returns {number} column index or -1 */
+export function findBestStatusColumnIndex(headerCells) {
+  if (!headerCells?.length) return -1;
+  let best = -1;
+  let bestScore = 0;
+  headerCells.forEach((raw, i) => {
+    const c = compactHeader(raw);
+    const n = normHeader(raw);
+    let score = 0;
+    if (c === 'status' || c === 'stage') score = 100;
+    else if (c.includes('contactstatus') || c.includes('crmstatus')) score = 95;
+    else if (n.includes('pipeline') && n.includes('stage')) score = 92;
+    else if (n.includes('pipeline status')) score = 90;
+    else if (n === 'state' || n.includes('lifecycle')) score = 70;
+    if (score > bestScore) {
+      bestScore = score;
+      best = i;
+    }
+  });
+  return bestScore >= 70 ? best : -1;
+}
+
+export function parseMonthlyAmountCell(val) {
+  const raw = String(val ?? '').trim();
+  if (!raw) return 0;
+  const cleaned = raw.replace(/[$€£,\s]/g, '').replace(/[^\d.-]/g, '');
+  const n = Number.parseFloat(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Interpret free-text status from spreadsheets (case-insensitive).
+ * @returns {{ explicitEnum: string | null, partnerKeywords: boolean }}
+ */
+export function interpretImportStatusCell(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return { explicitEnum: null, partnerKeywords: false };
+
+  const lower = s.toLowerCase();
+  if (/\b(supporter|monthly\s*supporter|monthly\s*partner|giving\s*partner|mission\s*partner)\b/i.test(lower)) {
+    return { explicitEnum: 'partner', partnerKeywords: true };
+  }
+  if (/\bpartner\b/i.test(lower) && !/\bpotential\b/i.test(lower)) {
+    return { explicitEnum: 'partner', partnerKeywords: true };
+  }
+
+  const compact = lower.replace(/[\s_-]+/g, '');
+
+  if (/\bmeeting\s*(set|scheduled)\b/i.test(lower) || compact.includes('meetingscheduled') || compact === 'meetingset') {
+    return { explicitEnum: 'meeting_scheduled', partnerKeywords: false };
+  }
+  if (/\bcommitted\b/i.test(lower) || /\bcommitment\b/i.test(lower)) {
+    return { explicitEnum: 'committed', partnerKeywords: false };
+  }
+  if (/\bcontacted\b/i.test(lower) || /\bfollow[-\s]?up\b/i.test(lower) || compact === 'followup') {
+    return { explicitEnum: 'contacted', partnerKeywords: false };
+  }
+  if (/\basked\b/i.test(lower)) {
+    return { explicitEnum: 'asked', partnerKeywords: false };
+  }
+  if (/\bdeclined\b/i.test(lower) || /\bnot\s+interested\b/i.test(lower)) {
+    return { explicitEnum: 'declined', partnerKeywords: false };
+  }
+  if (/\bprospect\b/i.test(lower) || /\bpotential\b/i.test(lower) || /\bnew\s+lead\b/i.test(lower)) {
+    return { explicitEnum: 'prospect', partnerKeywords: false };
+  }
+
+  const slug = lower.replace(/[\s/]+/g, '_');
+  if (STATUS_SET.has(slug)) return { explicitEnum: slug, partnerKeywords: false };
+
+  const direct = normalizeStatusForSave(lower);
+  if (STATUS_SET.has(direct) && direct !== 'prospect') return { explicitEnum: direct, partnerKeywords: false };
+
+  return { explicitEnum: null, partnerKeywords: false };
+}
+
+/**
+ * Merge parsed name/phone/email row with optional status + monthly columns.
+ * @param {object} draft base draft (potential/prospect defaults ok)
+ * @param {unknown[]} row
+ * @param {{ statusIdx: number, monthlyIdx: number, width: number }} ctx
+ */
+export function applyImportRowSemantics(draft, row, ctx) {
+  const { statusIdx, monthlyIdx, width } = ctx;
+  let category = normalizeCategoryForSave(draft.category);
+  let status = normalizeStatusForSave(draft.status);
+  let monthly_amount = Number.isFinite(Number(draft.monthly_amount)) ? Number(draft.monthly_amount) : 0;
+
+  let explicitStatusFromSheet = false;
+
+  if (statusIdx >= 0 && statusIdx < width) {
+    const cell = String(row[statusIdx] ?? '').trim();
+    if (cell) {
+      const interpreted = interpretImportStatusCell(cell);
+      explicitStatusFromSheet = Boolean(interpreted.explicitEnum);
+      if (interpreted.partnerKeywords || interpreted.explicitEnum === 'partner') {
+        category = 'supporter';
+        status = 'partner';
+      } else if (interpreted.explicitEnum) {
+        status = normalizeStatusForSave(interpreted.explicitEnum);
+      }
+    }
+  }
+
+  if (monthlyIdx >= 0 && monthlyIdx < width) {
+    const amt = parseMonthlyAmountCell(row[monthlyIdx]);
+    if (amt > 0) {
+      monthly_amount = amt;
+      if (!explicitStatusFromSheet) {
+        category = 'supporter';
+        status = 'partner';
+      }
+    }
+  }
+
+  const finalStatus = normalizeStatusForSave(status);
+  const finalCategory = finalStatus === 'partner' ? 'supporter' : normalizeCategoryForSave(category);
+
+  return {
+    ...draft,
+    category: finalCategory,
+    status: finalStatus,
+    monthly_amount,
+  };
+}

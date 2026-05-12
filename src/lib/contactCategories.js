@@ -4,9 +4,9 @@ export const CONTACT_CATEGORY_VALUES = ['supporter', 'church', 'former', 'potent
 export const CONTACT_CATEGORY_FILTER_TABS = [
   { id: 'all', label: 'All' },
   { id: 'supporter', label: 'Supporters' },
-  { id: 'church', label: 'Churches / Organizations' },
-  { id: 'former', label: 'Previous Partners' },
-  { id: 'potential', label: 'Potential Supporters' },
+  { id: 'church', label: 'Churches' },
+  { id: 'former', label: 'Previous' },
+  { id: 'potential', label: 'Potential' },
 ];
 
 export const CONTACT_CATEGORY_FORM_OPTIONS = CONTACT_CATEGORY_FILTER_TABS.filter((t) => t.id !== 'all');

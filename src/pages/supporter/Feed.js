@@ -245,7 +245,7 @@ export default function SupporterFeed() {
 
           <div className="-mx-6 space-y-1 sm:mx-0">
             <p className="sent-section-label px-6 sm:px-0">Mission map</p>
-            <MapView points={mapPoints} route={true} height={380} rounded={false} className="border-x-0 sm:rounded-card sm:border" />
+            <MapView points={mapPoints} height={380} rounded={false} className="border-x-0 sm:rounded-card sm:border" />
           </div>
 
           {missionPush && missionPush.is_active ? (

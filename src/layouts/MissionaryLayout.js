@@ -213,7 +213,7 @@ export default function MissionaryLayout() {
   return (
     <div className="flex min-h-full bg-mission-canvas text-ink">
       <SideNav />
-      <main className="flex-1 px-6 py-8 md:px-10">
+      <main className="flex-1 px-5 py-5 md:px-8 md:py-8 lg:px-10">
         <div className="mx-auto w-full max-w-mobile pb-[max(7rem,calc(4rem+env(safe-area-inset-bottom)))] md:max-w-6xl md:pb-0">
           <div key={location.pathname} className="sent-outlet-enter">
             <Outlet />

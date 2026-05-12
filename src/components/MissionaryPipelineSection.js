@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { CONTACT_STATUS_FORM_OPTIONS, statusLabel } from '../lib/contactStatuses';
+import { statusLabel } from '../lib/contactStatuses';
 import { Card } from './ui';
 
 const PIPELINE_STATUS_BADGE = {
-  asked: 'bg-violet-100 text-violet-900 ring-1 ring-violet-200/80',
+  asked: 'bg-amber-100 text-amber-900 ring-1 ring-amber-200/80',
   contacted: 'bg-sky-100 text-sky-900 ring-1 ring-sky-200/80',
   meeting_scheduled: 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80',
-  committed: 'bg-amber-100 text-amber-900 ring-1 ring-amber-200/80',
+  committed: 'bg-violet-100 text-violet-900 ring-1 ring-violet-200/80',
 };
 
 function pipelineStatusBadgeClass(status) {
@@ -15,10 +15,8 @@ function pipelineStatusBadgeClass(status) {
 
 export default function MissionaryPipelineSection({
   pipelineContacts,
+  pipelineInProgressCount = 0,
   pipelineLoading,
-  pipelineError,
-  pipelineSavingId,
-  onChangeStatus,
 }) {
   const navigate = useNavigate();
 
@@ -26,97 +24,60 @@ export default function MissionaryPipelineSection({
     navigate('/missionary/pipeline');
   };
 
-  const openContact = (id) => {
-    navigate(`/missionary/contacts?contact=${encodeURIComponent(id)}`);
-  };
+  const countLine =
+    pipelineInProgressCount === 1
+      ? '1 contact in progress'
+      : `${pipelineInProgressCount} contacts in progress`;
+
+  const showSeeAll = pipelineInProgressCount > 5;
 
   return (
     <Card className="overflow-hidden p-0">
-      <button
-        type="button"
-        aria-label="Pipeline — open full pipeline"
-        onClick={goPipeline}
-        className="flex w-full cursor-pointer items-start justify-between gap-4 border-b border-neutral-100 bg-neutral-50/70 px-5 py-5 text-left transition hover:bg-neutral-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 focus-visible:ring-inset md:px-6 md:py-6"
-      >
-        <div className="min-w-0 space-y-1.5">
-          <h2 className="text-xl font-bold tracking-tight text-ink md:text-2xl">Pipeline</h2>
-          <p className="text-sm text-neutral-600">
-            Asked, meeting scheduled, contacted, or committed — newest first (up to 10).
-          </p>
-        </div>
-        <span className="shrink-0 pt-1 text-sm font-semibold text-mission-blue">Open pipeline</span>
-      </button>
+      <div className="flex items-baseline justify-between gap-3 border-b border-neutral-100 bg-neutral-50/70 px-5 py-4 md:px-6">
+        <h2 className="text-lg font-bold tracking-tight text-ink md:text-xl">Pipeline</h2>
+        <button
+          type="button"
+          onClick={goPipeline}
+          className="shrink-0 text-sm font-semibold text-mission-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 focus-visible:ring-offset-2"
+        >
+          Open pipeline →
+        </button>
+      </div>
 
       <div className="space-y-4 p-5 md:p-6">
-        {pipelineError ? <p className="text-xs font-medium text-red-600">{pipelineError}</p> : null}
         {pipelineLoading ? (
           <p className="text-sm text-neutral-500">Loading pipeline…</p>
-        ) : pipelineContacts.length === 0 ? (
+        ) : pipelineInProgressCount === 0 ? (
           <p className="text-sm leading-relaxed text-neutral-600">
-            No one in your pipeline yet — add contacts and mark them as Contacted to start tracking
+            No contacts in progress yet — move people through stages on the Pipeline page.
           </p>
         ) : (
-          <div className="space-y-4">
-            {pipelineContacts.map((c) => (
-              <Card
-                key={c.id}
-                role="button"
-                tabIndex={0}
-                aria-label={`Open ${c.fullName || 'contact'} in contacts`}
-                onClick={() => openContact(c.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    openContact(c.id);
-                  }
-                }}
-                className="cursor-pointer border-neutral-200 p-5 transition hover:border-mission-line hover:bg-mission-canvas/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 md:p-6"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <p className="text-base font-bold text-ink">{c.fullName || 'Unnamed'}</p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${pipelineStatusBadgeClass(c.status)}`}
-                      >
-                        {statusLabel(c.status)}
-                      </span>
-                      {Number(c.monthlyAmount) > 0 ? (
-                        <span className="text-xs font-medium text-neutral-600">
-                          ${Number(c.monthlyAmount).toFixed(0)}/mo
-                        </span>
-                      ) : null}
-                    </div>
-                    {c.phone ? (
-                      <p className="text-sm text-neutral-600">{c.phone}</p>
-                    ) : (
-                      <p className="text-xs text-neutral-400">No phone on file</p>
-                    )}
-                  </div>
-                  <div
-                    className="flex shrink-0 flex-col gap-1.5 lg:min-w-[200px] lg:items-end"
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  >
-                    <span className="text-xs font-medium text-neutral-600">Update status</span>
-                    <select
-                      aria-label={`Update status for ${c.fullName || 'contact'}`}
-                      className="w-full max-w-full rounded-btn border border-border bg-surface py-2.5 pl-3 pr-8 text-sm font-semibold text-neutral-800 lg:max-w-[240px]"
-                      value={c.status}
-                      disabled={pipelineSavingId === c.id}
-                      onChange={(e) => void onChangeStatus(c, e.target.value)}
+          <>
+            <p className="text-sm text-neutral-600">{countLine}</p>
+            <ul className="list-disc space-y-2 pl-5 text-sm marker:text-neutral-400">
+              {pipelineContacts.map((c) => (
+                <li key={c.id} className="pl-0.5">
+                  <span className="inline-flex flex-wrap items-baseline gap-2">
+                    <span className="font-medium text-ink">{c.fullName || 'Unnamed'}</span>
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${pipelineStatusBadgeClass(c.status)}`}
                     >
-                      {CONTACT_STATUS_FORM_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+                      {statusLabel(c.status)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {showSeeAll ? (
+              <button
+                type="button"
+                onClick={goPipeline}
+                className="text-sm font-semibold text-mission-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 focus-visible:ring-offset-2"
+              >
+                See all →
+              </button>
+            ) : null}
+          </>
         )}
       </div>
     </Card>

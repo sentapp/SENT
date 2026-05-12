@@ -352,7 +352,7 @@ export default function MissionaryUpdates() {
             Your home base and update locations (from plain-text places on posts). Pins connect in chronological order.
           </p>
         </div>
-        <MapView points={mapPoints} route height={380} />
+        <MapView points={mapPoints} height={380} />
         <Card className="p-5">
           <p className="sent-section-title">How pins work</p>
           <p className="sent-body mt-2 text-mission-muted">

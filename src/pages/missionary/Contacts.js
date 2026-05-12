@@ -22,6 +22,7 @@ import {
   isContactPickerSupported,
 } from '../../lib/phoneContacts';
 import { supabase } from '../../lib/supabaseClient';
+import { CONTACTS_PIPELINE_STRIP_STATUSES } from '../../hooks/useMissionaryPipelineContacts';
 import {
   CONTACT_CATEGORY_FILTER_TABS,
   CONTACT_CATEGORY_FORM_OPTIONS,
@@ -30,6 +31,8 @@ import {
 } from '../../lib/contactCategories';
 import { CONTACT_STATUS_FORM_OPTIONS, normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { Button, Card, EmptyState, Input, Label, LoadingSpinner, Modal, Textarea } from '../../components/ui';
+
+const PIPELINE_STRIP_SET = new Set(CONTACTS_PIPELINE_STRIP_STATUSES);
 
 const FILTERS = CONTACT_CATEGORY_FILTER_TABS;
 const VALID_CONTACT_FILTER_IDS = new Set(FILTERS.map((f) => f.id));
@@ -48,6 +51,21 @@ const emptyForm = {
   oneTimeDonationDate: '',
   notes: '',
 };
+
+function pipelineStripStageDotClass(status) {
+  switch (normalizeStatusFromDb(status)) {
+    case 'contacted':
+      return 'bg-mission-blue';
+    case 'asked':
+      return 'bg-amber-500';
+    case 'meeting_scheduled':
+      return 'bg-mission-green';
+    case 'committed':
+      return 'bg-mission-purple';
+    default:
+      return 'bg-neutral-400';
+  }
+}
 
 function Tab({ active, onClick, children }) {
   return (
@@ -119,6 +137,8 @@ function ImportBlockingOverlay({ open, progress, onCancel }) {
 export default function MissionaryContacts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const oneTimeDonorFilter = searchParams.get('filter') === 'one_time';
+
+  const editFromUrl = searchParams.get('edit') ?? searchParams.get('contact');
 
   const { user, loading: authLoading } = useAuth();
   const {
@@ -536,35 +556,36 @@ export default function MissionaryContacts() {
     setModalOpen(true);
   }, []);
 
-  const editFromUrl = searchParams.get('edit') ?? searchParams.get('contact');
+  const stripContactParams = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('edit');
+        next.delete('contact');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
+
+  const contactFromUrl = editFromUrl;
   useEffect(() => {
-    if (!editFromUrl) {
+    if (!contactFromUrl) {
       contactUrlHandledRef.current = null;
       return;
     }
     if (loading || authLoading) return;
-    if (contactUrlHandledRef.current === editFromUrl) return;
-    const c = contacts.find((x) => String(x.id) === String(editFromUrl));
-    const stripEditParams = () => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete('edit');
-          next.delete('contact');
-          return next;
-        },
-        { replace: true },
-      );
-    };
+    if (contactUrlHandledRef.current === contactFromUrl) return;
+    const c = contacts.find((x) => String(x.id) === String(contactFromUrl));
     if (!c) {
       contactUrlHandledRef.current = null;
-      stripEditParams();
+      stripContactParams();
       return;
     }
-    contactUrlHandledRef.current = editFromUrl;
+    contactUrlHandledRef.current = contactFromUrl;
     openEdit(c);
-    stripEditParams();
-  }, [editFromUrl, loading, authLoading, contacts, openEdit, setSearchParams]);
+    stripContactParams();
+  }, [contactFromUrl, loading, authLoading, contacts, openEdit, stripContactParams]);
 
   const saveContact = async () => {
     setSaveError('');
@@ -630,22 +651,35 @@ export default function MissionaryContacts() {
     setDeleteTarget(null);
   };
 
-  const filtered = contacts
-    .filter((c) => {
-      if (oneTimeDonorFilter && !c.isOneTimeDonor) return false;
-      if (filter === 'all') return true;
-      return (c.category || '') === filter;
-    })
-    .filter((c) => {
-      const q = query.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        (c.fullName || '').toLowerCase().includes(q) ||
-        (c.email || '').toLowerCase().includes(q) ||
-        (c.phone || '').toLowerCase().includes(q) ||
-        (c.address || '').toLowerCase().includes(q)
-      );
-    });
+  const filteredSorted = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return contacts
+      .filter((c) => {
+        if (oneTimeDonorFilter && !c.isOneTimeDonor) return false;
+        if (filter === 'all') return true;
+        return (c.category || '') === filter;
+      })
+      .filter((c) => {
+        if (!q) return true;
+        return (
+          (c.fullName || '').toLowerCase().includes(q) ||
+          (c.email || '').toLowerCase().includes(q) ||
+          (c.phone || '').toLowerCase().includes(q) ||
+          (c.address || '').toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', undefined, { sensitivity: 'base' }));
+  }, [contacts, oneTimeDonorFilter, filter, query]);
+
+  const pipelineStripContacts = useMemo(
+    () =>
+      contacts
+        .filter((c) => PIPELINE_STRIP_SET.has(normalizeStatusFromDb(c.status)))
+        .sort((a, b) =>
+          (a.fullName || '').localeCompare(b.fullName || '', undefined, { sensitivity: 'base' }),
+        ),
+    [contacts],
+  );
 
   const enterSelectMode = () => {
     setSelectMode(true);
@@ -670,7 +704,7 @@ export default function MissionaryContacts() {
   };
 
   const selectAllFiltered = () => {
-    setSelectedIds(new Set(filtered.map((c) => c.id)));
+    setSelectedIds(new Set(filteredSorted.map((c) => c.id)));
   };
 
   const openBulkDeleteModal = () => {
@@ -752,11 +786,12 @@ export default function MissionaryContacts() {
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="sent-page-title">Contacts</h1>
-          <p className="sent-body text-mission-muted">CRM contacts saved to your account.</p>
+          <h1 className="sent-page-title">
+            Contacts <span className="text-lg font-semibold text-mission-muted">({contacts.length})</span>
+          </h1>
         </div>
         {selectMode ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -777,24 +812,32 @@ export default function MissionaryContacts() {
             </Button>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" type="button" onClick={openImport}>
               Import
             </Button>
-            <Button
-              variant="secondary"
-              type="button"
-              disabled={dedupeLoading || loading}
-              onClick={() => void runRemoveDuplicates()}
-            >
-              {dedupeLoading ? 'Working…' : 'Remove duplicates'}
-            </Button>
-            <Button variant="secondary" type="button" onClick={enterSelectMode}>
-              Select
-            </Button>
             <Button type="button" onClick={openAdd}>
-              + Add Contact
+              + Add
             </Button>
+            <details className="group relative">
+              <summary className="flex cursor-pointer list-none items-center rounded-btn border border-mission-line bg-surface px-3 py-2 text-sm font-semibold text-ink marker:hidden [&::-webkit-details-marker]:hidden">
+                More
+              </summary>
+              <div className="absolute right-0 z-30 mt-1 min-w-[220px] rounded-card border border-mission-line bg-surface p-2 shadow-lg">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  className="w-full justify-start text-sm font-medium"
+                  disabled={dedupeLoading || loading}
+                  onClick={() => void runRemoveDuplicates()}
+                >
+                  {dedupeLoading ? 'Working…' : 'Remove duplicates'}
+                </Button>
+                <Button variant="ghost" type="button" className="w-full justify-start text-sm font-medium" onClick={enterSelectMode}>
+                  Select contacts
+                </Button>
+              </div>
+            </details>
           </div>
         )}
       </header>
@@ -891,7 +934,13 @@ export default function MissionaryContacts() {
         </div>
       ) : null}
 
-      <Card className="p-4">
+      <div className="rounded-card border border-mission-line bg-surface p-4 flex flex-col gap-4">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search contacts…"
+          className="py-3 text-sm"
+        />
         <div className="flex flex-wrap gap-2">
           {FILTERS.map((t) => (
             <Tab key={t.id} active={filter === t.id} onClick={() => setFilter(t.id)}>
@@ -899,10 +948,46 @@ export default function MissionaryContacts() {
             </Tab>
           ))}
         </div>
-        <div className="mt-4">
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search contacts…" className="py-3 text-sm" />
+      </div>
+
+      {!loading && contacts.length > 0 ? (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-mission-muted">Pipeline</p>
+          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 pt-0.5 [-webkit-overflow-scrolling:touch]">
+            {pipelineStripContacts.map((c) => {
+              const st = normalizeStatusFromDb(c.status);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => openDetail(c)}
+                  className="w-[min(200px,72vw)] shrink-0 rounded-card border border-mission-line bg-surface p-3 text-left shadow-none transition hover:border-accent/40"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: STRIP_DOT[st] || '#78716c' }}
+                      aria-hidden
+                    />
+                    <span className="truncate text-[10px] font-bold uppercase tracking-wide text-mission-muted">
+                      {STRIP_STAGE_LABEL[st] || statusLabel(c.status)}
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate text-sm font-semibold text-ink">{c.fullName || 'Unnamed'}</p>
+                  <p className="mt-0.5 truncate text-xs text-neutral-600">{c.phone || '—'}</p>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={openAdd}
+              className="flex min-w-[100px] shrink-0 flex-col items-center justify-center rounded-card border border-dashed border-mission-line bg-[color:var(--color-bg)] px-4 py-3 text-sm font-semibold text-accent shadow-none"
+            >
+              + Add
+            </button>
+          </div>
         </div>
-      </Card>
+      ) : null}
 
       {loading ? (
         <p className="text-center text-sm text-neutral-500">Loading contacts…</p>
@@ -918,8 +1003,8 @@ export default function MissionaryContacts() {
           }
         />
       ) : (
-        <div className="space-y-3">
-          {filtered.map((c) => (
+        <div className="flex flex-col gap-4">
+          {filteredSorted.map((c) => (
             <Card
               key={c.id}
               id={`contact-${c.id}`}
@@ -927,7 +1012,7 @@ export default function MissionaryContacts() {
                 if (selectMode) toggleContactSelected(c.id);
                 else openEdit(c);
               }}
-              className={`scroll-mt-4 p-4 text-left cursor-pointer`}
+              className="scroll-mt-4 cursor-pointer border-mission-line p-4 text-left shadow-none"
             >
               <div className="flex flex-row flex-nowrap items-start gap-3">
                 {selectMode ? (
@@ -944,10 +1029,30 @@ export default function MissionaryContacts() {
                   </div>
                 ) : null}
                 <div className="min-w-0 flex-1 flex flex-col gap-1">
-                  <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
+                    {PIPELINE_STRIP_SET.has(normalizeStatusFromDb(c.status)) ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-mission-line bg-mission-blue/5 px-2 py-0.5 text-[10px] font-semibold text-mission-blue">
+                        <span
+                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${pipelineStripStageDotClass(c.status)}`}
+                          aria-hidden
+                        />
+                        {statusLabel(c.status)}
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="text-xs text-neutral-500">
-                    {categoryLabel(c.category)} · {statusLabel(c.status)}
-                    {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
+                    {PIPELINE_STRIP_SET.has(normalizeStatusFromDb(c.status)) ? (
+                      <>
+                        {categoryLabel(c.category)}
+                        {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
+                      </>
+                    ) : (
+                      <>
+                        {categoryLabel(c.category)} · {statusLabel(c.status)}
+                        {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
+                      </>
+                    )}
                   </p>
                   {c.phone ? <p className="text-sm text-neutral-700">{c.phone}</p> : null}
                   {c.email ? <p className="text-sm text-neutral-700">{c.email}</p> : null}
@@ -966,16 +1071,6 @@ export default function MissionaryContacts() {
                   {c.notes ? <p className="mt-1 text-sm text-neutral-600">{c.notes}</p> : null}
                 </div>
                 <div className="flex shrink-0 gap-2 self-start" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    disabled={selectMode}
-                    onClick={() => openEdit(c)}
-                    className="rounded-btn border border-neutral-200 p-2 text-neutral-600 hover:bg-neutral-50 disabled:pointer-events-none disabled:opacity-40"
-                    aria-label="Edit contact"
-                    title="Edit"
-                  >
-                    ✎
-                  </button>
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(c)}
