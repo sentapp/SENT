@@ -5,6 +5,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { geocodePlaceName } from '../../lib/geocoding';
 import { supabase } from '../../lib/supabaseClient';
 import { ensureMissionarySupporterCode } from '../../lib/supporterConnection';
+import { DEFAULT_PROFILE_ACCENT, normalizeProfileAccent } from '../../lib/profileAppearance';
+import { ProfileAvatarAccentSection } from '../../components/ProfileAvatarAccentSection';
 import { Button, Card, Input, Label, Textarea } from '../../components/ui';
 import FeedbackSection from '../../components/FeedbackSection';
 import LocalPinSettingsSection from '../../components/LocalPinSettingsSection';
@@ -37,7 +39,7 @@ function applyRowToForm(row, setters) {
  */
 export default function MissionarySettings() {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, refreshProfile } = useAuth();
   const { actions } = useAppState();
 
   const [profile, setProfile] = useState(null);
@@ -53,8 +55,7 @@ export default function MissionarySettings() {
   const [monthlyGoal, setMonthlyGoal] = useState(0);
   const [partnerGoal, setPartnerGoal] = useState(0);
 
-  const [photoErr, setPhotoErr] = useState('');
-  const [localPhotoPreview, setLocalPhotoPreview] = useState('');
+  const [accentColor, setAccentColor] = useState(DEFAULT_PROFILE_ACCENT);
   const [locSaving, setLocSaving] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState('');
@@ -122,6 +123,7 @@ export default function MissionarySettings() {
 
       setProfile(row);
       applyRowToForm(row, formSetters);
+      setAccentColor(normalizeProfileAccent(row.accent_color));
       setLoading(false);
     }
 
@@ -209,6 +211,7 @@ export default function MissionarySettings() {
           non_tax_deductible_url: nonTaxUrl.trim(),
           monthly_goal: monthlyGoal,
           partner_goal: partnerGoal,
+          accent_color: normalizeProfileAccent(accentColor),
         })
         .eq('id', user.id)
         .select('*')
@@ -235,24 +238,30 @@ export default function MissionarySettings() {
     }
   };
 
-  const onPhoto = (file) => {
-    setPhotoErr('');
+  const persistAccent = async (hex) => {
+    const h = normalizeProfileAccent(hex);
+    setAccentColor(h);
+    setProfileErr('');
     setProfileMsg('');
-    if (!file) return;
-    if (file.size > 3_000_000) {
-      setPhotoErr('Please choose a photo under 3MB.');
+    if (!supabase || !profile?.id) return;
+    const { error } = await supabase.from('profiles').update({ accent_color: h }).eq('id', profile.id);
+    if (error) {
+      setProfileErr(error.message);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setLocalPhotoPreview(String(reader.result || ''));
-      actions.updateMissionaryProfile({ photoDataUrl: String(reader.result || '') });
-    };
-    reader.readAsDataURL(file);
+    setProfile((p) => (p ? { ...p, accent_color: h } : p));
+    setProfileMsg('Color saved.');
+    await refreshProfile();
+  };
+
+  const onAvatarUploaded = async (url) => {
+    setProfileErr('');
+    setProfile((p) => (p ? { ...p, photo_url: url } : p));
+    setProfileMsg('Photo updated.');
+    await refreshProfile();
   };
 
   const supporterCodeDisplay = String(profile?.supporter_code ?? '').trim() || '—';
-  const photoSrc = localPhotoPreview || profile?.photo_url || '';
 
   if (loading) {
     return (
@@ -272,14 +281,29 @@ export default function MissionarySettings() {
   }
 
   return (
-    <div className="space-y-6">
+    <div
+      className="space-y-6"
+      style={{ '--profile-accent': normalizeProfileAccent(accentColor) }}
+    >
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Settings</h1>
         <p className="text-sm text-neutral-600">Profile, goals, security, and your SENT supporter invite code.</p>
       </header>
 
-      <Card className="border-2 border-mission-blue/25 bg-mission-blue/[0.06] p-5 shadow-sm md:p-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-mission-blue">Your missionary / supporter code</p>
+      <Card className="p-5 md:p-6">
+        <ProfileAvatarAccentSection
+          userId={profile?.id}
+          fullName={fullName || profile?.full_name}
+          photoUrl={profile?.photo_url || ''}
+          accentColor={accentColor}
+          onPhotoUrlChange={(url) => void onAvatarUploaded(url)}
+          onAccentChange={(hex) => void persistAccent(hex)}
+          disabled={profileSaving}
+        />
+      </Card>
+
+      <Card className="border-2 border-[color:color-mix(in_srgb,var(--profile-accent)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--profile-accent)_10%,white)] p-5 shadow-sm md:p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide profile-accent-text">Your missionary / supporter code</p>
         <p className="mt-3 break-all font-mono text-2xl font-bold tracking-wide text-neutral-900 md:text-3xl">
           {supporterCodeDisplay}
         </p>
@@ -322,19 +346,14 @@ export default function MissionarySettings() {
               {locSaving ? 'Finding your location on the map…' : 'We look up the map position automatically — coordinates are never shown.'}
             </p>
           </Label>
-          <div className="md:col-span-2">
-            <Label title="Profile photo">
-              <input type="file" accept="image/*" onChange={(e) => onPhoto(e.target.files?.[0])} className="w-full text-sm" />
-              {photoErr ? <p className="mt-2 text-sm text-red-600">{photoErr}</p> : null}
-              <p className="mt-2 text-xs text-neutral-500">Preview only on this device unless you add cloud storage later.</p>
-              {photoSrc ? (
-                <img src={photoSrc} alt="Profile" className="mt-3 h-20 w-20 rounded-card border border-neutral-200 object-cover" />
-              ) : null}
-            </Label>
-          </div>
         </div>
         <div className="mt-6 flex justify-end">
-          <Button type="button" disabled={profileSaving || !fullName.trim()} onClick={saveProfile}>
+          <Button
+            type="button"
+            className="profile-accent-btn-primary"
+            disabled={profileSaving || !fullName.trim()}
+            onClick={saveProfile}
+          >
             {profileSaving ? 'Saving…' : 'Save profile'}
           </Button>
         </div>
@@ -351,7 +370,7 @@ export default function MissionarySettings() {
           </Label>
         </div>
         <div className="mt-4 flex justify-end">
-          <Button type="button" variant="secondary" disabled={profileSaving} onClick={saveProfile}>
+          <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
             Save links
           </Button>
         </div>
@@ -368,7 +387,7 @@ export default function MissionarySettings() {
           </Label>
         </div>
         <div className="mt-4 flex justify-end">
-          <Button type="button" variant="secondary" disabled={profileSaving} onClick={saveProfile}>
+          <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
             Save goals
           </Button>
         </div>

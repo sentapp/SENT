@@ -1,14 +1,46 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { useAppState } from '../../state/AppState';
 import MissionPushSection from '../../components/MissionPushSection';
+import { CONTACT_STATUS_FORM_OPTIONS, statusLabel } from '../../lib/contactStatuses';
 import { Button, Card, EmptyState, Input } from '../../components/ui';
 
-function Metric({ label, value }) {
+const FOLLOW_UP_STATUSES = new Set(['asked', 'contacted', 'meeting_scheduled']);
+
+function contactPayloadForUpdate(c) {
+  return {
+    fullName: c.fullName,
+    phone: c.phone,
+    email: c.email,
+    address: c.address,
+    category: c.category,
+    status: c.status,
+    monthlyAmount: c.monthlyAmount,
+    notes: c.notes,
+    isOneTimeDonor: c.isOneTimeDonor,
+    oneTimeDonationAmount: c.oneTimeDonationAmount,
+    oneTimeDonationDate: c.oneTimeDonationDate,
+  };
+}
+
+function MetricCard({ label, value, onActivate, ariaLabel }) {
   return (
-    <Card className="p-4">
+    <Card
+      role="button"
+      tabIndex={0}
+      aria-label={ariaLabel || label}
+      onClick={onActivate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onActivate?.();
+        }
+      }}
+      className="cursor-pointer p-4 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/30"
+    >
       <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{label}</p>
       <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">{value}</p>
     </Card>
@@ -16,11 +48,14 @@ function Metric({ label, value }) {
 }
 
 export default function MissionaryOverview() {
+  const navigate = useNavigate();
   const { profile, user, loading: authLoading } = useAuth();
-  const { contacts } = useSupabaseContacts(user?.id, { authLoading });
+  const { contacts, updateContact, loading: contactsLoading } = useSupabaseContacts(user?.id, { authLoading });
   const { prayerRequests: prayer, loading: prayerLoading } = useMissionaryPrayerRequests(user?.id);
   const { state, actions } = useAppState();
   const [newTask, setNewTask] = useState('');
+  const [pipelineSavingId, setPipelineSavingId] = useState(null);
+  const [pipelineError, setPipelineError] = useState('');
 
   const partners = useMemo(
     () =>
@@ -58,7 +93,31 @@ export default function MissionaryOverview() {
   const pct = goal > 0 ? Math.min(100, Math.round((monthlySupport / goal) * 100)) : 0;
 
   const tasks = state.missionary.tasks;
-  const pipeline = state.missionary.pipeline;
+
+  const pipelineContacts = useMemo(
+    () =>
+      [...contacts]
+        .filter((c) => FOLLOW_UP_STATUSES.has(c.status))
+        .sort((a, b) => {
+          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tb - ta;
+        })
+        .slice(0, 10),
+    [contacts],
+  );
+
+  const changePipelineStatus = async (contact, nextStatus) => {
+    if (!contact?.id || nextStatus === contact.status) return;
+    setPipelineError('');
+    setPipelineSavingId(contact.id);
+    const res = await updateContact(contact.id, {
+      ...contactPayloadForUpdate(contact),
+      status: nextStatus,
+    });
+    setPipelineSavingId(null);
+    if (!res.ok) setPipelineError(res.error || 'Could not update status.');
+  };
 
   return (
     <div className="space-y-6">
@@ -68,11 +127,36 @@ export default function MissionaryOverview() {
       </header>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Metric label="Monthly Support" value={`$${monthlySupport.toFixed(0)}`} />
-        <Metric label="One-time gifts" value={`$${totalOneTimeGifts.toFixed(0)}`} />
-        <Metric label="Partners" value={`${partners.length}`} />
-        <Metric label="Gap to Goal" value={`$${gap.toFixed(0)}`} />
-        <Metric label="Total Contacts" value={`${contacts.length}`} />
+        <MetricCard
+          label="Monthly Support"
+          value={`$${monthlySupport.toFixed(0)}`}
+          ariaLabel="Monthly support — open partners"
+          onActivate={() => navigate('/missionary/partners')}
+        />
+        <MetricCard
+          label="One-time gifts"
+          value={`$${totalOneTimeGifts.toFixed(0)}`}
+          ariaLabel="One-time gifts — open one-time donors on contacts"
+          onActivate={() => navigate('/missionary/contacts?filter=one_time')}
+        />
+        <MetricCard
+          label="Partners"
+          value={`${partners.length}`}
+          ariaLabel="Partners — open partners list"
+          onActivate={() => navigate('/missionary/partners')}
+        />
+        <MetricCard
+          label="Gap to Goal"
+          value={`$${gap.toFixed(0)}`}
+          ariaLabel="Gap to goal — open partners"
+          onActivate={() => navigate('/missionary/partners')}
+        />
+        <MetricCard
+          label="Total Contacts"
+          value={`${contacts.length}`}
+          ariaLabel="Total contacts — open contacts"
+          onActivate={() => navigate('/missionary/contacts')}
+        />
       </div>
 
       <Card className="p-5">
@@ -154,13 +238,46 @@ export default function MissionaryOverview() {
 
         <div className="space-y-3">
           <p className="text-sm font-semibold text-neutral-900">Pipeline</p>
-          {pipeline.length === 0 ? (
-            <EmptyState title="No active pipeline — start making calls" />
+          <p className="text-xs text-neutral-500">Contacts in asked, contacted, or meeting scheduled — newest first.</p>
+          {pipelineError ? <p className="text-xs font-medium text-red-600">{pipelineError}</p> : null}
+          {contactsLoading ? (
+            <p className="text-sm text-neutral-500">Loading contacts…</p>
+          ) : pipelineContacts.length === 0 ? (
+            <EmptyState title="No contacts need follow-up right now" subtitle="Statuses Asked, Contacted, and Meeting scheduled appear here." />
           ) : (
             <div className="space-y-3">
-              {pipeline.map((p) => (
-                <Card key={p.id} className="p-4">
-                  <p className="text-sm font-semibold">{p.title}</p>
+              {pipelineContacts.map((c) => (
+                <Card key={c.id} className="p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-sm font-semibold text-neutral-900">{c.fullName || 'Unnamed'}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">
+                          {statusLabel(c.status)}
+                        </span>
+                        {Number(c.monthlyAmount) > 0 ? (
+                          <span className="text-xs font-medium text-neutral-600">
+                            ${Number(c.monthlyAmount).toFixed(0)}/mo
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <label className="shrink-0 text-xs font-medium text-neutral-600">
+                      <span className="sr-only">Update status for {c.fullName || 'contact'}</span>
+                      <select
+                        className="mt-0.5 max-w-[200px] rounded-btn border border-neutral-200 bg-white py-2 pl-2 pr-8 text-sm font-semibold text-neutral-800"
+                        value={c.status}
+                        disabled={pipelineSavingId === c.id}
+                        onChange={(e) => void changePipelineStatus(c, e.target.value)}
+                      >
+                        {CONTACT_STATUS_FORM_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
                 </Card>
               ))}
             </div>

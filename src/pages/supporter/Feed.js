@@ -5,6 +5,7 @@ import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
 import { useMissionaryPublicProfile } from '../../hooks/useMissionaryPublicProfile';
 import { useMissionaryMapPoints } from '../../hooks/useMissionaryMapPoints';
 import { fetchActiveMissionPushForMissionary } from '../../lib/missionPushesRepository';
+import { initialsFromDisplayName, normalizeProfileAccent } from '../../lib/profileAppearance';
 import MapView from '../../components/MapView';
 import {
   fetchReactionCountsForPosts,
@@ -15,7 +16,7 @@ import { Card, EmptyState } from '../../components/ui';
 
 function Badge({ children }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-mission-blue/10 px-2.5 py-1 text-xs font-semibold text-mission-blue">
+    <span className="feed-accent-pill inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold">
       {children}
     </span>
   );
@@ -28,7 +29,7 @@ function ReactionButton({ active, label, emoji, disabled, onClick }) {
       disabled={disabled}
       onClick={onClick}
       className={`inline-flex items-center gap-2 rounded-btn border px-3 py-2 text-xs font-semibold transition ${
-        active ? 'border-mission-blue bg-mission-blue/10 text-mission-blue' : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+        active ? 'feed-accent-reaction-active' : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
       } disabled:opacity-50`}
       aria-label={label}
       aria-pressed={active}
@@ -168,6 +169,8 @@ export default function SupporterFeed() {
   const displayName = missionaryDb?.full_name?.trim() || 'Missionary';
   const orgLine = (missionaryDb?.organization || '').trim();
   const photoUrl = missionaryDb?.photo_url || '';
+  const feedAccent = missionaryId ? normalizeProfileAccent(missionaryDb?.accent_color) : '#185FA5';
+  const avatarInitials = initialsFromDisplayName(displayName);
 
   const pushGoal = missionPush ? Number(missionPush.goal_amount || 0) : 0;
   const pushRaised = missionPush ? Number(missionPush.raised_amount || 0) : 0;
@@ -176,9 +179,9 @@ export default function SupporterFeed() {
   const daysLeft = missionPush?.deadline ? daysUntilDeadline(missionPush.deadline) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={missionaryId ? { '--feed-accent': feedAccent } : undefined}>
       <header className="space-y-1 text-center sm:text-left">
-        <p className="text-sm font-medium text-mission-blue">Feed</p>
+        <p className={`text-sm font-medium ${missionaryId ? 'feed-accent-text' : 'text-mission-blue'}`}>Feed</p>
         <p className="text-sm text-neutral-600">Map, giving, and updates from your missionary.</p>
       </header>
 
@@ -193,8 +196,8 @@ export default function SupporterFeed() {
                   {photoUrl ? (
                     <img src={photoUrl} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-xl font-semibold text-neutral-400">
-                      {displayName.slice(0, 1).toUpperCase() || '?'}
+                    <div className="feed-accent-bg flex h-full w-full items-center justify-center text-xl font-semibold text-white">
+                      {avatarInitials}
                     </div>
                   )}
                 </div>
@@ -210,7 +213,7 @@ export default function SupporterFeed() {
                 href={primaryGiveHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-5 block w-full rounded-btn bg-mission-blue py-3.5 text-center text-[17px] font-semibold text-white shadow-sm transition hover:opacity-95"
+                className="feed-accent-bg mt-5 block w-full rounded-btn py-3.5 text-center text-[17px] font-semibold text-white shadow-sm transition hover:opacity-95"
               >
                 Give to {displayName}
               </a>
@@ -220,7 +223,7 @@ export default function SupporterFeed() {
                     href={normalizeUrl(nonTaxUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-medium text-mission-blue underline-offset-4 hover:underline"
+                    className="feed-accent-text text-sm font-medium underline-offset-4 hover:underline"
                   >
                     Other giving options
                   </a>
@@ -235,8 +238,8 @@ export default function SupporterFeed() {
           </div>
 
           {missionPush && missionPush.is_active ? (
-            <Card className="border-2 border-mission-blue/20 bg-mission-blue/[0.04] p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-mission-blue">Mission push</p>
+            <Card className="feed-accent-card border-2 p-5">
+              <p className="feed-accent-text text-xs font-semibold uppercase tracking-wide">Mission push</p>
               <h2 className="mt-2 text-xl font-semibold text-neutral-900">{missionPush.title}</h2>
               {missionPush.description ? (
                 <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{missionPush.description}</p>
@@ -246,10 +249,10 @@ export default function SupporterFeed() {
                   <span className="text-neutral-700">
                     ${pushRaised.toLocaleString()} raised of ${pushGoal.toLocaleString()}
                   </span>
-                  <span className="text-mission-blue">{pushPct}%</span>
+                  <span className="feed-accent-text">{pushPct}%</span>
                 </div>
                 <div className="mt-2 h-3 w-full rounded-full bg-neutral-200">
-                  <div className="h-3 rounded-full bg-mission-blue" style={{ width: `${pushPct}%` }} />
+                  <div className="feed-accent-bg h-3 rounded-full" style={{ width: `${pushPct}%` }} />
                 </div>
               </div>
               {daysLeft != null ? (
@@ -262,7 +265,7 @@ export default function SupporterFeed() {
                   href={pushGiveUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-4 block w-full rounded-btn bg-mission-blue py-3.5 text-center text-[17px] font-semibold text-white shadow-sm hover:opacity-95"
+                  className="feed-accent-bg mt-4 block w-full rounded-btn py-3.5 text-center text-[17px] font-semibold text-white shadow-sm hover:opacity-95"
                 >
                   Give toward this
                 </a>
@@ -289,7 +292,13 @@ export default function SupporterFeed() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 overflow-hidden rounded-card border border-neutral-200 bg-neutral-50">
-                          {photoUrl ? <img src={photoUrl} alt="" className="h-full w-full object-cover" /> : null}
+                          {photoUrl ? (
+                            <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="feed-accent-bg flex h-full w-full items-center justify-center text-xs font-semibold text-white">
+                              {avatarInitials.slice(0, 2)}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-neutral-900">{displayName}</p>

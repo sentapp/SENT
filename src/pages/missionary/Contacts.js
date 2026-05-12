@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import {
@@ -116,6 +117,9 @@ function ImportBlockingOverlay({ open, progress, onCancel }) {
 }
 
 export default function MissionaryContacts() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const oneTimeDonorFilter = searchParams.get('filter') === 'one_time';
+
   const { user, loading: authLoading } = useAuth();
   const {
     contacts,
@@ -597,6 +601,7 @@ export default function MissionaryContacts() {
 
   const filtered = contacts
     .filter((c) => {
+      if (oneTimeDonorFilter && !c.isOneTimeDonor) return false;
       if (filter === 'all') return true;
       return (c.category || '') === filter;
     })
@@ -830,6 +835,28 @@ export default function MissionaryContacts() {
             Your contacts are loading with core fields only. Run the latest Supabase migrations for optional columns
             (address, one-time donor fields). Until then, those fields won&apos;t save.
           </p>
+        </div>
+      ) : null}
+
+      {oneTimeDonorFilter ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-btn border border-mission-blue/20 bg-mission-blue/5 px-4 py-3 text-sm text-neutral-800">
+          <p>
+            <span className="font-semibold">One-time donors</span> — showing contacts marked as one-time givers.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            className="shrink-0 text-sm"
+            onClick={() => {
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete('filter');
+                return next;
+              });
+            }}
+          >
+            Show all contacts
+          </Button>
         </div>
       ) : null}
 

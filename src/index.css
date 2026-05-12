@@ -29,3 +29,53 @@
 .leaflet-container a.leaflet-popup-close-button:hover {
   color: #171717;
 }
+
+/* Profile / supporter feed — dynamic accent via CSS variable --profile-accent or --feed-accent */
+@layer components {
+  .profile-accent-bg {
+    background-color: var(--profile-accent, #185fa5);
+  }
+  .profile-accent-text {
+    color: var(--profile-accent, #185fa5);
+  }
+  .profile-accent-ring:focus-visible {
+    outline: 2px solid var(--profile-accent, #185fa5);
+    outline-offset: 2px;
+  }
+  .profile-accent-btn-primary {
+    background-color: var(--profile-accent, #185fa5) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+  }
+  .profile-accent-btn-primary:hover {
+    opacity: 0.95;
+  }
+  .profile-accent-btn-primary:active {
+    opacity: 0.9;
+  }
+  .feed-accent-pill {
+    color: var(--feed-accent, #185fa5);
+    background-color: color-mix(in srgb, var(--feed-accent, #185fa5) 12%, transparent);
+  }
+  .feed-accent-reaction-active {
+    border-color: color-mix(in srgb, var(--feed-accent, #185fa5) 50%, #e5e5e5);
+    background-color: color-mix(in srgb, var(--feed-accent, #185fa5) 10%, white);
+    color: var(--feed-accent, #185fa5);
+  }
+  .feed-accent-bg {
+    background-color: var(--feed-accent, #185fa5);
+  }
+  .feed-accent-text {
+    color: var(--feed-accent, #185fa5);
+  }
+  .feed-accent-border {
+    border-color: color-mix(in srgb, var(--feed-accent, #185fa5) 40%, transparent);
+  }
+  .feed-accent-fill {
+    fill: var(--feed-accent, #185fa5);
+  }
+  .feed-accent-card {
+    border-color: color-mix(in srgb, var(--feed-accent, #185fa5) 22%, #e5e5e5);
+    background-color: color-mix(in srgb, var(--feed-accent, #185fa5) 5%, white);
+  }
+}

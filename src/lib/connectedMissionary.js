@@ -17,5 +17,6 @@ export async function fetchConnectedMissionaryPublic() {
     photo_url: String(row.photo_url ?? ''),
     tax_deductible_url: String(row.tax_deductible_url ?? ''),
     non_tax_deductible_url: String(row.non_tax_deductible_url ?? ''),
+    accent_color: String(row.accent_color ?? '').trim() || '#185FA5',
   };
 }

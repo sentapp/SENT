@@ -5,6 +5,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { relinkSupporterToMissionary, linkSupporterToMissionary } from '../../lib/supporterConnection';
 import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
+import { DEFAULT_PROFILE_ACCENT, normalizeProfileAccent } from '../../lib/profileAppearance';
+import { ProfileAvatarAccentSection } from '../../components/ProfileAvatarAccentSection';
 import { Button, Card, Input, Label } from '../../components/ui';
 import FeedbackSection from '../../components/FeedbackSection';
 import LocalPinSettingsSection from '../../components/LocalPinSettingsSection';
@@ -18,7 +20,7 @@ function ToggleRow({ title, subtitle, checked, onChange }) {
       </div>
       <label className="relative inline-flex cursor-pointer items-center">
         <input type="checkbox" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-        <span className="h-6 w-11 rounded-full bg-neutral-200 transition peer-checked:bg-[#185FA5]" />
+        <span className="h-6 w-11 rounded-full bg-neutral-200 transition peer-checked:bg-[color:var(--profile-accent,#185FA5)]" />
         <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
       </label>
     </div>
@@ -42,8 +44,12 @@ export default function SupporterProfile() {
   const [detailsSaving, setDetailsSaving] = useState(false);
   const [detailsMsg, setDetailsMsg] = useState('');
 
+  const [photoUrl, setPhotoUrl] = useState('');
+
   const [linkedMissionaryId, setLinkedMissionaryId] = useState(null);
   const [connectedMissionary, setConnectedMissionary] = useState(null);
+
+  const [accentColor, setAccentColor] = useState(DEFAULT_PROFILE_ACCENT);
 
   const [codeOpen, setCodeOpen] = useState(false);
   const [newCode, setNewCode] = useState('');
@@ -73,7 +79,7 @@ export default function SupporterProfile() {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'full_name, email, phone, connected_missionary_id, invite_code_used, notify_in_app, notify_email, notify_text, notify_prayer',
+          'full_name, email, phone, photo_url, accent_color, connected_missionary_id, invite_code_used, notify_in_app, notify_email, notify_text, notify_prayer',
         )
         .eq('id', authUser.id)
         .single();
@@ -91,6 +97,8 @@ export default function SupporterProfile() {
         setNotifyEmail(Boolean(data.notify_email));
         setNotifyText(Boolean(data.notify_text));
         setNotifyPrayer(data.notify_prayer !== false);
+        setAccentColor(normalizeProfileAccent(data.accent_color));
+        setPhotoUrl(String(data.photo_url ?? '').trim());
 
         let mid = data.connected_missionary_id || null;
         const inviteUsed = String(data.invite_code_used ?? '').trim();
@@ -115,7 +123,7 @@ export default function SupporterProfile() {
         if (mid) {
           const { data: missionary, error: mErr } = await supabase
             .from('profiles')
-            .select('full_name, organization')
+            .select('full_name, organization, photo_url, accent_color')
             .eq('id', mid)
             .maybeSingle();
           if (mounted && missionary && !mErr) {
@@ -126,6 +134,8 @@ export default function SupporterProfile() {
               setConnectedMissionary({
                 full_name: rpc.full_name,
                 organization: rpc.organization,
+                photo_url: rpc.photo_url,
+                accent_color: rpc.accent_color,
               });
             } else {
               setConnectedMissionary(null);
@@ -144,6 +154,28 @@ export default function SupporterProfile() {
     // Intentionally run once on mount — details are saved explicitly to Supabase.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const persistAccent = async (hex) => {
+    const h = normalizeProfileAccent(hex);
+    setAccentColor(h);
+    setLoadError('');
+    setDetailsMsg('');
+    if (!supabase || !user?.id) return;
+    const { error } = await supabase.from('profiles').update({ accent_color: h }).eq('id', user.id);
+    if (error) {
+      setLoadError(error.message);
+      return;
+    }
+    await refreshProfile();
+    setDetailsMsg('Color saved.');
+  };
+
+  const onAvatarUploaded = async (url) => {
+    setLoadError('');
+    setPhotoUrl(url);
+    await refreshProfile();
+    setDetailsMsg('Photo updated.');
+  };
 
   const connectedDisplayText = (() => {
     if (!linkedMissionaryId) return null;
@@ -165,6 +197,7 @@ export default function SupporterProfile() {
           full_name: fullName.trim(),
           email: email.trim(),
           phone: phone.trim(),
+          accent_color: normalizeProfileAccent(accentColor),
           notify_in_app: notifyInApp,
           notify_email: notifyEmail,
           notify_text: notifyText,
@@ -249,14 +282,28 @@ export default function SupporterProfile() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ '--profile-accent': normalizeProfileAccent(accentColor) }}>
       <header className="space-y-1 text-center md:text-left">
-        <p className="text-sm font-medium text-mission-blue">Profile</p>
+        <p className="text-sm font-medium profile-accent-text">Profile</p>
         <h1 className="text-2xl font-semibold tracking-tight">Your account</h1>
         <p className="text-sm text-neutral-600">Edit your details and notification preferences.</p>
       </header>
 
       {loadError ? <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p> : null}
+
+      {!profileLoading && user?.id ? (
+        <Card className="p-5 md:p-6">
+          <ProfileAvatarAccentSection
+            userId={user.id}
+            fullName={fullName}
+            photoUrl={photoUrl}
+            accentColor={accentColor}
+            onPhotoUrlChange={(url) => void onAvatarUploaded(url)}
+            onAccentChange={(hex) => void persistAccent(hex)}
+            disabled={detailsSaving}
+          />
+        </Card>
+      ) : null}
 
       <Card className="p-5">
         <p className="text-sm font-semibold">Connected missionary</p>
@@ -287,7 +334,7 @@ export default function SupporterProfile() {
             <p className="text-xs text-neutral-500">Your missionary can find their code in Settings.</p>
             {codeError ? <p className="text-sm text-red-600">{codeError}</p> : null}
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={codeBusy}>
+              <Button type="submit" className="profile-accent-btn-primary" disabled={codeBusy}>
                 {codeBusy ? 'Saving…' : 'Save'}
               </Button>
               <Button
@@ -326,7 +373,12 @@ export default function SupporterProfile() {
             </div>
             {detailsMsg ? <p className="mt-3 text-sm text-emerald-800">{detailsMsg}</p> : null}
             <div className="mt-4 flex justify-end">
-              <Button type="button" disabled={detailsSaving || !fullName.trim()} onClick={() => void saveDetails()}>
+              <Button
+                type="button"
+                className="profile-accent-btn-primary"
+                disabled={detailsSaving || !fullName.trim()}
+                onClick={() => void saveDetails()}
+              >
                 {detailsSaving ? 'Saving…' : 'Save details'}
               </Button>
             </div>
