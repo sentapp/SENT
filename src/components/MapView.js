@@ -1,9 +1,10 @@
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { homeMapIcon, mapPinCurrent, mapPinPast } from '../lib/mapMarkers';
+import { homeMapIcon, mapPinCurrent, mapPinPast, mapPinUpcoming } from '../lib/mapMarkers';
 
 function iconForPoint(p) {
   if (p.isHome) return homeMapIcon;
   if (p.mapPinVariant === 'past') return mapPinPast;
+  if (p.mapPinVariant === 'upcoming') return mapPinUpcoming;
   return mapPinCurrent;
 }
 

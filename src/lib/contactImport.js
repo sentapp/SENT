@@ -10,10 +10,11 @@ import {
 import { cleanNotes, cleanPhone, separatePhoneFromName } from './importCleaners';
 import {
   importNameFieldShouldSkip,
-  pickBestSheet,
-  rowIsAllNumbersOrEmpty,
+  isJunkRow,
+  pickBestSheetFromWorkbook,
 } from './spreadsheetSheetPick';
 import { parseSpreadsheetFileWithWorker } from './spreadsheetWorkerClient';
+import { parseCsvTextToMatrix, parseCsvTextToMatrixWithProgress } from './csvMatrixImport';
 
 // CDN worker (version must match pdfjs-dist in package.json — Safari is picky about workers)
 if (typeof window !== 'undefined') {
@@ -351,7 +352,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
     const drafts = [];
     for (let i = 0; i < dataRows.length; i += 1) {
       const row = dataRows[i];
-      if (rowIsAllNumbersOrEmpty(row)) continue;
+      if (isJunkRow(row)) continue;
       let nameRaw = String(row[0] ?? '').trim();
       const sep = separatePhoneFromName(nameRaw, '');
       nameRaw = sep.name;
@@ -422,7 +423,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
   const drafts = [];
   for (let i = 0; i < dataRows.length; i += 1) {
     const row = dataRows[i];
-    if (rowIsAllNumbersOrEmpty(row)) continue;
+    if (isJunkRow(row)) continue;
 
     let nameRaw = String(row[nameIdx] ?? '').trim();
     const phoneRaw = phoneIdx !== nameIdx ? String(row[phoneIdx] ?? '').trim() : '';
@@ -496,7 +497,7 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
   const name = (file?.name || '').toLowerCase();
   const ext = name.split('.').pop() || '';
 
-  const sheetMetas = [];
+  let best;
 
   if (ext === 'csv') {
     onProgress?.({ pct: 5, note: 'Reading CSV…' });
@@ -504,7 +505,7 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     const parsed = Papa.parse(text, { header: false, skipEmptyLines: true });
     const rawRows = parsed.data || [];
-    sheetMetas.push({ name: 'CSV', rawRows });
+    best = { name: 'CSV', rawRows };
   } else if (ext === 'xlsx' || ext === 'xls') {
     onProgress?.({ pct: 5, note: 'Reading workbook…' });
     const buf = await file.arrayBuffer();
@@ -513,19 +514,17 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
     for (let s = 0; s < wb.SheetNames.length; s += 1) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       const sheetName = wb.SheetNames[s];
-      const sheet = wb.Sheets[sheetName];
-      const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-      sheetMetas.push({ name: sheetName, rawRows });
       onProgress?.({
         pct: Math.round(10 + (s / Math.max(1, wb.SheetNames.length)) * 40),
         note: `Scanning “${sheetName}”…`,
       });
     }
+    best =
+      pickBestSheetFromWorkbook(wb, (sheet) => XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })) || null;
   } else {
     throw new Error('Use .csv, .xlsx, or .xls');
   }
 
-  const best = pickBestSheet(sheetMetas) || sheetMetas[0];
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   if (!best?.rawRows) {
     console.log('[import] Flexible spreadsheet: total contacts to insert: 0');
@@ -568,7 +567,7 @@ export function rowsToContacts(rows, headers) {
     if (!Array.isArray(row) && typeof row !== 'object') continue;
     const arr = Array.isArray(row) ? row : headers.map((h) => row[h]);
     const width = Math.max(headerCells.length, arr.length, 1);
-    if (rowIsAllNumbersOrEmpty(padRowToWidth(arr, width))) continue;
+    if (isJunkRow(padRowToWidth(arr, width))) continue;
     const phoneCol = phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '';
     const { phone: phoneColDigits } = strictPhoneFromCell(phoneCol);
     const sep = separatePhoneFromName(String(arr[fullNameIdx] ?? '').trim(), phoneColDigits);
@@ -598,46 +597,13 @@ export function parseCsvText(text) {
   return rowsToContacts(rows, headers);
 }
 
-/** Raw matrix: row 0 = headers (for mapping + preview). */
-export function parseCsvTextToMatrix(text) {
-  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-  if (!parsed.data?.length) return { headers: [], rows: [] };
-  const headers = (parsed.meta.fields || Object.keys(parsed.data[0])).map((h) => String(h ?? ''));
-  const rows = parsed.data.map((obj) => headers.map((h) => obj[h]));
-  return { headers, rows };
-}
-
-/**
- * Build matrix row-by-row with progress every 10 rows (matches worker behavior).
- * Progress: (processed / totalRows) * 100
- */
-export function parseCsvTextToMatrixWithProgress(text, onProgress, { signal } = {}) {
-  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-  if (!parsed.data?.length) return { headers: [], rows: [] };
-  const headers = (parsed.meta.fields || Object.keys(parsed.data[0])).map((h) => String(h ?? ''));
-  const total = parsed.data.length;
-  const rows = [];
-  for (let i = 0; i < total; i += 1) {
-    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    const obj = parsed.data[i];
-    rows.push(headers.map((h) => obj[h]));
-    const done = i + 1;
-    if (done % 10 === 0 || done === total) {
-      const pct = Math.round((done / total) * 100);
-      onProgress?.({ pct, processed: done, total });
-    }
-  }
-  return { headers, rows };
-}
+export { parseCsvTextToMatrix, parseCsvTextToMatrixWithProgress };
 
 export async function parseExcelFile(file) {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array' });
-  const sheetMetas = wb.SheetNames.map((sheetName) => ({
-    name: sheetName,
-    rawRows: XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1 }),
-  }));
-  const best = pickBestSheet(sheetMetas) || sheetMetas[0];
+  const best =
+    pickBestSheetFromWorkbook(wb, (sheet) => XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })) || null;
   const rows = best?.rawRows || [];
   if (!rows?.length) return [];
   const headers = rows[0].map((c) => String(c ?? ''));
@@ -655,11 +621,8 @@ export async function parseSpreadsheetFileToMatrix(file) {
   if (ext === 'xlsx' || ext === 'xls') {
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });
-    const sheetMetas = wb.SheetNames.map((sheetName) => ({
-      name: sheetName,
-      rawRows: XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1 }),
-    }));
-    const best = pickBestSheet(sheetMetas) || sheetMetas[0];
+    const best =
+      pickBestSheetFromWorkbook(wb, (sheet) => XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })) || null;
     const rows = best?.rawRows || [];
     if (!rows?.length) return { headers: [], rows: [] };
     const headers = rows[0].map((c) => String(c ?? ''));
@@ -682,11 +645,8 @@ export async function parseSpreadsheetFileToMatrixWithProgress(file, onProgress,
     const buf = await file.arrayBuffer();
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     const wb = XLSX.read(buf, { type: 'array' });
-    const sheetMetas = wb.SheetNames.map((sheetName) => ({
-      name: sheetName,
-      rawRows: XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1 }),
-    }));
-    const best = pickBestSheet(sheetMetas) || sheetMetas[0];
+    const best =
+      pickBestSheetFromWorkbook(wb, (sheet) => XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })) || null;
     const rawRows = best?.rawRows || [];
     if (!rawRows?.length) return { headers: [], rows: [] };
     const headers = rawRows[0].map((c) => String(c ?? ''));
@@ -923,7 +883,8 @@ export function parsePdfContactsFromText(text) {
       .map((line) => {
         const cleaned = line.replace(/^\d+\s*/, '').trim();
         const short = cleaned.length > 120 ? `${cleaned.slice(0, 117)}…` : cleaned;
-        return isValidImportContactName(short) ? draftFromParts(short, '', '') : null;
+        const sep = separatePhoneFromName(short, '');
+        return isValidImportContactName(sep.name) ? draftFromParts(sep.name, sep.phone, '') : null;
       })
       .filter(Boolean);
   }
@@ -933,8 +894,9 @@ export function parsePdfContactsFromText(text) {
   for (let i = 0; i < n; i += 1) {
     const nm = lines[i] || '';
     const cleaned = nm.replace(/^\d+\s*/, '').trim();
-    if (!isValidImportContactName(cleaned)) continue;
-    out.push(draftFromParts(cleaned, phonesGlobal[i] || '', emailsGlobal[i] || ''));
+    const sep = separatePhoneFromName(cleaned, phonesGlobal[i] || '');
+    if (!isValidImportContactName(sep.name)) continue;
+    out.push(draftFromParts(sep.name, phonesGlobal[i] || sep.phone, emailsGlobal[i] || ''));
   }
   return out.filter((c) => isValidImportContactName(c.full_name));
 }

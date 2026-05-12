@@ -139,8 +139,9 @@ export function EmptyState({ title, subtitle, action, icon }) {
   );
 }
 
-export function Modal({ open, title, children, onClose, footer, backdropClose = true }) {
+export function Modal({ open, title, children, onClose, footer, backdropClose = true, closeButtonLabel = 'Close' }) {
   if (!open) return null;
+  const closeBtnIsIcon = closeButtonLabel === '×' || closeButtonLabel === '✕';
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 transition-opacity duration-200 md:items-center"
@@ -159,9 +160,12 @@ export function Modal({ open, title, children, onClose, footer, backdropClose = 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-btn px-3 py-2 text-sm font-medium text-mission-muted transition hover:bg-[color:var(--color-bg)]"
+            aria-label={closeBtnIsIcon ? 'Close' : undefined}
+            className={`rounded-btn text-mission-muted transition hover:bg-[color:var(--color-bg)] ${
+              closeBtnIsIcon ? 'px-3 py-2 text-xl font-light leading-none' : 'px-3 py-2 text-sm font-medium'
+            }`}
           >
-            Close
+            {closeButtonLabel}
           </button>
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>

@@ -132,3 +132,33 @@ export function pickBestSheet(sheets) {
   }
   return best || list[0] || null;
 }
+
+/**
+ * True for empty rows, numeric-only grids, or rows with no usable name-like text.
+ * Use before building import drafts.
+ */
+export function isJunkRow(row) {
+  if (!Array.isArray(row) || row.length === 0) return true;
+  if (!row.some((cell) => String(cell ?? '').trim() !== '')) return true;
+  if (rowIsAllNumbersOrEmpty(row)) return true;
+  const cells = row.map((c) => String(c ?? '').trim()).filter(Boolean);
+  if (!cells.length) return true;
+  if (cells.length === 1 && importNameFieldShouldSkip(cells[0])) return true;
+  return false;
+}
+
+/**
+ * Pick the best worksheet from an XLSX workbook (multi-tab).
+ * @param {{ SheetNames: string[], Sheets: Record<string, unknown> }} workbook
+ * @param {(sheet: unknown) => unknown[][]} sheetToRows e.g. (sh) => XLSX.utils.sheet_to_json(sh, { header: 1, defval: '' })
+ * @returns {{ name: string, rawRows: unknown[][] } | null}
+ */
+export function pickBestSheetFromWorkbook(workbook, sheetToRows) {
+  const names = workbook?.SheetNames;
+  if (!Array.isArray(names) || names.length === 0) return null;
+  const sheetMetas = names.map((name) => ({
+    name,
+    rawRows: sheetToRows(workbook.Sheets[name]),
+  }));
+  return pickBestSheet(sheetMetas) || sheetMetas[0] || null;
+}

@@ -1,4 +1,5 @@
-import { cleanPhone } from './importCleaners';
+import { cleanPhone, separatePhoneFromName } from './importCleaners';
+import { isJunkRow } from './spreadsheetSheetPick';
 
 /**
  * Score how well a header matches a field (higher = better).
@@ -126,8 +127,12 @@ export function buildContactDrafts(rows, mapping) {
   const out = [];
   rows.forEach((row, i) => {
     const arr = Array.isArray(row) ? row : [];
-    const name = String(arr[fullNameIdx] ?? '').trim();
-    const phone = cleanPhone(phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '');
+    if (isJunkRow(arr)) return;
+    const nameRaw = String(arr[fullNameIdx] ?? '').trim();
+    const phoneCol = cleanPhone(phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '');
+    const sep = separatePhoneFromName(nameRaw, phoneCol);
+    const name = sep.name;
+    const phone = cleanPhone(phoneCol.length >= 7 ? phoneCol : sep.phone);
     const email = emailIdx >= 0 ? String(arr[emailIdx] ?? '').trim() : '';
     if (!name && !phone && !email) return;
     out.push({

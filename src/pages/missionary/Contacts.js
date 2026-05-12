@@ -66,6 +66,22 @@ const emptyForm = {
   notes: '',
 };
 
+function contactFormSnapshot(f) {
+  return JSON.stringify({
+    fullName: f.fullName ?? '',
+    phone: f.phone ?? '',
+    email: f.email ?? '',
+    address: f.address ?? '',
+    category: f.category ?? '',
+    status: f.status ?? '',
+    monthlyAmount: f.monthlyAmount ?? '',
+    isOneTimeDonor: Boolean(f.isOneTimeDonor),
+    oneTimeDonationAmount: f.oneTimeDonationAmount ?? '',
+    oneTimeDonationDate: f.oneTimeDonationDate ?? '',
+    notes: f.notes ?? '',
+  });
+}
+
 function pipelineStripStageDotClass(status) {
   switch (normalizeStatusFromDb(status)) {
     case 'contacted':
@@ -217,6 +233,42 @@ export default function MissionaryContacts() {
   const importAbortRef = useRef(null);
   const [importReading, setImportReading] = useState(false);
   const [importProgress, setImportProgress] = useState(null);
+
+  const listRef = useRef(null);
+  const scrollPositionRef = useRef(0);
+  const originalFormSnapshotRef = useRef('');
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+
+  const captureListScroll = useCallback(() => {
+    scrollPositionRef.current = listRef.current?.scrollTop ?? 0;
+  }, []);
+
+  const restoreListScroll = useCallback(() => {
+    const y = scrollPositionRef.current;
+    requestAnimationFrame(() => {
+      if (listRef.current) listRef.current.scrollTop = y;
+    });
+  }, []);
+
+  const closeDetail = useCallback(
+    ({ restoreScroll = true } = {}) => {
+      setDetailContact(null);
+      setCommModal(null);
+      setCommNotes('');
+      setCommError('');
+      if (restoreScroll) restoreListScroll();
+    },
+    [restoreListScroll],
+  );
+
+  const handleOpenContact = useCallback(
+    (c) => {
+      if (!c) return;
+      captureListScroll();
+      setDetailContact(c);
+    },
+    [captureListScroll],
+  );
 
   const beginImportSession = useCallback(() => {
     sessionRef.current += 1;
@@ -555,15 +607,17 @@ export default function MissionaryContacts() {
   const openAdd = () => {
     setEditingId(null);
     setForm(emptyForm);
+    originalFormSnapshotRef.current = contactFormSnapshot(emptyForm);
     setSaveError('');
     setContactSaveSuccess('');
+    setDiscardConfirmOpen(false);
     setModalOpen(true);
   };
 
   const openEdit = useCallback((c) => {
     setContactSaveSuccess('');
     setEditingId(c.id);
-    setForm({
+    const nextForm = {
       fullName: c.fullName,
       phone: c.phone,
       email: c.email,
@@ -578,9 +632,12 @@ export default function MissionaryContacts() {
           ? String(c.oneTimeDonationAmount)
           : '',
       oneTimeDonationDate: c.oneTimeDonationDate || '',
-      notes: c.notes,
-    });
+      notes: c.notes ?? '',
+    };
+    originalFormSnapshotRef.current = contactFormSnapshot(nextForm);
+    setForm(nextForm);
     setSaveError('');
+    setDiscardConfirmOpen(false);
     setModalOpen(true);
   }, []);
 
@@ -611,10 +668,24 @@ export default function MissionaryContacts() {
       return;
     }
     contactUrlHandledRef.current = contactFromUrl;
-    if (urlContactIntent.forceEdit) openEdit(c);
-    else setDetailContact(c);
+    if (urlContactIntent.forceEdit) {
+      captureListScroll();
+      openEdit(c);
+    } else {
+      handleOpenContact(c);
+    }
     stripContactParams();
-  }, [contactFromUrl, urlContactIntent.forceEdit, loading, authLoading, contacts, openEdit, stripContactParams]);
+  }, [
+    contactFromUrl,
+    urlContactIntent.forceEdit,
+    loading,
+    authLoading,
+    contacts,
+    openEdit,
+    stripContactParams,
+    captureListScroll,
+    handleOpenContact,
+  ]);
 
   useEffect(() => {
     if (!detailContact?.id || !supabase) {
@@ -667,6 +738,7 @@ export default function MissionaryContacts() {
       }
       await refetch();
       setModalOpen(false);
+      restoreListScroll();
       setContactSaveSuccess('Contact saved');
       return;
     }
@@ -692,6 +764,7 @@ export default function MissionaryContacts() {
       return;
     }
     setModalOpen(false);
+    restoreListScroll();
     setContactSaveSuccess('Contact saved');
   };
 
@@ -827,25 +900,38 @@ export default function MissionaryContacts() {
     [form.email, contacts, editingId],
   );
 
-  const scrollToContact = useCallback((id) => {
+  const hasUnsavedChanges = useMemo(() => {
+    if (!modalOpen) return false;
+    return contactFormSnapshot(form) !== originalFormSnapshotRef.current;
+  }, [modalOpen, form]);
+
+  const requestCloseAddEditModal = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setDiscardConfirmOpen(true);
+      return;
+    }
     setModalOpen(false);
-    setDetailContact(null);
-    requestAnimationFrame(() => {
-      document.getElementById(`contact-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-  }, []);
+    setSaveError('');
+    restoreListScroll();
+  }, [hasUnsavedChanges, restoreListScroll]);
 
-  const openDetail = useCallback((c) => {
-    if (!c) return;
-    setDetailContact(c);
-  }, []);
+  const confirmDiscardAndCloseModal = useCallback(() => {
+    setDiscardConfirmOpen(false);
+    setModalOpen(false);
+    setSaveError('');
+    restoreListScroll();
+  }, [restoreListScroll]);
 
-  const closeDetail = useCallback(() => {
-    setDetailContact(null);
-    setCommModal(null);
-    setCommNotes('');
-    setCommError('');
-  }, []);
+  const scrollToContact = useCallback(
+    (id) => {
+      setModalOpen(false);
+      closeDetail({ restoreScroll: false });
+      requestAnimationFrame(() => {
+        document.getElementById(`contact-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    },
+    [closeDetail],
+  );
 
   const submitCommLog = useCallback(async () => {
     if (!supabase || !user?.id || !detailContact?.id || !commModal) return;
@@ -1041,146 +1127,153 @@ export default function MissionaryContacts() {
         </div>
       </div>
 
-      {!loading && contacts.length > 0 ? (
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-mission-muted">Pipeline</p>
-          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 pt-0.5 [-webkit-overflow-scrolling:touch]">
-            {pipelineStripContacts.map((c) => {
-              const st = normalizeStatusFromDb(c.status);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => openDetail(c)}
-                  className="w-[min(200px,72vw)] shrink-0 rounded-card border border-mission-line bg-surface p-3 text-left shadow-none transition hover:border-accent/40"
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: STRIP_DOT[st] || '#78716c' }}
-                      aria-hidden
-                    />
-                    <span className="truncate text-[10px] font-bold uppercase tracking-wide text-mission-muted">
-                      {STRIP_STAGE_LABEL[st] || statusLabel(c.status)}
-                    </span>
-                  </div>
-                  <p className="mt-1 truncate text-sm font-semibold text-ink">{c.fullName || 'Unnamed'}</p>
-                  <p className="mt-0.5 truncate text-xs text-neutral-600">{c.phone || '—'}</p>
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={openAdd}
-              className="flex min-w-[100px] shrink-0 flex-col items-center justify-center rounded-card border border-dashed border-mission-line bg-[color:var(--color-bg)] px-4 py-3 text-sm font-semibold text-accent shadow-none"
-            >
-              + Add
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {loading ? (
-        <p className="text-center text-sm text-neutral-500">Loading contacts…</p>
-      ) : showEmpty ? (
-        <EmptyState
-          icon="compass"
-          title="Your network starts here"
-          subtitle="Import a spreadsheet or add one person you’re inviting to partner with your ministry."
-          action={
-            <Button type="button" onClick={openAdd}>
-              Add contact
-            </Button>
-          }
-        />
-      ) : (
-        <div className="flex flex-col gap-4">
-          {filteredSorted.map((c) => (
-            <Card
-              key={c.id}
-              id={`contact-${c.id}`}
-              onClick={() => {
-                if (selectMode) toggleContactSelected(c.id);
-                else openDetail(c);
-              }}
-              className="scroll-mt-4 cursor-pointer border-mission-line p-4 text-left shadow-none"
-            >
-              <div className="flex flex-row flex-nowrap items-start gap-3">
-                {selectMode ? (
-                  <div className="flex shrink-0 items-start" onClick={(e) => e.stopPropagation()}>
-                    <label className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center pr-1">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(c.id)}
-                        onChange={() => toggleContactSelected(c.id)}
-                        className="h-6 w-6 min-h-[24px] min-w-[24px] shrink-0 cursor-pointer rounded border-neutral-300 accent-mission-blue"
-                        aria-label={`Select ${c.fullName || 'contact'}`}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-                <div className="min-w-0 flex-1 flex flex-col gap-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
-                    {PIPELINE_STRIP_SET.has(normalizeStatusFromDb(c.status)) ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-mission-line bg-mission-blue/5 px-2 py-0.5 text-[10px] font-semibold text-mission-blue">
-                        <span
-                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${pipelineStripStageDotClass(c.status)}`}
-                          aria-hidden
-                        />
-                        {statusLabel(c.status)}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-neutral-500">
-                    {PIPELINE_STRIP_SET.has(normalizeStatusFromDb(c.status)) ? (
-                      <>
-                        {categoryLabel(c.category)}
-                        {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
-                      </>
-                    ) : (
-                      <>
-                        {categoryLabel(c.category)} · {statusLabel(c.status)}
-                        {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
-                      </>
-                    )}
-                  </p>
-                  {c.phone ? <p className="text-sm text-neutral-700">{c.phone}</p> : null}
-                  {c.email ? <p className="text-sm text-neutral-700">{c.email}</p> : null}
-                  {c.address ? <p className="text-sm text-neutral-700">{c.address}</p> : null}
-                  {c.isOneTimeDonor ? (
-                    <p className="text-sm font-medium text-mission-blue">
-                      One-time gift
-                      {Number(c.oneTimeDonationAmount) > 0
-                        ? `: $${Number(c.oneTimeDonationAmount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
-                        : ''}
-                      {c.oneTimeDonationDate
-                        ? ` · ${new Date(`${c.oneTimeDonationDate}T12:00:00`).toLocaleDateString()}`
-                        : ''}
-                    </p>
-                  ) : null}
-                  {c.notes ? <p className="mt-1 text-sm text-neutral-600">{c.notes}</p> : null}
-                </div>
-                <div className="flex shrink-0 gap-2 self-start" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={listRef}
+        className="flex min-h-0 flex-col gap-4 overflow-y-auto [-webkit-overflow-scrolling:touch] max-h-[calc(100dvh-15rem)] md:max-h-[calc(100dvh-11rem)]"
+      >
+        {!loading && contacts.length > 0 ? (
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-mission-muted">Pipeline</p>
+            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 pt-0.5 [-webkit-overflow-scrolling:touch]">
+              {pipelineStripContacts.map((c) => {
+                const st = normalizeStatusFromDb(c.status);
+                return (
                   <button
+                    key={c.id}
                     type="button"
-                    onClick={() => setDeleteTarget(c)}
-                    className="rounded-btn border border-neutral-200 p-2 text-red-600 hover:bg-red-50"
-                    aria-label="Delete contact"
-                    title="Delete"
+                    onClick={() => handleOpenContact(c)}
+                    className="w-[min(200px,72vw)] shrink-0 rounded-card border border-mission-line bg-surface p-3 text-left shadow-none transition hover:border-accent/40"
                   >
-                    🗑
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: STRIP_DOT[st] || '#78716c' }}
+                        aria-hidden
+                      />
+                      <span className="truncate text-[10px] font-bold uppercase tracking-wide text-mission-muted">
+                        {STRIP_STAGE_LABEL[st] || statusLabel(c.status)}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-sm font-semibold text-ink">{c.fullName || 'Unnamed'}</p>
+                    <p className="mt-0.5 truncate text-xs text-neutral-600">{c.phone || '—'}</p>
                   </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={openAdd}
+                className="flex min-w-[100px] shrink-0 flex-col items-center justify-center rounded-card border border-dashed border-mission-line bg-[color:var(--color-bg)] px-4 py-3 text-sm font-semibold text-accent shadow-none"
+              >
+                + Add
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {loading ? (
+          <p className="text-center text-sm text-neutral-500">Loading contacts…</p>
+        ) : showEmpty ? (
+          <EmptyState
+            icon="compass"
+            title="Your network starts here"
+            subtitle="Import a spreadsheet or add one person you’re inviting to partner with your ministry."
+            action={
+              <Button type="button" onClick={openAdd}>
+                Add contact
+              </Button>
+            }
+          />
+        ) : (
+          <div className="flex flex-col gap-4">
+            {filteredSorted.map((c) => (
+              <Card
+                key={c.id}
+                id={`contact-${c.id}`}
+                onClick={() => {
+                  if (selectMode) toggleContactSelected(c.id);
+                  else handleOpenContact(c);
+                }}
+                className="scroll-mt-4 cursor-pointer border-mission-line p-4 text-left shadow-none"
+              >
+                <div className="flex flex-row flex-nowrap items-start gap-3">
+                  {selectMode ? (
+                    <div className="flex shrink-0 items-start" onClick={(e) => e.stopPropagation()}>
+                      <label className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center pr-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(c.id)}
+                          onChange={() => toggleContactSelected(c.id)}
+                          className="h-6 w-6 min-h-[24px] min-w-[24px] shrink-0 cursor-pointer rounded border-neutral-300 accent-mission-blue"
+                          aria-label={`Select ${c.fullName || 'contact'}`}
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                  <div className="min-w-0 flex-1 flex flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
+                      {PIPELINE_STRIP_SET.has(normalizeStatusFromDb(c.status)) ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-mission-line bg-mission-blue/5 px-2 py-0.5 text-[10px] font-semibold text-mission-blue">
+                          <span
+                            className={`h-1.5 w-1.5 shrink-0 rounded-full ${pipelineStripStageDotClass(c.status)}`}
+                            aria-hidden
+                          />
+                          {statusLabel(c.status)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-neutral-500">
+                      {PIPELINE_STRIP_SET.has(normalizeStatusFromDb(c.status)) ? (
+                        <>
+                          {categoryLabel(c.category)}
+                          {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
+                        </>
+                      ) : (
+                        <>
+                          {categoryLabel(c.category)} · {statusLabel(c.status)}
+                          {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
+                        </>
+                      )}
+                    </p>
+                    {c.phone ? <p className="text-sm text-neutral-700">{c.phone}</p> : null}
+                    {c.email ? <p className="text-sm text-neutral-700">{c.email}</p> : null}
+                    {c.address ? <p className="text-sm text-neutral-700">{c.address}</p> : null}
+                    {c.isOneTimeDonor ? (
+                      <p className="text-sm font-medium text-mission-blue">
+                        One-time gift
+                        {Number(c.oneTimeDonationAmount) > 0
+                          ? `: $${Number(c.oneTimeDonationAmount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+                          : ''}
+                        {c.oneTimeDonationDate
+                          ? ` · ${new Date(`${c.oneTimeDonationDate}T12:00:00`).toLocaleDateString()}`
+                          : ''}
+                      </p>
+                    ) : null}
+                    {c.notes ? <p className="mt-1 text-sm text-neutral-600">{c.notes}</p> : null}
+                  </div>
+                  <div className="flex shrink-0 gap-2 self-start" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(c)}
+                      className="rounded-btn border border-neutral-200 p-2 text-red-600 hover:bg-red-50"
+                      aria-label="Delete contact"
+                      title="Delete"
+                    >
+                      🗑
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Modal
         open={Boolean(detailContact)}
         title="Contact"
+        backdropClose={false}
+        closeButtonLabel="✕"
         onClose={closeDetail}
         footer={
           <div className="flex flex-wrap justify-end gap-2">
@@ -1192,7 +1285,7 @@ export default function MissionaryContacts() {
               onClick={() => {
                 if (!detailContact) return;
                 openEdit(detailContact);
-                closeDetail();
+                closeDetail({ restoreScroll: false });
               }}
             >
               Edit
@@ -1348,10 +1441,12 @@ export default function MissionaryContacts() {
       <Modal
         open={modalOpen}
         title={editingId ? 'Edit contact' : 'Add contact'}
-        onClose={() => setModalOpen(false)}
+        backdropClose={false}
+        closeButtonLabel="✕"
+        onClose={requestCloseAddEditModal}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>
+            <Button variant="secondary" type="button" onClick={requestCloseAddEditModal}>
               Cancel
             </Button>
             <Button type="button" onClick={saveContact}>
@@ -1499,6 +1594,24 @@ export default function MissionaryContacts() {
             <Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Notes…" rows={4} />
           </Label>
         </div>
+      </Modal>
+
+      <Modal
+        open={discardConfirmOpen}
+        title="Unsaved changes"
+        onClose={() => setDiscardConfirmOpen(false)}
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" type="button" onClick={() => setDiscardConfirmOpen(false)}>
+              Keep editing
+            </Button>
+            <Button type="button" variant="danger" onClick={confirmDiscardAndCloseModal}>
+              Discard
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-neutral-700">You have unsaved changes — discard them?</p>
       </Modal>
 
       <Modal

@@ -3,9 +3,9 @@ import {
   fetchGoogleSheetAsCsv,
   INVALID_GOOGLE_SHEET_LINK_MSG,
   NO_CONTACTS_IN_SHEET_MSG,
-  parseCsvTextToMatrixWithProgress,
   SHEET_NOT_PUBLIC_MSG,
 } from './contactImport';
+import { parseCsvTextToMatrixWithProgress } from './csvMatrixImport';
 import { pickBestSheet } from './spreadsheetSheetPick';
 
 /**
