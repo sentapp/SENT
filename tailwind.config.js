@@ -6,27 +6,28 @@ module.exports = {
       colors: {
         mission: {
           blue: '#185FA5',
-          green: '#0F6E56',
-          amber: '#854F0B',
-          canvas: '#F8F8F6',
-          muted: '#6B7280',
-          line: '#E8E8E6',
+          green: '#15803D',
+          amber: '#A16207',
+          canvas: 'var(--color-bg)',
+          muted: 'var(--color-muted)',
+          line: 'var(--color-border)',
           purple: '#7C3AED',
           danger: '#DC2626',
+          ink: 'var(--color-text)',
+          warm: 'var(--color-warm)',
+          surface: 'var(--color-surface)',
         },
-      },
-      boxShadow: {
-        card: '0 1px 3px rgba(0,0,0,0.06)',
       },
       maxWidth: {
         mobile: '390px',
       },
       borderRadius: {
-        card: '16px',
+        card: '14px',
         btn: '10px',
       },
       fontFamily: {
         sans: [
+          'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
           '"Segoe UI"',

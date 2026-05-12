@@ -21,20 +21,20 @@ export default function MissionaryPipelineSection({
 }) {
   const navigate = useNavigate();
 
-  const goContacts = () => {
-    navigate('/missionary/contacts');
+  const goPipeline = () => {
+    navigate('/missionary/pipeline');
   };
 
   const openContact = (id) => {
-    navigate(`/missionary/contacts?edit=${encodeURIComponent(id)}`);
+    navigate(`/missionary/contacts?contact=${encodeURIComponent(id)}`);
   };
 
   return (
-    <Card className="overflow-hidden p-0 shadow-card">
+    <Card className="overflow-hidden p-0">
       <button
         type="button"
-        aria-label="Pipeline — open all contacts"
-        onClick={goContacts}
+        aria-label="Pipeline — open full pipeline"
+        onClick={goPipeline}
         className="flex w-full cursor-pointer items-start justify-between gap-4 border-b border-neutral-100 bg-neutral-50/70 px-5 py-5 text-left transition hover:bg-neutral-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 focus-visible:ring-inset md:px-6 md:py-6"
       >
         <div className="min-w-0 space-y-1.5">
@@ -43,7 +43,7 @@ export default function MissionaryPipelineSection({
             Asked, contacted, or meeting scheduled — newest first (up to 10).
           </p>
         </div>
-        <span className="shrink-0 pt-1 text-sm font-semibold text-mission-blue">View all</span>
+        <span className="shrink-0 pt-1 text-sm font-semibold text-mission-blue">Open pipeline</span>
       </button>
 
       <div className="space-y-4 p-5 md:p-6">
@@ -69,7 +69,7 @@ export default function MissionaryPipelineSection({
                     openContact(c.id);
                   }
                 }}
-                className="cursor-pointer border-neutral-200 p-5 transition hover:border-mission-blue/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 md:p-6"
+                className="cursor-pointer border-neutral-200 p-5 transition hover:border-mission-line hover:bg-mission-canvas/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 md:p-6"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1 space-y-2">

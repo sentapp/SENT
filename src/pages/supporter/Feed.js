@@ -31,8 +31,10 @@ function ReactionButton({ active, label, emoji, disabled, onClick }) {
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition ${
-        active ? 'feed-accent-reaction-active' : 'border-mission-line bg-white text-mission-muted hover:border-mission-blue/25 hover:bg-mission-blue/[0.04]'
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition-colors duration-200 ${
+        active
+          ? 'feed-accent-reaction-active'
+          : 'border-mission-line bg-white text-mission-muted hover:border-mission-line hover:bg-[color:var(--color-bg)]'
       } disabled:opacity-50`}
       aria-label={label}
       aria-pressed={active}
@@ -186,7 +188,7 @@ export default function SupporterFeed() {
   return (
     <div className="space-y-6" style={missionaryId ? { '--feed-accent': feedAccent } : undefined}>
       <header className="space-y-1 text-center sm:text-left">
-        <p className={`sent-section-title ${missionaryId ? 'feed-accent-text' : 'text-mission-blue'}`}>Feed</p>
+        <h1 className={`sent-page-title ${missionaryId ? 'feed-accent-text' : 'text-mission-blue'}`}>Feed</h1>
         <p className="sent-body text-mission-muted">Map, giving, and updates from your missionary.</p>
       </header>
 
@@ -199,7 +201,7 @@ export default function SupporterFeed() {
       ) : (
         <>
           {showGiving ? (
-            <Card className="overflow-hidden border border-mission-line bg-gradient-to-b from-white to-mission-canvas/80 p-6 shadow-card">
+            <Card className="overflow-hidden p-6">
               <div className="flex gap-4">
                 <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white shadow ring-1 ring-neutral-200/80">
                   {photoUrl ? (
@@ -242,7 +244,7 @@ export default function SupporterFeed() {
           ) : null}
 
           <div className="-mx-6 space-y-1 sm:mx-0">
-            <p className="px-6 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:px-0">Mission map</p>
+            <p className="sent-section-label px-6 sm:px-0">Mission map</p>
             <MapView points={mapPoints} route={true} height={380} rounded={false} className="border-x-0 sm:rounded-card sm:border" />
           </div>
 
@@ -283,7 +285,7 @@ export default function SupporterFeed() {
           ) : null}
 
           <div className="space-y-1">
-            <p className="sent-section-title text-neutral-900">Recent posts</p>
+            <p className="sent-section-title">Recent posts</p>
             <p className="sent-body text-mission-muted">Posts from your missionary appear below.</p>
           </div>
 
@@ -304,10 +306,13 @@ export default function SupporterFeed() {
                   <Card
                     key={p.id}
                     id={`supporter-post-${p.id}`}
-                    className={`scroll-mt-4 overflow-hidden p-5 ${postTypePostCardClass(p.type)}`}
+                    className={`relative scroll-mt-4 overflow-hidden p-5 ${postTypePostCardClass(p.type)}`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-mission-line bg-white shadow-sm">
+                    <div className="absolute left-5 top-5 z-10">
+                      <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
+                    </div>
+                    <div className="flex items-start gap-3 pt-10">
+                      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-mission-line bg-white">
                         {photoUrl ? (
                           <img src={photoUrl} alt="" className="h-full w-full object-cover" />
                         ) : (
@@ -317,16 +322,18 @@ export default function SupporterFeed() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
-                            <p className="sent-card-title text-neutral-900">{displayName}</p>
-                            <p className="sent-caption mt-0.5">{new Date(p.createdAt).toLocaleString()}</p>
-                          </div>
-                          <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
-                        </div>
+                        <p className="sent-card-title">{displayName}</p>
+                        <p className="sent-caption mt-0.5">{new Date(p.createdAt).toLocaleString()}</p>
 
-                    {p.locationName ? <p className="sent-body mt-3 font-medium text-neutral-800">{p.locationName}</p> : null}
-                    <p className="sent-body mt-3 whitespace-pre-wrap text-neutral-800">{p.body}</p>
+                    {p.locationName ? (
+                      <p className="sent-body mt-3 font-medium text-mission-ink">
+                        <span className="mr-1" aria-hidden>
+                          📍
+                        </span>
+                        {p.locationName}
+                      </p>
+                    ) : null}
+                    <p className="sent-body mt-3 whitespace-pre-wrap text-mission-ink">{p.body}</p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       <ReactionButton

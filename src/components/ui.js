@@ -3,7 +3,7 @@ import React from 'react';
 export function Card({ className = '', children, ...props }) {
   return (
     <div
-      className={`rounded-card border border-mission-line bg-white shadow-card transition-shadow ${className}`}
+      className={`rounded-card border border-mission-line bg-white p-5 transition-colors duration-200 ease-out md:p-5 ${className}`}
       {...props}
     >
       {children}
@@ -13,12 +13,16 @@ export function Card({ className = '', children, ...props }) {
 
 export function Button({ className = '', variant = 'primary', ...props }) {
   const base =
-    'inline-flex min-h-[44px] items-center justify-center rounded-btn px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60';
+    'inline-flex min-h-[44px] items-center justify-center rounded-btn px-4 py-2.5 text-sm font-medium transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60';
   const variants = {
-    primary: 'border border-transparent bg-mission-blue text-white hover:bg-mission-blue/95 active:bg-mission-blue/90',
+    primary:
+      'border border-transparent bg-mission-ink text-white hover:bg-mission-ink/90 active:bg-mission-ink/85',
+    accent:
+      'border border-transparent bg-mission-blue text-white hover:bg-mission-blue/95 active:bg-mission-blue/90',
     secondary:
-      'border border-mission-blue bg-white text-mission-blue hover:bg-mission-blue/[0.06] active:bg-mission-blue/[0.1]',
-    ghost: 'min-h-0 border-transparent bg-transparent px-3 py-2 text-neutral-800 hover:bg-neutral-100 active:bg-neutral-200',
+      'border border-mission-line bg-white text-mission-ink hover:bg-[color:var(--color-bg)] active:bg-mission-line/40',
+    ghost:
+      'min-h-0 border-transparent bg-transparent px-3 py-2 text-mission-ink hover:bg-[color:var(--color-bg)] active:bg-mission-line/50',
     outlineBlue:
       'border border-mission-blue bg-white text-mission-blue hover:bg-mission-blue/[0.06] active:bg-mission-blue/[0.1]',
     danger: 'border border-transparent bg-mission-danger text-white hover:bg-mission-danger/95 active:bg-mission-danger/90',
@@ -30,7 +34,7 @@ export const Input = React.forwardRef(function Input({ className = '', ...props 
   return (
     <input
       ref={ref}
-      className={`w-full rounded-btn border border-mission-line px-4 py-[14px] text-[17px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring ${className}`}
+      className={`w-full rounded-btn border border-mission-line bg-white px-4 py-[14px] text-[14px] font-normal text-mission-ink outline-none ring-mission-blue/25 transition-colors duration-200 focus:border-mission-blue focus:ring ${className}`}
       {...props}
     />
   );
@@ -39,7 +43,7 @@ export const Input = React.forwardRef(function Input({ className = '', ...props 
 export function Textarea({ className = '', ...props }) {
   return (
     <textarea
-      className={`w-full rounded-btn border border-mission-line px-4 py-3 text-[16px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring ${className}`}
+      className={`w-full rounded-btn border border-mission-line bg-white px-4 py-3 text-[14px] font-normal text-mission-ink outline-none ring-mission-blue/25 transition-colors duration-200 focus:border-mission-blue focus:ring ${className}`}
       {...props}
     />
   );
@@ -48,7 +52,7 @@ export function Textarea({ className = '', ...props }) {
 export function Label({ title, children }) {
   return (
     <label className="block">
-      <span className="sent-caption mb-2 block font-medium">{title}</span>
+      <span className="sent-section-label mb-2 block">{title}</span>
       {children}
     </label>
   );
@@ -126,9 +130,9 @@ const EMPTY_ICON_MAP = {
 export function EmptyState({ title, subtitle, action, icon }) {
   const graphic = icon ? EMPTY_ICON_MAP[icon] : null;
   return (
-    <div className="rounded-card border border-dashed border-mission-line bg-white p-8 text-center shadow-card">
-      {graphic ? <div className="mb-4 flex justify-center text-mission-blue/85">{graphic}</div> : null}
-      <p className="sent-card-title text-neutral-900">{title}</p>
+    <div className="rounded-card border border-dashed border-mission-line bg-white p-8 text-center">
+      {graphic ? <div className="mb-4 flex justify-center text-mission-blue/80">{graphic}</div> : null}
+      <p className="sent-card-title">{title}</p>
       {subtitle ? <p className="sent-body mt-2 text-mission-muted">{subtitle}</p> : null}
       {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
     </div>
@@ -139,14 +143,14 @@ export function Modal({ open, title, children, onClose, footer, backdropClose = 
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 md:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 transition-opacity duration-200 md:items-center"
       role="presentation"
       onClick={() => {
         if (backdropClose) onClose?.();
       }}
     >
       <div
-        className="w-full max-w-lg rounded-card border border-mission-line bg-white shadow-xl"
+        className="w-full max-w-lg rounded-card border border-mission-line bg-white shadow-lg"
         role="presentation"
         onClick={(e) => e.stopPropagation()}
       >
@@ -155,7 +159,7 @@ export function Modal({ open, title, children, onClose, footer, backdropClose = 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-btn px-3 py-2 text-sm font-medium text-mission-muted transition hover:bg-neutral-100"
+            className="rounded-btn px-3 py-2 text-sm font-medium text-mission-muted transition hover:bg-[color:var(--color-bg)]"
           >
             Close
           </button>

@@ -6,6 +6,7 @@ import { geocodePlaceName } from '../../lib/geocoding';
 import { supabase } from '../../lib/supabaseClient';
 import { ensureMissionarySupporterCode } from '../../lib/supporterConnection';
 import { DEFAULT_PROFILE_ACCENT, normalizeProfileAccent } from '../../lib/profileAppearance';
+import { ACCENT_COLUMN_SKIP_MSG, isProfilesAccentColumnUnavailable } from '../../lib/profileAccentPersistence';
 import { ProfileAvatarAccentSection } from '../../components/ProfileAvatarAccentSection';
 import { Button, Card, Input, Label, Textarea } from '../../components/ui';
 import FeedbackSection from '../../components/FeedbackSection';
@@ -201,21 +202,30 @@ export default function MissionarySettings() {
 
     setProfileSaving(true);
     try {
-      const { data: updated, error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: fullName.trim(),
-          organization: organization.trim(),
-          mission_statement: missionStatement.trim(),
-          tax_deductible_url: taxUrl.trim(),
-          non_tax_deductible_url: nonTaxUrl.trim(),
-          monthly_goal: monthlyGoal,
-          partner_goal: partnerGoal,
-          accent_color: normalizeProfileAccent(accentColor),
-        })
-        .eq('id', user.id)
-        .select('*')
-        .maybeSingle();
+      const payload = {
+        full_name: fullName.trim(),
+        organization: organization.trim(),
+        mission_statement: missionStatement.trim(),
+        tax_deductible_url: taxUrl.trim(),
+        non_tax_deductible_url: nonTaxUrl.trim(),
+        monthly_goal: monthlyGoal,
+        partner_goal: partnerGoal,
+        accent_color: normalizeProfileAccent(accentColor),
+      };
+
+      let { data: updated, error } = await supabase.from('profiles').update(payload).eq('id', user.id).select('*').maybeSingle();
+
+      let accentSaveSkipped = false;
+      if (error && isProfilesAccentColumnUnavailable(error)) {
+        accentSaveSkipped = true;
+        const { accent_color: _a, ...withoutAccent } = payload;
+        ({ data: updated, error } = await supabase
+          .from('profiles')
+          .update(withoutAccent)
+          .eq('id', user.id)
+          .select('*')
+          .maybeSingle());
+      }
 
       if (error) {
         setProfileErr(error.message);
@@ -230,7 +240,7 @@ export default function MissionarySettings() {
         applyRowToForm(latest, formSetters);
       }
 
-      setProfileMsg('Profile saved.');
+      setProfileMsg(accentSaveSkipped ? ACCENT_COLUMN_SKIP_MSG : 'Profile saved.');
     } catch (e) {
       setProfileErr(e?.message || 'Could not save.');
     } finally {
@@ -244,14 +254,26 @@ export default function MissionarySettings() {
     setProfileErr('');
     setProfileMsg('');
     if (!supabase || !profile?.id) return;
-    const { error } = await supabase.from('profiles').update({ accent_color: h }).eq('id', profile.id);
-    if (error) {
-      setProfileErr(error.message);
-      return;
+    try {
+      const { error } = await supabase.from('profiles').update({ accent_color: h }).eq('id', profile.id);
+      if (error) {
+        if (isProfilesAccentColumnUnavailable(error)) {
+          setProfileMsg(ACCENT_COLUMN_SKIP_MSG);
+          return;
+        }
+        setProfileErr(error.message);
+        return;
+      }
+      setProfile((p) => (p ? { ...p, accent_color: h } : p));
+      setProfileMsg('Color saved.');
+      await refreshProfile();
+    } catch (e) {
+      if (isProfilesAccentColumnUnavailable(e)) {
+        setProfileMsg(ACCENT_COLUMN_SKIP_MSG);
+        return;
+      }
+      setProfileErr(e?.message || 'Could not save color.');
     }
-    setProfile((p) => (p ? { ...p, accent_color: h } : p));
-    setProfileMsg('Color saved.');
-    await refreshProfile();
   };
 
   const onAvatarUploaded = async (url) => {
@@ -302,7 +324,7 @@ export default function MissionarySettings() {
         />
       </Card>
 
-      <Card className="border-2 border-[color:color-mix(in_srgb,var(--profile-accent)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--profile-accent)_10%,white)] p-5 shadow-sm md:p-6">
+      <Card className="border-2 border-[color:color-mix(in_srgb,var(--profile-accent)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--profile-accent)_10%,white)] p-5 md:p-6">
         <p className="text-xs font-semibold uppercase tracking-wide profile-accent-text">Your missionary / supporter code</p>
         <p className="mt-3 break-all font-mono text-2xl font-bold tracking-wide text-neutral-900 md:text-3xl">
           {supporterCodeDisplay}
@@ -314,7 +336,17 @@ export default function MissionarySettings() {
       </Card>
 
       {profileErr ? <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{profileErr}</p> : null}
-      {profileMsg ? <p className="rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{profileMsg}</p> : null}
+      {profileMsg ? (
+        <p
+          className={`rounded-[10px] border px-4 py-3 text-sm ${
+            profileMsg === ACCENT_COLUMN_SKIP_MSG
+              ? 'border-mission-line bg-mission-canvas text-mission-muted'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+          }`}
+        >
+          {profileMsg}
+        </p>
+      ) : null}
 
       <Card className="p-5">
         <p className="text-sm font-semibold">Edit profile</p>

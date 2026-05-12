@@ -18,34 +18,23 @@ export function normalizePostTypeKey(type) {
   return 'default';
 }
 
-/** Left accent bar + subtle tint for feed-style post cards */
-export function postTypePostCardClass(type) {
-  switch (normalizePostTypeKey(type)) {
-    case 'field_story':
-      return 'border-l-[4px] border-l-mission-green bg-gradient-to-r from-mission-green/[0.06] to-white';
-    case 'prayer':
-      return 'border-l-[4px] border-l-mission-purple bg-gradient-to-r from-mission-purple/[0.07] to-white';
-    case 'monthly':
-      return 'border-l-[4px] border-l-mission-blue bg-gradient-to-r from-mission-blue/[0.06] to-white';
-    case 'win':
-      return 'border-l-[4px] border-l-amber-500 bg-gradient-to-r from-amber-500/[0.08] to-white';
-    default:
-      return 'border-l-[4px] border-l-neutral-200 bg-white';
-  }
+/** Flat white card; type is shown via top-left pill badge. */
+export function postTypePostCardClass() {
+  return '';
 }
 
-/** Compact pill label for post type */
+/** Pill label colors per product spec */
 export function postTypeBadgeClass(type) {
   switch (normalizePostTypeKey(type)) {
     case 'field_story':
-      return 'bg-mission-green/12 text-mission-green';
+      return 'bg-[#DCFCE7] text-[#15803D]';
     case 'prayer':
-      return 'bg-mission-purple/12 text-mission-purple';
+      return 'bg-[#DBEAFE] text-[#1D4ED8]';
     case 'monthly':
-      return 'bg-mission-blue/12 text-mission-blue';
+      return 'bg-[#F3F4F6] text-[#57534E]';
     case 'win':
-      return 'bg-amber-500/15 text-amber-800';
+      return 'bg-[#FEF9C3] text-[#A16207]';
     default:
-      return 'bg-neutral-100 text-mission-muted';
+      return 'bg-[#F3F4F6] text-mission-muted';
   }
 }

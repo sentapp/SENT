@@ -7,7 +7,7 @@ import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { postTypeBadgeClass, postTypePostCardClass } from '../../lib/postTypeStyles';
 import { Button, Card, EmptyState, Input, Label, Modal, Textarea } from '../../components/ui';
 
-const POST_TYPES = ['Field story', 'Prayer request', 'Monthly update', 'Win/testimony'];
+const POST_TYPES = ['Field story 🔥', 'Prayer 🙏', 'Monthly update 📊', 'Win ✨'];
 
 function TypeBadge({ children, typeKeyClass }) {
   return (
@@ -226,40 +226,66 @@ export default function MissionaryUpdates() {
         <p className="rounded-btn border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-[#854F0B]">{locationWarning}</p>
       ) : null}
 
-      <Card className="p-5">
-        <p className="sent-section-title mb-4">Post an update</p>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Label title="Post type">
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[16px] outline-none focus:border-mission-blue"
-            >
-              {POST_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </Label>
-          <Label title="Location (optional)">
+      <Card className="overflow-hidden p-6 md:p-8">
+        <p className="sent-page-title">Post an update</p>
+        <p className="sent-caption mt-2">Share what God is doing with your send team.</p>
+
+        <div className="mt-8">
+          <p className="sent-section-label mb-3">Post type</p>
+          <div className="flex flex-wrap gap-2">
+            {POST_TYPES.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                className={`inline-flex h-9 max-w-full items-center justify-center rounded-full px-4 text-sm font-medium transition-colors duration-200 ${
+                  type === t
+                    ? 'bg-mission-ink text-white'
+                    : 'border border-mission-line bg-white text-mission-muted hover:border-mission-muted/50'
+                }`}
+              >
+                <span className="truncate">{t}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <p className="sent-section-label mb-3">Location (optional)</p>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base" aria-hidden>
+              📍
+            </span>
             <Input
               value={locationName}
               onChange={(e) => setLocationName(e.target.value)}
-              placeholder="e.g. Dublin, Ireland — plain text only"
+              placeholder="e.g. Dublin, Ireland"
+              className="py-3.5 pl-11"
             />
-          </Label>
+          </div>
         </div>
 
-        <div className="mt-4">
-          <Label title="Post">
-            <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Share what God is doing..." rows={6} />
-          </Label>
+        <div className="relative mt-8">
+          <p className="sent-section-label mb-3">Post</p>
+          <Textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Share what God is doing..."
+            rows={5}
+            className="min-h-[120px] resize-none pb-10"
+          />
+          <span className="pointer-events-none absolute bottom-3 right-4 text-[13px] text-mission-muted">{body.length}</span>
         </div>
 
-        <div className="mt-4 flex justify-end">
-          <Button type="button" disabled={!canPost || posting} onClick={submitPost}>
-            {posting ? 'Posting…' : 'Post'}
+        <div className="mt-8">
+          <Button
+            type="button"
+            variant="primary"
+            className="h-12 w-full text-[15px] font-medium"
+            disabled={!canPost || posting}
+            onClick={submitPost}
+          >
+            {posting ? 'Posting…' : 'Post to supporters →'}
           </Button>
         </div>
       </Card>
@@ -282,8 +308,14 @@ export default function MissionaryUpdates() {
                 id={`post-${p.id}`}
                 className={`relative scroll-mt-4 overflow-hidden p-5 ${postTypePostCardClass(p.type)}`}
               >
-                <div className="flex items-start gap-3">
-                  <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-mission-line bg-white shadow-sm">
+                <div className="absolute left-5 top-5 z-10">
+                  <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
+                </div>
+                <div className="absolute right-3 top-4 z-10">
+                  <PostActionsMenu onEdit={() => openEdit(p)} onDelete={() => setDeletingPost(p)} />
+                </div>
+                <div className="flex items-start gap-3 pt-10">
+                  <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-mission-line bg-white">
                     {photoUrl ? (
                       <img src={photoUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
@@ -292,16 +324,17 @@ export default function MissionaryUpdates() {
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
-                        <p className="sent-caption">{new Date(p.createdAt).toLocaleString()}</p>
-                      </div>
-                      <PostActionsMenu onEdit={() => openEdit(p)} onDelete={() => setDeletingPost(p)} />
-                    </div>
-                    {p.locationName ? <p className="sent-body mt-2 font-medium text-neutral-800">{p.locationName}</p> : null}
-                    <p className="sent-body mt-3 whitespace-pre-wrap text-neutral-800">{p.body}</p>
+                  <div className="min-w-0 flex-1 pr-8">
+                    <p className="sent-caption">{new Date(p.createdAt).toLocaleString()}</p>
+                    {p.locationName ? (
+                      <p className="sent-body mt-2 font-medium text-mission-ink">
+                        <span className="mr-1" aria-hidden>
+                          📍
+                        </span>
+                        {p.locationName}
+                      </p>
+                    ) : null}
+                    <p className="sent-body mt-3 whitespace-pre-wrap text-mission-ink">{p.body}</p>
                   </div>
                 </div>
               </Card>
@@ -337,45 +370,50 @@ export default function MissionaryUpdates() {
             <Button type="button" variant="secondary" onClick={closeEdit} disabled={editSaving}>
               Cancel
             </Button>
-            <Button type="button" disabled={!canSaveEdit || editSaving} onClick={saveEdit}>
+            <Button type="button" variant="accent" disabled={!canSaveEdit || editSaving} onClick={saveEdit}>
               {editSaving ? 'Saving…' : 'Save changes'}
             </Button>
           </div>
         }
       >
         {editError ? <p className="mb-3 text-sm text-red-700">{editError}</p> : null}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Label title="Post type">
-            <select
-              value={editType}
-              onChange={(e) => setEditType(e.target.value)}
-              className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[16px] outline-none focus:border-mission-blue"
+        <p className="sent-section-label mb-3">Post type</p>
+        <div className="mb-6 flex flex-wrap gap-2">
+          {POST_TYPES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setEditType(t)}
+              className={`inline-flex h-9 max-w-full items-center justify-center rounded-full px-3 text-xs font-medium transition-colors duration-200 md:text-sm ${
+                editType === t
+                  ? 'bg-mission-ink text-white'
+                  : 'border border-mission-line bg-white text-mission-muted hover:border-mission-muted/50'
+              }`}
             >
-              {POST_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </Label>
-          <Label title="Location (optional)">
-            <Input
-              value={editLocation}
-              onChange={(e) => setEditLocation(e.target.value)}
-              placeholder="e.g. Dublin, Ireland — plain text only"
-            />
-          </Label>
+              <span className="truncate">{t}</span>
+            </button>
+          ))}
         </div>
-        <div className="mt-4">
-          <Label title="Post">
-            <Textarea
-              value={editBody}
-              onChange={(e) => setEditBody(e.target.value)}
-              placeholder="Share what God is doing..."
-              rows={6}
-            />
-          </Label>
+        <p className="sent-section-label mb-3">Location (optional)</p>
+        <div className="relative mb-4">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base" aria-hidden>
+            📍
+          </span>
+          <Input
+            value={editLocation}
+            onChange={(e) => setEditLocation(e.target.value)}
+            placeholder="e.g. Dublin, Ireland"
+            className="py-3 pl-11"
+          />
         </div>
+        <Label title="Post">
+          <Textarea
+            value={editBody}
+            onChange={(e) => setEditBody(e.target.value)}
+            placeholder="Share what God is doing..."
+            rows={6}
+          />
+        </Label>
       </Modal>
 
       <Modal

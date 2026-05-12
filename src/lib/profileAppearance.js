@@ -1,4 +1,4 @@
-/** Default matches Tailwind `mission-blue`. */
+/** Default matches design token `--color-accent` / DB `profiles.accent_color` default (#185FA5). */
 export const DEFAULT_PROFILE_ACCENT = '#185FA5';
 
 export const ACCENT_PRESETS = [

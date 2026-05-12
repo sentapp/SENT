@@ -70,10 +70,10 @@ function IconProfile({ className }) {
 function BottomNav() {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 h-[60px] border-t border-mission-line bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_3px_rgba(0,0,0,0.04)]"
+      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-mission-line bg-white pb-[env(safe-area-inset-bottom)]"
       aria-label="Supporter navigation"
     >
-      <ul className="mx-auto grid h-[60px] max-w-6xl grid-cols-5 items-stretch px-1">
+      <ul className="mx-auto grid h-14 max-w-6xl grid-cols-5 items-stretch px-1">
         {tabs.map((t) => {
           const Icon = t.Icon;
           return (
@@ -83,23 +83,13 @@ function BottomNav() {
                 end={t.to === '/supporter'}
                 aria-label={t.ariaLabel}
                 className={({ isActive }) =>
-                  `flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1 text-[10px] font-medium transition-colors active:bg-neutral-50 ${
-                    isActive ? 'text-mission-blue' : 'text-gray-400'
+                  `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-tight transition-colors duration-200 active:bg-[color:var(--color-bg)] ${
+                    isActive ? 'text-[color:var(--sent-nav-active)]' : 'text-[color:var(--sent-nav-inactive)]'
                   }`
                 }
               >
-                {({ isActive }) => (
-                  <>
-                    <Icon className="h-[22px] w-[22px] shrink-0" />
-                    <span
-                      className={`h-1 w-1 shrink-0 rounded-full transition-opacity ${
-                        isActive ? 'bg-mission-blue opacity-100' : 'bg-transparent opacity-0'
-                      }`}
-                      aria-hidden
-                    />
-                    <span className="max-w-full truncate leading-none">{t.label}</span>
-                  </>
-                )}
+                <Icon className="h-[20px] w-[20px] shrink-0" />
+                <span className="max-w-full truncate text-center">{t.label}</span>
               </NavLink>
             </li>
           );

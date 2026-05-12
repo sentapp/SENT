@@ -23,11 +23,11 @@ function MetricCard({ label, value, onActivate, ariaLabel, tint, Icon }) {
           onActivate?.();
         }
       }}
-      className={`relative cursor-pointer overflow-hidden p-5 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 ${tint}`}
+      className={`relative cursor-pointer overflow-hidden transition-colors duration-200 ease-out hover:bg-mission-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 ${tint}`}
     >
       <div className="pointer-events-none absolute right-4 top-4 opacity-95 [&>svg]:h-6 [&>svg]:w-6">{Icon}</div>
-      <p className="sent-caption relative max-w-[70%] font-medium uppercase tracking-wide text-mission-muted">{label}</p>
-      <p className="relative mt-2 text-3xl font-bold tracking-tight text-neutral-900">{value}</p>
+      <p className="sent-section-label relative max-w-[70%]">{label}</p>
+      <p className="sent-metric relative mt-2">{value}</p>
     </Card>
   );
 }
@@ -172,7 +172,7 @@ export default function MissionaryOverview() {
           ariaLabel="Monthly support — open partners"
           onActivate={() => navigate('/missionary/partners')}
           tint="bg-mission-green/[0.07]"
-          Icon={<span className="text-mission-green">{metricIconMonthly}</span>}
+          Icon={<span className="text-[color:var(--color-success)]">{metricIconMonthly}</span>}
         />
         <MetricCard
           label="One-time gifts"
@@ -283,6 +283,7 @@ export default function MissionaryOverview() {
             />
             <Button
               type="button"
+              variant="accent"
               onClick={() => {
                 actions.addTask(newTask);
                 setNewTask('');
@@ -300,7 +301,7 @@ export default function MissionaryOverview() {
               title="Nothing on your list yet"
               subtitle="Add a few concrete tasks for this week — small steps keep momentum."
               action={
-                <Button type="button" onClick={() => taskInputRef.current?.focus()}>
+                <Button type="button" variant="accent" onClick={() => taskInputRef.current?.focus()}>
                   Add a task
                 </Button>
               }
@@ -315,7 +316,7 @@ export default function MissionaryOverview() {
                     type="checkbox"
                     checked={Boolean(t.done)}
                     onChange={() => actions.toggleTask(t.id)}
-                    className="h-4 w-4 accent-[#185FA5]"
+                    className="h-4 w-4 accent-[color:var(--color-accent)]"
                   />
                   <span className={`text-sm ${t.done ? 'text-neutral-400 line-through' : 'text-neutral-800'}`}>
                     {t.text}

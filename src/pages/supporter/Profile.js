@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { relinkSupporterToMissionary, linkSupporterToMissionary } from '../../lib/supporterConnection';
 import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
 import { DEFAULT_PROFILE_ACCENT, normalizeProfileAccent } from '../../lib/profileAppearance';
+import { ACCENT_COLUMN_SKIP_MSG, isProfilesAccentColumnUnavailable } from '../../lib/profileAccentPersistence';
 import { ProfileAvatarAccentSection } from '../../components/ProfileAvatarAccentSection';
 import { Button, Card, Input, Label } from '../../components/ui';
 import FeedbackSection from '../../components/FeedbackSection';
@@ -161,13 +162,25 @@ export default function SupporterProfile() {
     setLoadError('');
     setDetailsMsg('');
     if (!supabase || !user?.id) return;
-    const { error } = await supabase.from('profiles').update({ accent_color: h }).eq('id', user.id);
-    if (error) {
-      setLoadError(error.message);
-      return;
+    try {
+      const { error } = await supabase.from('profiles').update({ accent_color: h }).eq('id', user.id);
+      if (error) {
+        if (isProfilesAccentColumnUnavailable(error)) {
+          setDetailsMsg(ACCENT_COLUMN_SKIP_MSG);
+          return;
+        }
+        setLoadError(error.message);
+        return;
+      }
+      await refreshProfile();
+      setDetailsMsg('Color saved.');
+    } catch (e) {
+      if (isProfilesAccentColumnUnavailable(e)) {
+        setDetailsMsg(ACCENT_COLUMN_SKIP_MSG);
+        return;
+      }
+      setLoadError(e?.message || 'Could not save color.');
     }
-    await refreshProfile();
-    setDetailsMsg('Color saved.');
   };
 
   const onAvatarUploaded = async (url) => {
@@ -191,19 +204,26 @@ export default function SupporterProfile() {
     setLoadError('');
     setDetailsSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: fullName.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
-          accent_color: normalizeProfileAccent(accentColor),
-          notify_in_app: notifyInApp,
-          notify_email: notifyEmail,
-          notify_text: notifyText,
-          notify_prayer: notifyPrayer,
-        })
-        .eq('id', user.id);
+      const payload = {
+        full_name: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        accent_color: normalizeProfileAccent(accentColor),
+        notify_in_app: notifyInApp,
+        notify_email: notifyEmail,
+        notify_text: notifyText,
+        notify_prayer: notifyPrayer,
+      };
+
+      let { error } = await supabase.from('profiles').update(payload).eq('id', user.id);
+
+      let accentSaveSkipped = false;
+      if (error && isProfilesAccentColumnUnavailable(error)) {
+        accentSaveSkipped = true;
+        const { accent_color: _a, ...withoutAccent } = payload;
+        ({ error } = await supabase.from('profiles').update(withoutAccent).eq('id', user.id));
+      }
+
       if (error) {
         setLoadError(error.message);
         return;
@@ -220,7 +240,13 @@ export default function SupporterProfile() {
         prayer: notifyPrayer,
       });
       await refreshProfile();
-      setDetailsMsg('Saved.');
+      setDetailsMsg(accentSaveSkipped ? ACCENT_COLUMN_SKIP_MSG : 'Saved.');
+    } catch (e) {
+      if (isProfilesAccentColumnUnavailable(e)) {
+        setDetailsMsg(ACCENT_COLUMN_SKIP_MSG);
+      } else {
+        setLoadError(e?.message || 'Could not save.');
+      }
     } finally {
       setDetailsSaving(false);
     }
@@ -371,7 +397,15 @@ export default function SupporterProfile() {
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 555‑5555" />
               </Label>
             </div>
-            {detailsMsg ? <p className="mt-3 text-sm text-emerald-800">{detailsMsg}</p> : null}
+            {detailsMsg ? (
+              <p
+                className={`mt-3 text-sm ${
+                  detailsMsg === ACCENT_COLUMN_SKIP_MSG ? 'rounded-[10px] border border-mission-line bg-mission-canvas px-3 py-2 text-mission-muted' : 'text-emerald-800'
+                }`}
+              >
+                {detailsMsg}
+              </p>
+            ) : null}
             <div className="mt-4 flex justify-end">
               <Button
                 type="button"

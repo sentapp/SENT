@@ -4,12 +4,13 @@ import { useAuth } from '../auth/AuthContext';
 const items = [
   { to: '/missionary', label: 'Overview' },
   { to: '/missionary/contacts', label: 'Contacts' },
+  { to: '/missionary/pipeline', label: 'Pipeline' },
   { to: '/missionary/partners', label: 'Partners' },
   { to: '/missionary/updates', label: 'Updates' },
   { to: '/missionary/settings', label: 'Settings' },
 ];
 
-/** Mobile bottom bar: 5 tabs — icons + active-only label; Settings shows “Profile” when selected. */
+/** Mobile bottom bar: 6 tabs — icons + labels; active #1C1917, inactive #A8A29E. */
 const bottomNavItems = [
   {
     to: '/missionary',
@@ -24,6 +25,13 @@ const bottomNavItems = [
     activeLabel: 'Contacts',
     ariaLabel: 'Contacts',
     Icon: IconPerson,
+  },
+  {
+    to: '/missionary/pipeline',
+    label: 'Pipeline',
+    activeLabel: 'Pipeline',
+    ariaLabel: 'Pipeline',
+    Icon: IconPipeline,
   },
   {
     to: '/missionary/partners',
@@ -56,6 +64,14 @@ function IconHome({ className }) {
         strokeLinejoin="round"
         d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
       />
+    </svg>
+  );
+}
+
+function IconPipeline({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h16" />
     </svg>
   );
 }
@@ -128,10 +144,10 @@ function SideNav() {
                 to={it.to}
                 end={it.to === '/missionary'}
                 className={({ isActive }) =>
-                  `sent-body flex w-full items-center rounded-btn px-3 py-2.5 text-left font-medium transition-colors ${
+                  `sent-body flex w-full items-center rounded-btn px-3 py-2.5 text-left font-medium transition-colors duration-200 ${
                     isActive
-                      ? 'bg-mission-blue/10 text-mission-blue ring-1 ring-mission-blue/20'
-                      : 'text-neutral-700 hover:bg-neutral-100'
+                      ? 'bg-[color:var(--color-bg)] font-semibold text-mission-ink ring-1 ring-mission-line'
+                      : 'text-mission-muted hover:bg-[color:var(--color-bg)]'
                   }`
                 }
               >
@@ -148,10 +164,10 @@ function SideNav() {
 function BottomNav() {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 h-[60px] border-t border-mission-line bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_3px_rgba(0,0,0,0.04)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-mission-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
       aria-label="Missionary navigation"
     >
-      <ul className="mx-auto grid h-[60px] max-w-mobile grid-cols-5 items-stretch px-0.5">
+      <ul className="mx-auto grid h-14 max-w-mobile grid-cols-6 items-stretch px-0.5">
         {bottomNavItems.map((it) => {
           const Icon = it.Icon;
           return (
@@ -161,27 +177,13 @@ function BottomNav() {
                 end={it.to === '/missionary'}
                 aria-label={it.ariaLabel}
                 className={({ isActive }) =>
-                  `flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1 text-[10px] font-medium transition-colors active:bg-neutral-50 ${
-                    isActive ? 'text-mission-blue' : 'text-gray-400'
+                  `flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-tight transition-colors duration-200 active:bg-[color:var(--color-bg)] ${
+                    isActive ? 'text-[color:var(--sent-nav-active)]' : 'text-[color:var(--sent-nav-inactive)]'
                   }`
                 }
               >
-                {({ isActive }) => (
-                  <>
-                    <Icon className="h-[22px] w-[22px] shrink-0" />
-                    <span
-                      className={`h-1 w-1 shrink-0 rounded-full transition-opacity ${
-                        isActive ? 'bg-mission-blue opacity-100' : 'bg-transparent opacity-0'
-                      }`}
-                      aria-hidden
-                    />
-                    {isActive ? (
-                      <span className="max-w-full truncate text-center text-[10px] leading-none tracking-tight">
-                        {it.activeLabel}
-                      </span>
-                    ) : null}
-                  </>
-                )}
+                <Icon className="h-[20px] w-[20px] shrink-0" />
+                <span className="max-w-full truncate text-center">{it.label}</span>
               </NavLink>
             </li>
           );
