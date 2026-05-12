@@ -8,6 +8,12 @@ import {
   findBestStatusColumnIndex,
 } from './importRowSemantics';
 import { cleanNotes, cleanPhone } from './importCleaners';
+import {
+  importNameFieldShouldSkip,
+  pickBestSheet,
+  rowIsAllNumbersOrEmpty,
+} from './spreadsheetSheetPick';
+import { parseSpreadsheetFileWithWorker } from './spreadsheetWorkerClient';
 
 // CDN worker (version must match pdfjs-dist in package.json — Safari is picky about workers)
 if (typeof window !== 'undefined') {
@@ -115,6 +121,7 @@ export function isHeaderRow(text) {
 export function isValidImportContactName(name) {
   const cleanName = String(name ?? '').trim();
   if (cleanName.length < 2) return false;
+  if (importNameFieldShouldSkip(cleanName)) return false;
   if (/^\d+$/.test(cleanName)) return false;
   if (isHeaderRow(cleanName)) return false;
   if (shouldRejectImportName(cleanName)) return false;
@@ -125,6 +132,7 @@ export function isValidImportContactName(name) {
 export function shouldRejectImportName(rawName) {
   const name = String(rawName || '').trim();
   if (!name) return true;
+  if (importNameFieldShouldSkip(name)) return true;
   if (/^\d+$/.test(name)) return true;
   if (name.length > 50) return true;
   const lower = name.toLowerCase();
@@ -343,12 +351,15 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
     const drafts = [];
     for (let i = 0; i < dataRows.length; i += 1) {
       const row = dataRows[i];
-      const nameRaw = String(row[0] ?? '').trim();
+      if (rowIsAllNumbersOrEmpty(row)) continue;
+      let nameRaw = String(row[0] ?? '').trim();
+      const sep = separatePhoneFromName(nameRaw, '');
+      nameRaw = sep.name;
       if (!isValidImportContactName(nameRaw)) continue;
       drafts.push({
         id: `flex-${sheetName}-${i}`,
         full_name: nameRaw,
-        phone: '',
+        phone: cleanPhone(sep.phone),
         email: '',
         category: 'potential',
         status: 'prospect',
@@ -411,13 +422,20 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
   const drafts = [];
   for (let i = 0; i < dataRows.length; i += 1) {
     const row = dataRows[i];
-    const nameRaw = String(row[nameIdx] ?? '').trim();
+    if (rowIsAllNumbersOrEmpty(row)) continue;
+
+    let nameRaw = String(row[nameIdx] ?? '').trim();
+    const phoneRaw = phoneIdx !== nameIdx ? String(row[phoneIdx] ?? '').trim() : '';
+    const { phone: phoneFromCol } = strictPhoneFromCell(phoneRaw);
+    const sep = separatePhoneFromName(nameRaw, phoneFromCol);
+    nameRaw = sep.name;
     if (!isValidImportContactName(nameRaw)) continue;
 
-    const phoneRaw = phoneIdx !== nameIdx ? String(row[phoneIdx] ?? '').trim() : '';
     const emailRaw = emailIdx !== nameIdx ? String(row[emailIdx] ?? '').trim() : '';
-    const { phone: phoneOut, extra: phoneExtra } = strictPhoneFromCell(phoneRaw);
+    const { phone: phoneOutCol, extra: phoneExtra } = strictPhoneFromCell(phoneRaw);
     const { email: emailOut, extra: emailExtra } = strictEmailFromCell(emailRaw);
+
+    const phoneDigits = phoneOutCol.length >= 7 ? phoneOutCol : sep.phone;
 
     const notesParts = [];
     if (phoneExtra) notesParts.push(phoneExtra);
@@ -434,7 +452,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
     const baseDraft = {
       id: `flex-${sheetName}-${i}`,
       full_name: nameRaw,
-      phone: cleanPhone(phoneOut),
+      phone: cleanPhone(phoneDigits),
       email: emailOut,
       category: 'potential',
       status: 'prospect',
@@ -478,7 +496,7 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
   const name = (file?.name || '').toLowerCase();
   const ext = name.split('.').pop() || '';
 
-  const sheetResults = [];
+  const sheetMetas = [];
 
   if (ext === 'csv') {
     onProgress?.({ pct: 5, note: 'Reading CSV…' });
@@ -486,7 +504,7 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     const parsed = Papa.parse(text, { header: false, skipEmptyLines: true });
     const rawRows = parsed.data || [];
-    sheetResults.push({ name: 'CSV', rawRows });
+    sheetMetas.push({ name: 'CSV', rawRows });
   } else if (ext === 'xlsx' || ext === 'xls') {
     onProgress?.({ pct: 5, note: 'Reading workbook…' });
     const buf = await file.arrayBuffer();
@@ -497,7 +515,7 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
       const sheetName = wb.SheetNames[s];
       const sheet = wb.Sheets[sheetName];
       const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-      sheetResults.push({ name: sheetName, rawRows });
+      sheetMetas.push({ name: sheetName, rawRows });
       onProgress?.({
         pct: Math.round(10 + (s / Math.max(1, wb.SheetNames.length)) * 40),
         note: `Scanning “${sheetName}”…`,
@@ -507,29 +525,25 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
     throw new Error('Use .csv, .xlsx, or .xls');
   }
 
-  const evaluated = [];
-  for (const { name: sheetName, rawRows } of sheetResults) {
-    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    const ev = flexibleImportEvaluateRawSheet(rawRows, sheetName);
-    if (ev) evaluated.push(ev);
+  const best = pickBestSheet(sheetMetas) || sheetMetas[0];
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  if (!best?.rawRows) {
+    console.log('[import] Flexible spreadsheet: total contacts to insert: 0');
+    return [];
   }
 
-  let candidates = evaluated.filter((e) => e.validNameCount >= 1);
-  if (!candidates.length) candidates = evaluated.slice();
-  candidates.sort((a, b) => b.validNameCount - a.validNameCount || b.drafts.length - a.drafts.length);
-
-  const best = candidates[0];
-  if (!best?.drafts?.length) {
+  const ev = flexibleImportEvaluateRawSheet(best.rawRows, best.name);
+  if (!ev?.drafts?.length) {
     console.log('[import] Flexible spreadsheet: total contacts to insert: 0');
     return [];
   }
 
   console.log(
-    `[import] Using sheet “${best.sheetName}” (${best.validNameCount} rows with a valid name). Contacts found: ${best.drafts.length}`,
+    `[import] Using sheet “${ev.sheetName}” (${ev.validNameCount} rows with a valid name). Contacts found: ${ev.drafts.length}`,
   );
-  console.log('[import] Flexible spreadsheet: total contacts to insert:', best.drafts.length);
+  console.log('[import] Flexible spreadsheet: total contacts to insert:', ev.drafts.length);
   onProgress?.({ pct: 100, note: 'Ready to save…' });
-  return best.drafts;
+  return ev.drafts;
 }
 
 /** Pick columns for name / phone / email from header row */
@@ -554,8 +568,12 @@ export function rowsToContacts(rows, headers) {
     if (!Array.isArray(row) && typeof row !== 'object') continue;
     const arr = Array.isArray(row) ? row : headers.map((h) => row[h]);
     const width = Math.max(headerCells.length, arr.length, 1);
-    const fullName = String(arr[fullNameIdx] ?? '').trim();
-    const phone = cleanPhone(phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '');
+    if (rowIsAllNumbersOrEmpty(padRowToWidth(arr, width))) continue;
+    const phoneCol = phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '';
+    const { phone: phoneColDigits } = strictPhoneFromCell(phoneCol);
+    const sep = separatePhoneFromName(String(arr[fullNameIdx] ?? '').trim(), phoneColDigits);
+    const fullName = sep.name;
+    const phone = cleanPhone(phoneColDigits.length >= 7 ? phoneColDigits : sep.phone);
     const email = emailIdx >= 0 ? String(arr[emailIdx] ?? '').trim() : '';
     if (!isValidImportContactName(fullName)) continue;
     const base = {
@@ -615,9 +633,12 @@ export function parseCsvTextToMatrixWithProgress(text, onProgress, { signal } = 
 export async function parseExcelFile(file) {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array' });
-  const sheetName = wb.SheetNames[0];
-  const sheet = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  const sheetMetas = wb.SheetNames.map((sheetName) => ({
+    name: sheetName,
+    rawRows: XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1 }),
+  }));
+  const best = pickBestSheet(sheetMetas) || sheetMetas[0];
+  const rows = best?.rawRows || [];
   if (!rows?.length) return [];
   const headers = rows[0].map((c) => String(c ?? ''));
   const dataRows = rows.slice(1).filter((r) => r.some((c) => String(c ?? '').trim()));
@@ -634,9 +655,12 @@ export async function parseSpreadsheetFileToMatrix(file) {
   if (ext === 'xlsx' || ext === 'xls') {
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });
-    const sheetName = wb.SheetNames[0];
-    const sheet = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    const sheetMetas = wb.SheetNames.map((sheetName) => ({
+      name: sheetName,
+      rawRows: XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1 }),
+    }));
+    const best = pickBestSheet(sheetMetas) || sheetMetas[0];
+    const rows = best?.rawRows || [];
     if (!rows?.length) return { headers: [], rows: [] };
     const headers = rows[0].map((c) => String(c ?? ''));
     const dataRows = rows.slice(1).filter((r) => r.some((c) => String(c ?? '').trim()));
@@ -658,9 +682,12 @@ export async function parseSpreadsheetFileToMatrixWithProgress(file, onProgress,
     const buf = await file.arrayBuffer();
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     const wb = XLSX.read(buf, { type: 'array' });
-    const sheetName = wb.SheetNames[0];
-    const sheet = wb.Sheets[sheetName];
-    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    const sheetMetas = wb.SheetNames.map((sheetName) => ({
+      name: sheetName,
+      rawRows: XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1 }),
+    }));
+    const best = pickBestSheet(sheetMetas) || sheetMetas[0];
+    const rawRows = best?.rawRows || [];
     if (!rawRows?.length) return { headers: [], rows: [] };
     const headers = rawRows[0].map((c) => String(c ?? ''));
     const dataRows = rawRows.slice(1).filter((r) => r.some((c) => String(c ?? '').trim()));
@@ -722,6 +749,36 @@ function normalizeUsPhoneDigits(raw) {
   return d.slice(-10);
 }
 
+const PHONE_EMBEDDED_IN_NAME_RE = /(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
+
+/**
+ * Pull a US-style phone out of a free-text name cell; keep existing digits when already provided.
+ * @param {string} rawName
+ * @param {string} [existingPhone]
+ * @returns {{ name: string, phone: string }} phone is digits-only (may be empty)
+ */
+export function separatePhoneFromName(rawName, existingPhone = '') {
+  const raw = String(rawName ?? '').trim();
+  const existingDigits = String(existingPhone ?? '').replace(/\D/g, '');
+  if (!raw) {
+    return { name: '', phone: existingDigits };
+  }
+  const m = raw.match(PHONE_EMBEDDED_IN_NAME_RE);
+  if (!m) {
+    return { name: raw.replace(/\s+/g, ' ').trim(), phone: existingDigits };
+  }
+  const matched = m[0];
+  let extracted = normalizeUsPhoneDigits(matched);
+  if (extracted.length !== 10) {
+    extracted = matched.replace(/\D/g, '');
+    if (extracted.length === 11 && extracted.startsWith('1')) extracted = extracted.slice(1);
+    if (extracted.length > 10) extracted = extracted.slice(-10);
+  }
+  const name = raw.replace(matched, ' ').replace(/\s+/g, ' ').trim();
+  const phone = existingDigits.length >= 7 ? existingDigits : extracted;
+  return { name, phone };
+}
+
 /** Detect header like: # Full Name | Phone Number | Email (NetCasting Tracker). */
 function isNetCastingHeaderLine(line) {
   const t = String(line || '')
@@ -764,13 +821,20 @@ function parseNetCastingDataLine(trimmedLine) {
     } else {
       full_name = beforePhone.replace(/\s+/g, ' ');
     }
+    const sepName = separatePhoneFromName(full_name, phoneInfo.digits);
+    full_name = sepName.name;
     if (!isValidImportContactName(full_name)) return null;
 
     let email = '';
     const em = afterPhone.match(PDF_EMAIL_RE);
     if (em) email = em[0];
 
-    return draftFromParts(full_name, phoneInfo.digits, email);
+    const phoneDigits =
+      String(phoneInfo.digits || '').replace(/\D/g, '').length >= 7
+        ? String(phoneInfo.digits || '').replace(/\D/g, '')
+        : String(sepName.phone || '').replace(/\D/g, '');
+
+    return draftFromParts(full_name, phoneDigits, email);
   }
 
   /** Name-only row (optional leading index / row number); optional email on the line. */
@@ -781,8 +845,10 @@ function parseNetCastingDataLine(trimmedLine) {
     rest = rest.split(email).join(' ').trim();
   }
   rest = rest.replace(/\s+/g, ' ');
+  const sepRest = separatePhoneFromName(rest, '');
+  rest = sepRest.name;
   if (!isValidImportContactName(rest)) return null;
-  return draftFromParts(rest, '', email);
+  return draftFromParts(rest, sepRest.phone, email);
 }
 
 /**
@@ -843,10 +909,11 @@ export function parsePdfContactsFromText(text) {
       namePart = namePart.replace(new RegExp(PDF_PHONE_RE.source, 'g'), '').trim();
       namePart = namePart.replace(/^[-•*–—\t\s\d.)]+/, '').trim();
       namePart = namePart.replace(/^\d+\s*/, '').trim();
-      const full_name = namePart || email.split('@')[0] || '';
+      const sepPdf = separatePhoneFromName(namePart, phones[0] || '');
+      const full_name = sepPdf.name;
       if (!isValidImportContactName(full_name)) continue;
 
-      contacts.push(draftFromParts(full_name, phones[0] || '', email));
+      contacts.push(draftFromParts(full_name, phones[0] || sepPdf.phone, email));
     }
 
     /** Name + optional phone, optional email — no email on line */
@@ -857,8 +924,11 @@ export function parsePdfContactsFromText(text) {
         rest = rest.replace(p, ' ');
       }
       rest = rest.replace(/^[-•*–—\t\s\d.)]+/, '').trim().replace(/\s+/g, ' ');
+      const sepLine = separatePhoneFromName(rest, phone);
+      rest = sepLine.name;
       if (isValidImportContactName(rest)) {
-        contacts.push(draftFromParts(rest, phone, ''));
+        const pOut = phone || sepLine.phone;
+        contacts.push(draftFromParts(rest, pOut, ''));
       }
     }
   }
@@ -976,7 +1046,6 @@ export async function parsePdfFile(file, { shouldCancel, onProgress } = {}) {
  * Prefer Web Worker + Papa/xlsx; fall back to main-thread parse if workers fail.
  */
 export async function parseSpreadsheetFileToMatrixReliable(file, { onProgress, signal } = {}) {
-  const { parseSpreadsheetFileWithWorker } = await import('./spreadsheetWorkerClient');
   try {
     return await parseSpreadsheetFileWithWorker(file, {
       onProgress,

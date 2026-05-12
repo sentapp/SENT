@@ -6,6 +6,7 @@ import {
   parseCsvTextToMatrixWithProgress,
   SHEET_NOT_PUBLIC_MSG,
 } from './contactImport';
+import { pickBestSheet } from './spreadsheetSheetPick';
 
 /**
  * Reads spreadsheet values via Google Sheets API v4.
@@ -44,22 +45,51 @@ async function fetchJson(url) {
   return json;
 }
 
+function parseRangeSheetTitle(rangeStr) {
+  const r = String(rangeStr || '');
+  const bang = r.indexOf('!');
+  if (bang <= 0) return r.trim();
+  let t = r.slice(0, bang).trim();
+  if (t.startsWith("'") && t.endsWith("'")) t = t.slice(1, -1).replace(/''/g, "'");
+  return t;
+}
+
 /**
- * Returns { headers: string[], rows: any[][] } from first sheet's data (row 0 = header).
+ * Returns { headers: string[], rows: any[][] } from the best tab's data (row 0 = header).
  */
 export async function fetchSheetMatrixViaGoogleApi(spreadsheetId, apiKey, { onProgress } = {}) {
   if (!apiKey) throw new Error('Missing Google Sheets API key.');
   const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?key=${encodeURIComponent(apiKey)}&fields=sheets(properties(title,sheetId))`;
   const meta = await fetchJson(metaUrl);
-  const title = meta.sheets?.[0]?.properties?.title;
-  if (!title) throw new Error('No sheets found in this spreadsheet.');
+  const sheetList = meta.sheets || [];
+  if (!sheetList.length) throw new Error('No sheets found in this spreadsheet.');
 
-  const quoted = `'${String(title).replace(/'/g, "''")}'`;
-  const range = `${quoted}!A1:Z10000`;
-  const valuesUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${encodeURIComponent(apiKey)}`;
-  const data = await fetchJson(valuesUrl);
-  const values = data.values || [];
-  if (!values.length) throw new Error('The sheet appears empty.');
+  const maxSheets = Math.min(sheetList.length, 12);
+  const rangeParams = [];
+  for (let i = 0; i < maxSheets; i += 1) {
+    const title = sheetList[i]?.properties?.title;
+    if (!title) continue;
+    const quoted = `'${String(title).replace(/'/g, "''")}'`;
+    rangeParams.push(`${quoted}!A1:Z10000`);
+  }
+  if (!rangeParams.length) throw new Error('No sheets found in this spreadsheet.');
+
+  const qs = rangeParams.map((rng) => `ranges=${encodeURIComponent(rng)}`).join('&');
+  const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?key=${encodeURIComponent(apiKey)}&${qs}`;
+  const batch = await fetchJson(batchUrl);
+  const valueRanges = batch.valueRanges || [];
+
+  const descriptors = valueRanges.map((vr) => ({
+    name: parseRangeSheetTitle(vr.range),
+    rawRows: vr.values && Array.isArray(vr.values) ? vr.values : [],
+  }));
+
+  const nonEmptyDescriptors = descriptors.filter((d) => d.rawRows.some((row) => Array.isArray(row) && row.some((c) => String(c ?? '').trim())));
+  const pool = nonEmptyDescriptors.length ? nonEmptyDescriptors : descriptors;
+  const best = pickBestSheet(pool) || pool[0];
+  if (!best?.rawRows?.length) throw new Error('The sheet appears empty.');
+
+  const values = best.rawRows;
   const headers = values[0].map((c) => String(c ?? ''));
   const rawRows = values.slice(1).filter((r) => Array.isArray(r) && r.some((c) => String(c ?? '').trim()));
   const total = rawRows.length;

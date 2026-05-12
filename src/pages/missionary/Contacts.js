@@ -9,6 +9,7 @@ import {
   parsePdfFile,
   parseSpreadsheetFlexible,
 } from '../../lib/contactImport';
+import { fetchGoogleSheetMatrix } from '../../lib/googleSheetsApi';
 import { cleanEmail, extrasFromRejectedContactFields, mergeImportNotes } from '../../lib/contactImportClean';
 import { cleanNotes, cleanPhone } from '../../lib/importCleaners';
 import { phaseLabelFromPct } from '../../lib/importProgressText';
@@ -378,7 +379,6 @@ export default function MissionaryContacts() {
     setImportProgress({ pct: 0 });
     setImportMsg('');
     try {
-      const { fetchGoogleSheetMatrix } = await import('../../lib/googleSheetsApi');
       const m = await fetchGoogleSheetMatrix(sheetUrl.trim(), {
         signal,
         onProgress: (u) => {
