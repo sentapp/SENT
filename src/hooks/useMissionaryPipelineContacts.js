@@ -34,12 +34,16 @@ function mapRow(row) {
   };
 }
 
+const OVERVIEW_STATUSES = ['asked', 'contacted', 'meeting_scheduled'];
+/** Display / query order for full Pipeline page (matches product flow). */
+export const MISSIONARY_PIPELINE_BOARD_STATUSES = ['contacted', 'asked', 'meeting_scheduled', 'committed', 'partner'];
+
 /**
- * Pipeline slice: contacts in asked / contacted / meeting_scheduled (newest first, max 10).
+ * Pipeline contacts for Overview (`variant: 'overview'`) or full Pipeline page (`variant: 'board'`).
  * Uses the same missionary scope as the main contacts hook.
  */
 export function useMissionaryPipelineContacts(authUserId, options = {}) {
-  const { authLoading = false, onAfterMutation } = options;
+  const { authLoading = false, onAfterMutation, variant = 'overview' } = options;
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,13 +60,18 @@ export function useMissionaryPipelineContacts(authUserId, options = {}) {
         setContacts([]);
         return;
       }
-      const { data, error } = await supabase
+      const statuses = variant === 'board' ? MISSIONARY_PIPELINE_BOARD_STATUSES : OVERVIEW_STATUSES;
+      let q = supabase
         .from('contacts')
         .select('id, full_name, phone, status, category, monthly_amount, created_at')
         .eq('missionary_id', missionaryId)
-        .in('status', ['asked', 'contacted', 'meeting_scheduled'])
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .in('status', statuses);
+      if (variant === 'board') {
+        q = q.order('full_name', { ascending: true });
+      } else {
+        q = q.order('created_at', { ascending: false }).limit(10);
+      }
+      const { data, error } = await q;
       if (error) {
         // eslint-disable-next-line no-console
         console.error('[pipeline] Fetch failed:', error);
@@ -77,7 +86,7 @@ export function useMissionaryPipelineContacts(authUserId, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [authUserId]);
+  }, [authUserId, variant]);
 
   useEffect(() => {
     if (authLoading) {

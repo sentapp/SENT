@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { normalizePostTypeKey } from '../lib/postTypeStyles';
 
 function ProfileCoords(profile) {
   if (!profile) return null;
@@ -19,13 +20,14 @@ function fmtDate(iso) {
 
 /** Tailwind classes for post-type badge in map popups */
 export function postTypeBadgeClass(type) {
-  switch (type) {
-    case 'Prayer request':
+  switch (normalizePostTypeKey(type)) {
+    case 'prayer':
       return 'bg-violet-100 text-violet-900';
-    case 'Monthly update':
+    case 'monthly':
       return 'bg-emerald-100 text-emerald-900';
-    case 'Win/testimony':
+    case 'win':
       return 'bg-amber-100 text-amber-900';
+    case 'field_story':
     default:
       return 'bg-[#185FA5]/15 text-[#185FA5]';
   }

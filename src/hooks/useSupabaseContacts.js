@@ -195,7 +195,7 @@ export function useSupabaseContacts(authUserId, options = {}) {
         .from('contacts')
         .select(CONTACT_SELECT_FULL)
         .eq('missionary_id', missionaryId)
-        .order('created_at', { ascending: false });
+        .order('full_name', { ascending: true });
 
       if (q.error && isMissingColumnError(q.error)) {
         setSchemaPartial(true);
@@ -203,7 +203,7 @@ export function useSupabaseContacts(authUserId, options = {}) {
           .from('contacts')
           .select(CONTACT_SELECT_MINIMAL)
           .eq('missionary_id', missionaryId)
-          .order('created_at', { ascending: false });
+          .order('full_name', { ascending: true });
       }
 
       if (q.error) {

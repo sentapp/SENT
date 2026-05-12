@@ -2,19 +2,28 @@ import { geocodePlaceName } from './geocoding';
 
 const UI_TO_DB = {
   'Field story': 'field_story',
+  'Field story 🔥': 'field_story',
   'Prayer request': 'prayer_request',
+  'Prayer 🙏': 'prayer_request',
   'Monthly update': 'monthly_update',
+  'Monthly update 📊': 'monthly_update',
   'Win/testimony': 'win_testimony',
+  'Win ✨': 'win_testimony',
 };
 
-const DB_TO_UI = Object.fromEntries(Object.entries(UI_TO_DB).map(([k, v]) => [v, k]));
+const DB_TO_UI = {
+  field_story: 'Field story 🔥',
+  prayer_request: 'Prayer 🙏',
+  monthly_update: 'Monthly update 📊',
+  win_testimony: 'Win ✨',
+};
 
 export function postTypeUiToDb(ui) {
   return UI_TO_DB[ui] || 'field_story';
 }
 
 export function postTypeDbToUi(db) {
-  return DB_TO_UI[db] || 'Field story';
+  return DB_TO_UI[db] || 'Field story 🔥';
 }
 
 export function mapPostRow(row) {

@@ -91,7 +91,7 @@ export function AppStateProvider({ children }) {
       addPost(post) {
         const newPost = {
           id: uid('post'),
-          type: post.type ?? 'Field story',
+          type: post.type ?? 'Field story 🔥',
           locationName: post.locationName?.trim() ?? '',
           locationCoords: post.locationCoords ?? null,
           body: post.body?.trim() ?? '',

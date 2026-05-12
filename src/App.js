@@ -8,6 +8,7 @@ import SupporterLayout from './layouts/SupporterLayout';
 
 import MissionaryOverview from './pages/missionary/Overview';
 import MissionaryContacts from './pages/missionary/Contacts';
+import MissionaryPipeline from './pages/missionary/Pipeline';
 import MissionaryPartners from './pages/missionary/Partners';
 import MissionaryUpdates from './pages/missionary/Updates';
 import MissionarySettings from './pages/missionary/Settings';
@@ -39,6 +40,7 @@ function App() {
         <Route index element={<MissionaryOverview />} />
         <Route path="onboarding" element={<MissionaryOnboarding />} />
         <Route path="contacts" element={<MissionaryContacts />} />
+        <Route path="pipeline" element={<MissionaryPipeline />} />
         <Route path="partners" element={<MissionaryPartners />} />
         <Route path="updates" element={<MissionaryUpdates />} />
         <Route path="map" element={<Navigate to="/missionary/updates" replace />} />
