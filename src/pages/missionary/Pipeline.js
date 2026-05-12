@@ -2,40 +2,33 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import {
-  MISSIONARY_PIPELINE_BOARD_STATUSES,
+  MISSIONARY_PIPELINE_TRACKED_STATUSES,
+  PIPELINE_NEXT_STATUS,
   useMissionaryPipelineContacts,
 } from '../../hooks/useMissionaryPipelineContacts';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { categoryLabel } from '../../lib/contactCategories';
-import { statusLabel } from '../../lib/contactStatuses';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
 
+/** Column order: Asked → Meeting scheduled → Contacted → Committed */
 const STAGE_COLUMNS = [
-  { status: 'contacted', label: 'Contacted' },
   { status: 'asked', label: 'Asked' },
-  { status: 'meeting_scheduled', label: 'Meeting scheduled' },
+  { status: 'meeting_scheduled', label: 'Meeting Scheduled' },
+  { status: 'contacted', label: 'Contacted' },
   { status: 'committed', label: 'Committed' },
-  { status: 'partner', label: 'Partner' },
 ];
 
-const BOARD_SET = new Set(MISSIONARY_PIPELINE_BOARD_STATUSES);
+const TRACKED_SET = new Set(MISSIONARY_PIPELINE_TRACKED_STATUSES);
 
-function nextPipelineStatus(current) {
-  const idx = MISSIONARY_PIPELINE_BOARD_STATUSES.indexOf(current);
-  if (idx < 0 || idx >= MISSIONARY_PIPELINE_BOARD_STATUSES.length - 1) return null;
-  return MISSIONARY_PIPELINE_BOARD_STATUSES[idx + 1];
-}
+const CATEGORY_BADGE =
+  'inline-flex max-w-full truncate rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-800 ring-1 ring-neutral-200/80';
 
-const STAGE_BADGE = {
-  contacted: 'bg-sky-100 text-sky-900 ring-1 ring-sky-200/80',
-  asked: 'bg-violet-100 text-violet-900 ring-1 ring-violet-200/80',
-  meeting_scheduled: 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80',
-  committed: 'bg-amber-100 text-amber-900 ring-1 ring-amber-200/80',
-  partner: 'bg-mission-blue/15 text-mission-blue ring-1 ring-mission-blue/25',
-};
-
-function stageBadgeClass(status) {
-  return STAGE_BADGE[status] || 'bg-neutral-100 text-neutral-800 ring-1 ring-neutral-200/80';
+function truncateNotes(text, max = 100) {
+  const s = String(text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) return '';
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
 export default function MissionaryPipeline() {
@@ -45,12 +38,14 @@ export default function MissionaryPipeline() {
     user?.id,
     { authLoading },
   );
-  const { pipelineContacts, pipelineLoading, updatePipelineContactStatus, refetchPipeline } =
-    useMissionaryPipelineContacts(user?.id, {
+  const { pipelineContacts, pipelineLoading, moveForward, refetchPipeline } = useMissionaryPipelineContacts(
+    user?.id,
+    {
       authLoading,
       variant: 'board',
       onAfterMutation: () => void refetchContacts(),
-    });
+    },
+  );
 
   const [savingId, setSavingId] = useState(null);
   const [saveError, setSaveError] = useState('');
@@ -69,7 +64,7 @@ export default function MissionaryPipeline() {
   const addCandidates = useMemo(() => {
     const q = addQuery.trim().toLowerCase();
     return contacts
-      .filter((c) => !BOARD_SET.has(c.status))
+      .filter((c) => !TRACKED_SET.has(c.status))
       .filter((c) => {
         if (!q) return true;
         return (
@@ -81,12 +76,13 @@ export default function MissionaryPipeline() {
       .slice(0, 80);
   }, [contacts, addQuery]);
 
-  const moveToNext = async (contact) => {
-    const next = nextPipelineStatus(contact.status);
-    if (!next || !contact?.id) return;
+  const handleMoveForward = async (contact) => {
+    if (!contact?.id) return;
+    const next = PIPELINE_NEXT_STATUS[contact.status];
+    if (!next) return;
     setSaveError('');
     setSavingId(contact.id);
-    const res = await updatePipelineContactStatus(contact.id, next);
+    const res = await moveForward(contact.id, contact.status);
     setSavingId(null);
     if (!res.ok) setSaveError(res.error || 'Could not update status.');
   };
@@ -130,7 +126,7 @@ export default function MissionaryPipeline() {
         <div className="space-y-1">
           <h1 className="sent-page-title">Pipeline</h1>
           <p className="sent-body text-mission-muted">
-            Contacts in active support conversations — open a card to edit details or advance stages.
+            Contacts in active support conversations — view details or advance stages.
           </p>
         </div>
         <Button type="button" onClick={() => setAddOpen(true)}>
@@ -145,8 +141,7 @@ export default function MissionaryPipeline() {
       ) : pipelineContacts.length === 0 ? (
         <EmptyState
           icon="compass"
-          title="Pipeline is empty"
-          subtitle="Add contacts from your list or move someone to “Contacted” to get started."
+          title="No one in your pipeline yet — add contacts and mark them as Contacted to start tracking"
           action={
             <Button type="button" onClick={() => setAddOpen(true)}>
               Add to pipeline
@@ -154,58 +149,54 @@ export default function MissionaryPipeline() {
           }
         />
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-5 md:gap-4 md:overflow-visible">
-          {STAGE_COLUMNS.map((col) => (
-            <div key={col.status} className="flex w-[min(100%,280px)] shrink-0 flex-col gap-3 md:w-auto">
-              <div className="rounded-btn border border-neutral-200 bg-neutral-50 px-3 py-2">
-                <p className="text-xs font-bold uppercase tracking-wide text-neutral-600">{col.label}</p>
-                <p className="text-xs text-neutral-500">{(byColumn[col.status] || []).length}</p>
-              </div>
-              <div className="flex min-h-[120px] flex-col gap-3">
-                {(byColumn[col.status] || []).map((c) => {
-                  const next = nextPipelineStatus(c.status);
-                  return (
-                    <Card key={c.id} className="border-neutral-200 p-4 shadow-sm">
-                      <button
-                        type="button"
-                        className="w-full text-left"
-                        onClick={() => openEditor(c.id)}
-                      >
+        <div className="flex gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
+          {STAGE_COLUMNS.map((col) => {
+            const columnContacts = byColumn[col.status] || [];
+            return (
+              <div key={col.status} className="flex w-[min(100%,280px)] shrink-0 flex-col gap-3 md:w-auto">
+                <div className="rounded-btn border border-neutral-200 bg-neutral-50 px-3 py-2">
+                  <p className="text-sm font-bold text-neutral-900">
+                    {col.label} ({columnContacts.length})
+                  </p>
+                </div>
+                <div className="flex min-h-[120px] flex-col gap-3">
+                  {columnContacts.map((c) => {
+                    const canAdvance = Boolean(PIPELINE_NEXT_STATUS[c.status]);
+                    return (
+                      <Card key={c.id} className="border-neutral-200 p-4 shadow-sm">
                         <p className="text-sm font-bold text-neutral-900">{c.fullName || 'Unnamed'}</p>
                         <p className="mt-1 text-xs text-neutral-600">{c.phone || '—'}</p>
-                        <p className="mt-1 text-xs text-neutral-500">{categoryLabel(c.category)}</p>
-                        {Number(c.monthlyAmount) > 0 ? (
-                          <p className="mt-1 text-xs font-semibold text-mission-blue">
-                            ${Number(c.monthlyAmount).toFixed(0)}/mo
-                          </p>
-                        ) : null}
-                        <span
-                          className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${stageBadgeClass(c.status)}`}
-                        >
-                          {statusLabel(c.status)}
-                        </span>
-                      </button>
-                      <div className="mt-3 border-t border-neutral-100 pt-3" onClick={(e) => e.stopPropagation()}>
-                        {next ? (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="w-full text-xs"
-                            disabled={savingId === c.id}
-                            onClick={() => void moveToNext(c)}
-                          >
-                            {savingId === c.id ? 'Saving…' : `Move to ${STAGE_COLUMNS.find((s) => s.status === next)?.label || next}`}
+                        <p className="mt-2">
+                          <span className={CATEGORY_BADGE}>{categoryLabel(c.category)}</span>
+                        </p>
+                        <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-neutral-600">
+                          {truncateNotes(c.notes) || <span className="text-neutral-400">No notes yet</span>}
+                        </p>
+                        <div className="mt-3 flex flex-col gap-2 border-t border-neutral-100 pt-3">
+                          {canAdvance ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="w-full text-xs"
+                              disabled={savingId === c.id}
+                              onClick={() => void handleMoveForward(c)}
+                            >
+                              {savingId === c.id ? 'Saving…' : 'Move forward'}
+                            </Button>
+                          ) : (
+                            <p className="text-center text-[11px] text-neutral-400">No further stage</p>
+                          )}
+                          <Button type="button" className="w-full text-xs" onClick={() => openEditor(c.id)}>
+                            View contact
                           </Button>
-                        ) : (
-                          <p className="text-center text-[11px] text-neutral-400">Final stage</p>
-                        )}
-                      </div>
-                    </Card>
-                  );
-                })}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

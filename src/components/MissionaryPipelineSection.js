@@ -6,6 +6,7 @@ const PIPELINE_STATUS_BADGE = {
   asked: 'bg-violet-100 text-violet-900 ring-1 ring-violet-200/80',
   contacted: 'bg-sky-100 text-sky-900 ring-1 ring-sky-200/80',
   meeting_scheduled: 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80',
+  committed: 'bg-amber-100 text-amber-900 ring-1 ring-amber-200/80',
 };
 
 function pipelineStatusBadgeClass(status) {
@@ -40,7 +41,7 @@ export default function MissionaryPipelineSection({
         <div className="min-w-0 space-y-1.5">
           <h2 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">Pipeline</h2>
           <p className="text-sm text-neutral-600">
-            Asked, contacted, or meeting scheduled — newest first (up to 10).
+            Asked, meeting scheduled, contacted, or committed — newest first (up to 10).
           </p>
         </div>
         <span className="shrink-0 pt-1 text-sm font-semibold text-mission-blue">Open pipeline</span>
@@ -52,7 +53,7 @@ export default function MissionaryPipelineSection({
           <p className="text-sm text-neutral-500">Loading pipeline…</p>
         ) : pipelineContacts.length === 0 ? (
           <p className="text-sm leading-relaxed text-neutral-600">
-            No contacts in pipeline — add contacts and mark them as contacted or asked
+            No one in your pipeline yet — add contacts and mark them as Contacted to start tracking
           </p>
         ) : (
           <div className="space-y-4">

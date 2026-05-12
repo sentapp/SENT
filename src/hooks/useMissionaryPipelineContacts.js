@@ -28,15 +28,24 @@ function mapRow(row) {
     id: row.id,
     fullName: row.full_name || '',
     phone: row.phone || '',
+    email: row.email || '',
     category: normalizeCategoryFromDb(row.category),
     status: normalizeStatusFromDb(row.status),
     monthlyAmount: row.monthly_amount != null ? Number(row.monthly_amount) : 0,
+    notes: row.notes != null ? String(row.notes) : '',
   };
 }
 
-const OVERVIEW_STATUSES = ['asked', 'contacted', 'meeting_scheduled'];
-/** Display / query order for full Pipeline page (matches product flow). */
-export const MISSIONARY_PIPELINE_BOARD_STATUSES = ['contacted', 'asked', 'meeting_scheduled', 'committed', 'partner'];
+/** Statuses shown on Pipeline board + Overview pipeline (Supabase `.in()` filter). */
+export const MISSIONARY_PIPELINE_TRACKED_STATUSES = ['contacted', 'asked', 'meeting_scheduled', 'committed'];
+
+/** Advance pipeline stage; final step from the board moves a contact to Partner. */
+export const PIPELINE_NEXT_STATUS = {
+  contacted: 'asked',
+  asked: 'meeting_scheduled',
+  meeting_scheduled: 'committed',
+  committed: 'partner',
+};
 
 /**
  * Pipeline contacts for Overview (`variant: 'overview'`) or full Pipeline page (`variant: 'board'`).
@@ -60,12 +69,11 @@ export function useMissionaryPipelineContacts(authUserId, options = {}) {
         setContacts([]);
         return;
       }
-      const statuses = variant === 'board' ? MISSIONARY_PIPELINE_BOARD_STATUSES : OVERVIEW_STATUSES;
       let q = supabase
         .from('contacts')
-        .select('id, full_name, phone, status, category, monthly_amount, created_at')
+        .select('id, full_name, phone, email, status, category, monthly_amount, notes, created_at')
         .eq('missionary_id', missionaryId)
-        .in('status', statuses);
+        .in('status', MISSIONARY_PIPELINE_TRACKED_STATUSES);
       if (variant === 'board') {
         q = q.order('full_name', { ascending: true });
       } else {
@@ -119,10 +127,21 @@ export function useMissionaryPipelineContacts(authUserId, options = {}) {
     [authUserId, fetchPipeline, onAfterMutation],
   );
 
+  const moveForward = useCallback(
+    async (contactId, currentStatus) => {
+      const normalized = normalizeStatusFromDb(currentStatus);
+      const next = PIPELINE_NEXT_STATUS[normalized];
+      if (!next || !contactId) return { ok: false, error: 'Nothing to advance.' };
+      return updatePipelineContactStatus(contactId, next);
+    },
+    [updatePipelineContactStatus],
+  );
+
   return {
     pipelineContacts: contacts,
     pipelineLoading: loading,
     refetchPipeline: fetchPipeline,
     updatePipelineContactStatus,
+    moveForward,
   };
 }
