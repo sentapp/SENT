@@ -19,8 +19,8 @@ const KANBAN_SET = new Set(MISSIONARY_KANBAN_STATUSES);
 const STAGE_COLUMNS = [
   { status: 'prospect', label: 'New Lead' },
   { status: 'contacted', label: 'Contacted' },
-  { status: 'meeting_scheduled', label: 'Meeting Scheduled' },
   { status: 'asked', label: 'Asked' },
+  { status: 'meeting_scheduled', label: 'Meeting Set' },
   { status: 'committed', label: 'Committed' },
   { status: 'partner', label: 'Monthly Supporter' },
 ];
