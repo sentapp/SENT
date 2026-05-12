@@ -37,21 +37,28 @@ function mapRow(row) {
   };
 }
 
-/** Active conversation stages — Overview widget + Contacts pipeline strip. */
-export const CONTACTS_PIPELINE_STRIP_STATUSES = ['contacted', 'asked', 'meeting_scheduled', 'committed'];
+/** Active conversation stages — Overview widget + Contacts pipeline strip (matches kanban order). */
+export const CONTACTS_PIPELINE_STRIP_STATUSES = ['contacted', 'meeting_scheduled', 'asked', 'committed'];
 
 /** @deprecated use CONTACTS_PIPELINE_STRIP_STATUSES */
 export const MISSIONARY_PIPELINE_TRACKED_STATUSES = CONTACTS_PIPELINE_STRIP_STATUSES;
 
-/** Full Pipeline Kanban (declined omitted — not shown on board). */
-export const MISSIONARY_KANBAN_STATUSES = ['prospect', 'contacted', 'asked', 'meeting_scheduled', 'committed', 'partner'];
+/** Full Pipeline Kanban left-to-right order (declined omitted — not shown on board). */
+export const MISSIONARY_KANBAN_STATUSES = [
+  'prospect',
+  'contacted',
+  'meeting_scheduled',
+  'asked',
+  'committed',
+  'partner',
+];
 
 /** Advance toward Partner (Monthly Supporter). */
 export const PIPELINE_NEXT_STATUS = {
   prospect: 'contacted',
-  contacted: 'asked',
-  asked: 'meeting_scheduled',
-  meeting_scheduled: 'committed',
+  contacted: 'meeting_scheduled',
+  meeting_scheduled: 'asked',
+  asked: 'committed',
   committed: 'partner',
 };
 
@@ -148,6 +155,7 @@ export function useMissionaryPipelineContacts(authUserId, options = {}) {
 
   return {
     pipelineContacts: contacts,
+    pipelineInProgressCount: contacts.length,
     pipelineLoading: loading,
     refetchPipeline: fetchPipeline,
     updatePipelineContactStatus,

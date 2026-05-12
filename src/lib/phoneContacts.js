@@ -1,3 +1,5 @@
+import { cleanPhone } from './importCleaners';
+
 function firstString(val) {
   if (val == null) return '';
   if (typeof val === 'string') return val.trim();
@@ -20,7 +22,8 @@ export function contactPickerEntryToDraft(c, index) {
   const nameFromParts = [c.givenName, c.familyName].filter(Boolean).join(' ').trim();
   const name = firstString(c.name) || nameFromParts || firstString(c.nickname) || '';
   const email = firstString(c.email);
-  const tel = firstString(c.tel) || firstString(c.telephone);
+  const telRaw = firstString(c.tel) || firstString(c.telephone);
+  const tel = cleanPhone(telRaw);
 
   return {
     id: `device-${index}-${name}-${tel}-${email}`,

@@ -12,12 +12,15 @@ import { Button, Card, Input, Modal } from '../../components/ui';
 
 const KANBAN_SET = new Set(MISSIONARY_KANBAN_STATUSES);
 
-/** Kanban order + display labels (DB status → column). */
+/**
+ * Kanban order + display labels (DB status → column).
+ * Must match `MISSIONARY_KANBAN_STATUSES` and `PIPELINE_NEXT_STATUS` in `useMissionaryPipelineContacts`.
+ */
 const STAGE_COLUMNS = [
   { status: 'prospect', label: 'New Lead' },
   { status: 'contacted', label: 'Contacted' },
+  { status: 'meeting_scheduled', label: 'Meeting Scheduled' },
   { status: 'asked', label: 'Asked' },
-  { status: 'meeting_scheduled', label: 'Meeting Set' },
   { status: 'committed', label: 'Committed' },
   { status: 'partner', label: 'Monthly Supporter' },
 ];
@@ -96,6 +99,7 @@ export default function MissionaryPipeline() {
     navigate(`/missionary/contacts?contact=${encodeURIComponent(id)}`);
   };
 
+  /** Places the contact at **Contacted** (not New Lead); new imports without a status use `prospect` / New Lead. */
   const addContactToPipeline = async (c) => {
     if (!c?.id) return;
     setSaveError('');

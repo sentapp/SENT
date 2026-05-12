@@ -1,3 +1,5 @@
+import { cleanPhone } from './importCleaners';
+
 /**
  * Score how well a header matches a field (higher = better).
  */
@@ -125,7 +127,7 @@ export function buildContactDrafts(rows, mapping) {
   rows.forEach((row, i) => {
     const arr = Array.isArray(row) ? row : [];
     const name = String(arr[fullNameIdx] ?? '').trim();
-    const phone = phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '';
+    const phone = cleanPhone(phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '');
     const email = emailIdx >= 0 ? String(arr[emailIdx] ?? '').trim() : '';
     if (!name && !phone && !email) return;
     out.push({

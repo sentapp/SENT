@@ -7,6 +7,7 @@ import {
   findBestMonthlyAmountColumnIndex,
   findBestStatusColumnIndex,
 } from './importRowSemantics';
+import { cleanNotes, cleanPhone } from './importCleaners';
 
 // CDN worker (version must match pdfjs-dist in package.json — Safari is picky about workers)
 if (typeof window !== 'undefined') {
@@ -428,12 +429,12 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
       const cell = String(row[j] ?? '').trim();
       if (cell) notesParts.push(cell);
     }
-    const notes = notesParts.join(' | ');
+    const notes = cleanNotes(notesParts.join(' | '));
 
     const baseDraft = {
       id: `flex-${sheetName}-${i}`,
       full_name: nameRaw,
-      phone: phoneOut,
+      phone: cleanPhone(phoneOut),
       email: emailOut,
       category: 'potential',
       status: 'prospect',
@@ -554,7 +555,7 @@ export function rowsToContacts(rows, headers) {
     const arr = Array.isArray(row) ? row : headers.map((h) => row[h]);
     const width = Math.max(headerCells.length, arr.length, 1);
     const fullName = String(arr[fullNameIdx] ?? '').trim();
-    const phone = phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '';
+    const phone = cleanPhone(phoneIdx >= 0 ? String(arr[phoneIdx] ?? '').trim() : '');
     const email = emailIdx >= 0 ? String(arr[emailIdx] ?? '').trim() : '';
     if (!isValidImportContactName(fullName)) continue;
     const base = {
@@ -694,7 +695,7 @@ const NETCAST_PHONE_RE = /\b\d{10}\b|\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/g;
 function draftFromParts(full_name, phone, email) {
   return {
     full_name: full_name || email || phone || 'Imported contact',
-    phone: phone || '',
+    phone: cleanPhone(phone),
     email: email || '',
     category: 'potential',
     status: 'prospect',

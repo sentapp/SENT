@@ -1,4 +1,4 @@
-/** Normalize email before Supabase import; phone uses {@link importCleaners.cleanPhone}. */
+/** Normalize email before Supabase import; phone is normalized via `cleanPhone` in `importCleaners.js`. */
 export { cleanPhone } from './importCleaners';
 
 export function cleanEmail(value) {

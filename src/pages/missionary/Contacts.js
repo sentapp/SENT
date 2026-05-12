@@ -9,7 +9,8 @@ import {
   parsePdfFile,
   parseSpreadsheetFlexible,
 } from '../../lib/contactImport';
-import { cleanEmail, cleanNotes, cleanPhone, mergeImportNotes } from '../../lib/contactImportClean';
+import { cleanEmail, extrasFromRejectedContactFields, mergeImportNotes } from '../../lib/contactImportClean';
+import { cleanNotes, cleanPhone } from '../../lib/importCleaners';
 import { phaseLabelFromPct } from '../../lib/importProgressText';
 import {
   findEmailConflict,
@@ -305,8 +306,8 @@ export default function MissionaryContacts() {
         const originalEmail = String(d.email ?? '').trim();
         const phone = cleanPhone(originalPhone);
         const email = cleanEmail(originalEmail);
-        const extras = cleanNotes(phone, email, originalPhone, originalEmail);
-        const notes = mergeImportNotes(String(d.notes ?? '').trim(), extras);
+        const extras = extrasFromRejectedContactFields(phone, email, originalPhone, originalEmail);
+        const notes = mergeImportNotes(cleanNotes(String(d.notes ?? '').trim()), extras);
         const row = {
           missionary_id: user.id,
           full_name: String(d.full_name ?? d.fullName ?? d.name ?? '').trim() || 'Imported contact',
