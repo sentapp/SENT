@@ -724,8 +724,8 @@ export default function MissionaryContacts() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">Contacts</h1>
-          <p className="text-sm text-neutral-600">CRM contacts saved to your account.</p>
+          <h1 className="sent-page-title">Contacts</h1>
+          <p className="sent-body text-mission-muted">CRM contacts saved to your account.</p>
         </div>
         {selectMode ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -876,7 +876,16 @@ export default function MissionaryContacts() {
       {loading ? (
         <p className="text-center text-sm text-neutral-500">Loading contacts…</p>
       ) : showEmpty ? (
-        <EmptyState title="No contacts yet — tap + Add to get started" />
+        <EmptyState
+          icon="compass"
+          title="Your network starts here"
+          subtitle="Import a spreadsheet or add one person you’re inviting to partner with your ministry."
+          action={
+            <Button type="button" onClick={openAdd}>
+              Add contact
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map((c) => (

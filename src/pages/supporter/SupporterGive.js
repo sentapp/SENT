@@ -74,7 +74,11 @@ export default function SupporterGive() {
           <p className="text-sm font-medium text-mission-blue">Give</p>
           <h1 className="text-2xl font-semibold tracking-tight">Support the mission</h1>
         </header>
-        <EmptyState title="Connect to a missionary" subtitle="Use your invite code so you can give toward their work." />
+        <EmptyState
+          icon="link"
+          title="Connect to a missionary"
+          subtitle="Use your invite code so you can give toward their work."
+        />
       </div>
     );
   }

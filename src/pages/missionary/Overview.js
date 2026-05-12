@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
@@ -26,7 +26,7 @@ function contactPayloadForUpdate(c) {
   };
 }
 
-function MetricCard({ label, value, onActivate, ariaLabel }) {
+function MetricCard({ label, value, onActivate, ariaLabel, tint, Icon }) {
   return (
     <Card
       role="button"
@@ -39,13 +39,40 @@ function MetricCard({ label, value, onActivate, ariaLabel }) {
           onActivate?.();
         }
       }}
-      className="cursor-pointer p-4 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/30"
+      className={`relative cursor-pointer overflow-hidden p-5 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 ${tint}`}
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{label}</p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">{value}</p>
+      <div className="pointer-events-none absolute right-4 top-4 opacity-95 [&>svg]:h-6 [&>svg]:w-6">{Icon}</div>
+      <p className="sent-caption relative max-w-[70%] font-medium uppercase tracking-wide text-mission-muted">{label}</p>
+      <p className="relative mt-2 text-3xl font-bold tracking-tight text-neutral-900">{value}</p>
     </Card>
   );
 }
+
+const metricIconMonthly = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+  </svg>
+);
+const metricIconGift = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+  </svg>
+);
+const metricIconPeople = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+  </svg>
+);
+const metricIconTarget = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+  </svg>
+);
+const metricIconBook = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+  </svg>
+);
 
 export default function MissionaryOverview() {
   const navigate = useNavigate();
@@ -56,6 +83,7 @@ export default function MissionaryOverview() {
   const [newTask, setNewTask] = useState('');
   const [pipelineSavingId, setPipelineSavingId] = useState(null);
   const [pipelineError, setPipelineError] = useState('');
+  const taskInputRef = useRef(null);
 
   const partners = useMemo(
     () =>
@@ -122,8 +150,8 @@ export default function MissionaryOverview() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Overview</h1>
-        <p className="text-sm text-neutral-600">Your ministry at a glance on SENT.</p>
+        <h1 className="sent-page-title">Overview</h1>
+        <p className="sent-body text-mission-muted">Your ministry at a glance on SENT.</p>
       </header>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -132,30 +160,40 @@ export default function MissionaryOverview() {
           value={`$${monthlySupport.toFixed(0)}`}
           ariaLabel="Monthly support — open partners"
           onActivate={() => navigate('/missionary/partners')}
+          tint="bg-mission-green/[0.07]"
+          Icon={<span className="text-mission-green">{metricIconMonthly}</span>}
         />
         <MetricCard
           label="One-time gifts"
           value={`$${totalOneTimeGifts.toFixed(0)}`}
           ariaLabel="One-time gifts — open one-time donors on contacts"
           onActivate={() => navigate('/missionary/contacts?filter=one_time')}
+          tint="bg-amber-500/[0.08]"
+          Icon={<span className="text-amber-700">{metricIconGift}</span>}
         />
         <MetricCard
           label="Partners"
           value={`${partners.length}`}
           ariaLabel="Partners — open partners list"
           onActivate={() => navigate('/missionary/partners')}
+          tint="bg-mission-blue/[0.07]"
+          Icon={<span className="text-mission-blue">{metricIconPeople}</span>}
         />
         <MetricCard
           label="Gap to Goal"
           value={`$${gap.toFixed(0)}`}
           ariaLabel="Gap to goal — open partners"
           onActivate={() => navigate('/missionary/partners')}
+          tint="bg-rose-500/[0.07]"
+          Icon={<span className="text-rose-600">{metricIconTarget}</span>}
         />
         <MetricCard
           label="Total Contacts"
           value={`${contacts.length}`}
           ariaLabel="Total contacts — open contacts"
           onActivate={() => navigate('/missionary/contacts')}
+          tint="bg-neutral-500/[0.08]"
+          Icon={<span className="text-neutral-600">{metricIconBook}</span>}
         />
       </div>
 
@@ -223,7 +261,11 @@ export default function MissionaryOverview() {
           {prayerLoading ? (
             <p className="text-sm text-neutral-500">Loading prayer wall…</p>
           ) : prayer.length === 0 ? (
-            <EmptyState title="No prayer requests yet — be the first to submit one" />
+            <EmptyState
+              icon="sparkles"
+              title="No prayer requests yet"
+              subtitle="When supporters share requests on their prayer wall, they’ll land here for you."
+            />
           ) : (
             <div className="space-y-3">
               {prayer.map((r) => (
@@ -243,7 +285,11 @@ export default function MissionaryOverview() {
           {contactsLoading ? (
             <p className="text-sm text-neutral-500">Loading contacts…</p>
           ) : pipelineContacts.length === 0 ? (
-            <EmptyState title="No contacts need follow-up right now" subtitle="Statuses Asked, Contacted, and Meeting scheduled appear here." />
+            <EmptyState
+              icon="clipboard"
+              title="Pipeline is clear"
+              subtitle="Contacts in Asked, Contacted, or Meeting scheduled will appear here when it’s time to follow up."
+            />
           ) : (
             <div className="space-y-3">
               {pipelineContacts.map((c) => (
@@ -293,6 +339,7 @@ export default function MissionaryOverview() {
           </div>
           <div className="flex w-full gap-2 md:w-auto">
             <Input
+              ref={taskInputRef}
               value={newTask}
               onChange={(e) => setNewTask(e.target.value)}
               placeholder="Add a task…"
@@ -312,7 +359,16 @@ export default function MissionaryOverview() {
 
         {tasks.length === 0 ? (
           <div className="mt-5">
-            <EmptyState title="Tasks: empty checklist" />
+            <EmptyState
+              icon="clipboard"
+              title="Nothing on your list yet"
+              subtitle="Add a few concrete tasks for this week — small steps keep momentum."
+              action={
+                <Button type="button" onClick={() => taskInputRef.current?.focus()}>
+                  Add a task
+                </Button>
+              }
+            />
           </div>
         ) : (
           <ul className="mt-5 space-y-2">

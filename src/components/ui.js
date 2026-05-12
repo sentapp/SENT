@@ -2,7 +2,10 @@ import React from 'react';
 
 export function Card({ className = '', children, ...props }) {
   return (
-    <div className={`rounded-card border border-neutral-200 bg-white shadow-sm ${className}`} {...props}>
+    <div
+      className={`rounded-card border border-mission-line bg-white shadow-card transition-shadow ${className}`}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -10,30 +13,33 @@ export function Card({ className = '', children, ...props }) {
 
 export function Button({ className = '', variant = 'primary', ...props }) {
   const base =
-    'inline-flex items-center justify-center rounded-btn px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60';
+    'inline-flex min-h-[44px] items-center justify-center rounded-btn px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60';
   const variants = {
-    primary: 'bg-mission-blue text-white hover:opacity-95 active:opacity-90',
-    secondary: 'border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 active:bg-neutral-100',
-    ghost: 'bg-transparent text-neutral-800 hover:bg-neutral-100 active:bg-neutral-200',
-    outlineBlue: 'border-2 border-mission-blue bg-white text-mission-blue hover:bg-mission-blue/5 active:bg-mission-blue/10',
-    danger: 'bg-red-600 text-white hover:opacity-95 active:opacity-90',
+    primary: 'border border-transparent bg-mission-blue text-white hover:bg-mission-blue/95 active:bg-mission-blue/90',
+    secondary:
+      'border border-mission-blue bg-white text-mission-blue hover:bg-mission-blue/[0.06] active:bg-mission-blue/[0.1]',
+    ghost: 'min-h-0 border-transparent bg-transparent px-3 py-2 text-neutral-800 hover:bg-neutral-100 active:bg-neutral-200',
+    outlineBlue:
+      'border border-mission-blue bg-white text-mission-blue hover:bg-mission-blue/[0.06] active:bg-mission-blue/[0.1]',
+    danger: 'border border-transparent bg-mission-danger text-white hover:bg-mission-danger/95 active:bg-mission-danger/90',
   };
   return <button className={`${base} ${variants[variant] ?? variants.primary} ${className}`} {...props} />;
 }
 
-export function Input({ className = '', ...props }) {
+export const Input = React.forwardRef(function Input({ className = '', ...props }, ref) {
   return (
     <input
-      className={`w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[17px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring ${className}`}
+      ref={ref}
+      className={`w-full rounded-btn border border-mission-line px-4 py-[14px] text-[17px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring ${className}`}
       {...props}
     />
   );
-}
+});
 
 export function Textarea({ className = '', ...props }) {
   return (
     <textarea
-      className={`w-full rounded-btn border border-neutral-200 px-4 py-3 text-[16px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring ${className}`}
+      className={`w-full rounded-btn border border-mission-line px-4 py-3 text-[16px] outline-none ring-mission-blue/30 focus:border-mission-blue focus:ring ${className}`}
       {...props}
     />
   );
@@ -42,7 +48,7 @@ export function Textarea({ className = '', ...props }) {
 export function Label({ title, children }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-neutral-700">{title}</span>
+      <span className="sent-caption mb-2 block font-medium">{title}</span>
       {children}
     </label>
   );
@@ -65,17 +71,66 @@ export function LoadingSpinner({ className = '', label }) {
           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
         />
       </svg>
-      {label ? <p className="max-w-[260px] text-center text-sm font-medium text-neutral-700">{label}</p> : null}
+      {label ? <p className="sent-body max-w-[260px] text-center font-medium text-mission-muted">{label}</p> : null}
     </div>
   );
 }
 
-export function EmptyState({ title, subtitle, action }) {
+const EMPTY_ICON_MAP = {
+  compass: (
+    <svg className="h-11 w-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <circle cx="12" cy="12" r="9" strokeLinecap="round" />
+      <path strokeLinecap="round" d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8l2 4-2 4-2-4 2-4z" />
+    </svg>
+  ),
+  heart: (
+    <svg className="h-11 w-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+      />
+    </svg>
+  ),
+  globe: (
+    <svg className="h-11 w-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <circle cx="12" cy="12" r="9" />
+      <path strokeLinecap="round" d="M3 12h18M12 3a14 14 0 000 18M12 3a14 14 0 010 18" />
+    </svg>
+  ),
+  link: (
+    <svg className="h-11 w-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.649a4.5 4.5 0 00-9.193 9.193L5.5 19.5 5.25 18.75l1.757-1.757a4.5 4.5 0 009.193-9.193z" />
+    </svg>
+  ),
+  sparkles: (
+    <svg className="h-11 w-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.847a4.5 4.5 0 003.09 3.09L15.75 12l-2.847.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"
+      />
+    </svg>
+  ),
+  clipboard: (
+    <svg className="h-11 w-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  ),
+};
+
+/**
+ * @param {{ title: string, subtitle?: string, action?: React.ReactNode, icon?: keyof typeof EMPTY_ICON_MAP }} props
+ */
+export function EmptyState({ title, subtitle, action, icon }) {
+  const graphic = icon ? EMPTY_ICON_MAP[icon] : null;
   return (
-    <div className="rounded-card border border-dashed border-neutral-200 bg-white p-6 text-center">
-      <p className="text-sm font-semibold text-neutral-900">{title}</p>
-      {subtitle ? <p className="mt-2 text-sm text-neutral-600">{subtitle}</p> : null}
-      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
+    <div className="rounded-card border border-dashed border-mission-line bg-white p-8 text-center shadow-card">
+      {graphic ? <div className="mb-4 flex justify-center text-mission-blue/85">{graphic}</div> : null}
+      <p className="sent-card-title text-neutral-900">{title}</p>
+      {subtitle ? <p className="sent-body mt-2 text-mission-muted">{subtitle}</p> : null}
+      {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
     </div>
   );
 }
@@ -84,21 +139,20 @@ export function Modal({ open, title, children, onClose, footer }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 md:items-center">
-      <div className="w-full max-w-lg rounded-card bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
-          <p className="text-base font-semibold">{title}</p>
+      <div className="w-full max-w-lg rounded-card border border-mission-line bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-mission-line px-5 py-4">
+          <p className="sent-section-title">{title}</p>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-btn px-3 py-1.5 text-sm font-semibold text-neutral-600 hover:bg-neutral-100"
+            className="rounded-btn px-3 py-2 text-sm font-medium text-mission-muted transition hover:bg-neutral-100"
           >
             Close
           </button>
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
-        {footer ? <div className="border-t border-neutral-200 px-5 py-4">{footer}</div> : null}
+        {footer ? <div className="border-t border-mission-line px-5 py-4">{footer}</div> : null}
       </div>
     </div>
   );
 }
-

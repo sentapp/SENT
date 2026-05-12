@@ -13,10 +13,13 @@ import {
   togglePostReaction,
 } from '../../lib/postReactionsRepository';
 import { Card, EmptyState } from '../../components/ui';
+import { postTypeBadgeClass, postTypePostCardClass } from '../../lib/postTypeStyles';
 
-function Badge({ children }) {
+function TypeBadge({ children, typeKeyClass }) {
   return (
-    <span className="feed-accent-pill inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold">
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${typeKeyClass}`}
+    >
       {children}
     </span>
   );
@@ -28,13 +31,15 @@ function ReactionButton({ active, label, emoji, disabled, onClick }) {
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex items-center gap-2 rounded-btn border px-3 py-2 text-xs font-semibold transition ${
-        active ? 'feed-accent-reaction-active' : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition ${
+        active ? 'feed-accent-reaction-active' : 'border-mission-line bg-white text-mission-muted hover:border-mission-blue/25 hover:bg-mission-blue/[0.04]'
       } disabled:opacity-50`}
       aria-label={label}
       aria-pressed={active}
     >
-      <span aria-hidden>{emoji}</span>
+      <span aria-hidden className="text-[13px] leading-none">
+        {emoji}
+      </span>
       <span>{label}</span>
     </button>
   );
@@ -181,16 +186,20 @@ export default function SupporterFeed() {
   return (
     <div className="space-y-6" style={missionaryId ? { '--feed-accent': feedAccent } : undefined}>
       <header className="space-y-1 text-center sm:text-left">
-        <p className={`text-sm font-medium ${missionaryId ? 'feed-accent-text' : 'text-mission-blue'}`}>Feed</p>
-        <p className="text-sm text-neutral-600">Map, giving, and updates from your missionary.</p>
+        <p className={`sent-section-title ${missionaryId ? 'feed-accent-text' : 'text-mission-blue'}`}>Feed</p>
+        <p className="sent-body text-mission-muted">Map, giving, and updates from your missionary.</p>
       </header>
 
       {!missionaryId ? (
-        <EmptyState title="Connect to a missionary" subtitle="Your SENT invite code links you to their updates." />
+        <EmptyState
+          icon="link"
+          title="Connect to a missionary"
+          subtitle="Your SENT invite code links you to their updates. Add it from your profile if you haven’t yet."
+        />
       ) : (
         <>
           {showGiving ? (
-            <Card className="overflow-hidden border border-neutral-200/90 bg-gradient-to-b from-white to-neutral-50/70 p-6 shadow-sm">
+            <Card className="overflow-hidden border border-mission-line bg-gradient-to-b from-white to-mission-canvas/80 p-6 shadow-card">
               <div className="flex gap-4">
                 <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white shadow ring-1 ring-neutral-200/80">
                   {photoUrl ? (
@@ -274,12 +283,16 @@ export default function SupporterFeed() {
           ) : null}
 
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-neutral-900">Recent posts</p>
-            <p className="text-sm text-neutral-600">Posts from your missionary appear below.</p>
+            <p className="sent-section-title text-neutral-900">Recent posts</p>
+            <p className="sent-body text-mission-muted">Posts from your missionary appear below.</p>
           </div>
 
           {feed.length === 0 ? (
-            <EmptyState title="No updates yet — your missionary will post here soon" />
+            <EmptyState
+              icon="globe"
+              title="No updates yet"
+              subtitle="When your missionary shares field stories, prayer requests, and wins — they’ll show up here."
+            />
           ) : (
             <div className="space-y-4">
               {feed.map((p) => {
@@ -288,28 +301,32 @@ export default function SupporterFeed() {
                 const heartActive = my?.has?.('heart');
                 const prayActive = my?.has?.('pray');
                 return (
-                  <Card key={p.id} id={`supporter-post-${p.id}`} className="scroll-mt-4 p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 overflow-hidden rounded-card border border-neutral-200 bg-neutral-50">
-                          {photoUrl ? (
-                            <img src={photoUrl} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="feed-accent-bg flex h-full w-full items-center justify-center text-xs font-semibold text-white">
-                              {avatarInitials.slice(0, 2)}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-neutral-900">{displayName}</p>
-                          <p className="mt-0.5 text-xs text-neutral-500">{new Date(p.createdAt).toLocaleString()}</p>
-                        </div>
+                  <Card
+                    key={p.id}
+                    id={`supporter-post-${p.id}`}
+                    className={`scroll-mt-4 overflow-hidden p-5 ${postTypePostCardClass(p.type)}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-mission-line bg-white shadow-sm">
+                        {photoUrl ? (
+                          <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="feed-accent-bg flex h-full w-full items-center justify-center text-xs font-semibold text-white">
+                            {avatarInitials.slice(0, 2)}
+                          </div>
+                        )}
                       </div>
-                      <Badge>{p.type}</Badge>
-                    </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="sent-card-title text-neutral-900">{displayName}</p>
+                            <p className="sent-caption mt-0.5">{new Date(p.createdAt).toLocaleString()}</p>
+                          </div>
+                          <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
+                        </div>
 
-                    {p.locationName ? <p className="mt-3 text-sm font-medium text-neutral-700">{p.locationName}</p> : null}
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-neutral-800">{p.body}</p>
+                    {p.locationName ? <p className="sent-body mt-3 font-medium text-neutral-800">{p.locationName}</p> : null}
+                    <p className="sent-body mt-3 whitespace-pre-wrap text-neutral-800">{p.body}</p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       <ReactionButton
@@ -326,6 +343,8 @@ export default function SupporterFeed() {
                         disabled={busy.get(`${p.id}-pray`)}
                         onClick={() => toggle(p.id, 'pray')}
                       />
+                    </div>
+                      </div>
                     </div>
                   </Card>
                 );

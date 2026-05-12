@@ -1,36 +1,109 @@
 import { useEffect } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { repairSupporterMissionaryLink } from '../lib/supporterConnection';
 
 const tabs = [
-  { to: '/supporter', label: 'Feed' },
-  { to: '/supporter/prayer', label: 'Prayer' },
-  { to: '/supporter/give', label: 'Give' },
-  { to: '/supporter/refer', label: 'Refer' },
-  { to: '/supporter/profile', label: 'Profile' },
+  { to: '/supporter', label: 'Feed', ariaLabel: 'Feed', Icon: IconFeed },
+  { to: '/supporter/prayer', label: 'Prayer', ariaLabel: 'Prayer', Icon: IconPray },
+  { to: '/supporter/give', label: 'Give', ariaLabel: 'Give', Icon: IconGive },
+  { to: '/supporter/refer', label: 'Refer', ariaLabel: 'Refer', Icon: IconRefer },
+  { to: '/supporter/profile', label: 'Profile', ariaLabel: 'Profile', Icon: IconProfile },
 ];
+
+function IconFeed({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.85} aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+      />
+    </svg>
+  );
+}
+
+function IconPray({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.85} aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+      />
+    </svg>
+  );
+}
+
+function IconGive({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.85} aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+function IconRefer({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.85} aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+      />
+    </svg>
+  );
+}
+
+function IconProfile({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.85} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+  );
+}
 
 function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 backdrop-blur">
-      <ul className="mx-auto grid max-w-6xl grid-cols-5 px-1 py-2 text-[10px] sm:grid-cols-5 sm:px-2 sm:text-xs">
-        {tabs.map((t) => (
-          <li key={t.to} className="flex justify-center">
-            <NavLink
-              to={t.to}
-              end={t.to === '/supporter'}
-              className={({ isActive }) =>
-                `flex flex-col items-center gap-1 rounded-btn px-2 py-1.5 font-semibold ${
-                  isActive ? 'text-mission-blue' : 'text-neutral-500'
-                }`
-              }
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" aria-hidden />
-              <span>{t.label}</span>
-            </NavLink>
-          </li>
-        ))}
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 h-[60px] border-t border-mission-line bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_3px_rgba(0,0,0,0.04)]"
+      aria-label="Supporter navigation"
+    >
+      <ul className="mx-auto grid h-[60px] max-w-6xl grid-cols-5 items-stretch px-1">
+        {tabs.map((t) => {
+          const Icon = t.Icon;
+          return (
+            <li key={t.to} className="flex items-stretch justify-center">
+              <NavLink
+                to={t.to}
+                end={t.to === '/supporter'}
+                aria-label={t.ariaLabel}
+                className={({ isActive }) =>
+                  `flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1 text-[10px] font-medium transition-colors active:bg-neutral-50 ${
+                    isActive ? 'text-mission-blue' : 'text-gray-400'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <Icon className="h-[22px] w-[22px] shrink-0" />
+                    <span
+                      className={`h-1 w-1 shrink-0 rounded-full transition-opacity ${
+                        isActive ? 'bg-mission-blue opacity-100' : 'bg-transparent opacity-0'
+                      }`}
+                      aria-hidden
+                    />
+                    <span className="max-w-full truncate leading-none">{t.label}</span>
+                  </>
+                )}
+              </NavLink>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
@@ -38,6 +111,7 @@ function BottomNav() {
 
 export default function SupporterLayout() {
   const { user, refreshProfile } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     if (!user?.id) return undefined;
@@ -53,11 +127,12 @@ export default function SupporterLayout() {
 
   return (
     <div className="min-h-full bg-mission-canvas text-neutral-900">
-      <main className="mx-auto w-full max-w-6xl px-6 py-8 pb-24">
-        <Outlet />
+      <main className="mx-auto w-full max-w-6xl px-6 py-8 pb-28">
+        <div key={location.pathname} className="sent-outlet-enter">
+          <Outlet />
+        </div>
       </main>
       <BottomNav />
     </div>
   );
 }
-

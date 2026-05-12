@@ -3,15 +3,15 @@ import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
 import { useMissionaryMapPoints } from '../../hooks/useMissionaryMapPoints';
 import MapView from '../../components/MapView';
+import { initialsFromDisplayName } from '../../lib/profileAppearance';
+import { postTypeBadgeClass, postTypePostCardClass } from '../../lib/postTypeStyles';
 import { Button, Card, EmptyState, Input, Label, Modal, Textarea } from '../../components/ui';
 
 const POST_TYPES = ['Field story', 'Prayer request', 'Monthly update', 'Win/testimony'];
 
-function Badge({ children }) {
+function TypeBadge({ children, typeKeyClass }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-mission-blue/10 px-2.5 py-1 text-xs font-semibold text-mission-blue">
-      {children}
-    </span>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${typeKeyClass}`}>{children}</span>
   );
 }
 
@@ -78,6 +78,10 @@ export default function MissionaryUpdates() {
   const mid = user?.id;
   const { posts, loading, addPost, updatePost, deletePost } = useMissionaryPosts(mid);
   const mapPoints = useMissionaryMapPoints(profile, posts);
+
+  const displayName = (profile?.full_name || '').trim() || 'You';
+  const photoUrl = profile?.photo_url || '';
+  const avatarInitials = initialsFromDisplayName(displayName);
 
   const [type, setType] = useState(POST_TYPES[0]);
   const [locationName, setLocationName] = useState('');
@@ -204,8 +208,8 @@ export default function MissionaryUpdates() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Updates</h1>
-        <p className="text-sm text-neutral-600">
+        <h1 className="sent-page-title">Updates</h1>
+        <p className="sent-body text-mission-muted">
           Post stories for supporters, manage recent posts, and view your mission map — all on this page.
         </p>
       </header>
@@ -223,7 +227,7 @@ export default function MissionaryUpdates() {
       ) : null}
 
       <Card className="p-5">
-        <p className="mb-4 text-sm font-semibold text-neutral-900">Post an update</p>
+        <p className="sent-section-title mb-4">Post an update</p>
         <div className="grid gap-4 md:grid-cols-2">
           <Label title="Post type">
             <select
@@ -261,24 +265,45 @@ export default function MissionaryUpdates() {
       </Card>
 
       <div className="space-y-3">
-        <p className="text-sm font-semibold text-neutral-900">Recent posts</p>
+        <p className="sent-section-title text-neutral-900">Recent posts</p>
         {loading ? (
-          <p className="text-sm text-neutral-500">Loading posts…</p>
+          <p className="sent-body text-mission-muted">Loading posts…</p>
         ) : recent.length === 0 ? (
-          <EmptyState title="No posts yet — share what God is doing" />
+          <EmptyState
+            icon="globe"
+            title="Share what God is doing"
+            subtitle="Field stories, prayer requests, monthly updates, and wins help your send team stay with you."
+          />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {recent.map((p) => (
-              <Card key={p.id} id={`post-${p.id}`} className="relative scroll-mt-4 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex flex-wrap items-center gap-2">
-                    <Badge>{p.type}</Badge>
-                    <p className="text-xs text-neutral-500">{new Date(p.createdAt).toLocaleString()}</p>
+              <Card
+                key={p.id}
+                id={`post-${p.id}`}
+                className={`relative scroll-mt-4 overflow-hidden p-5 ${postTypePostCardClass(p.type)}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-mission-line bg-white shadow-sm">
+                    {photoUrl ? (
+                      <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-mission-blue text-xs font-semibold text-white">
+                        {avatarInitials.slice(0, 2)}
+                      </div>
+                    )}
                   </div>
-                  <PostActionsMenu onEdit={() => openEdit(p)} onDelete={() => setDeletingPost(p)} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
+                        <p className="sent-caption">{new Date(p.createdAt).toLocaleString()}</p>
+                      </div>
+                      <PostActionsMenu onEdit={() => openEdit(p)} onDelete={() => setDeletingPost(p)} />
+                    </div>
+                    {p.locationName ? <p className="sent-body mt-2 font-medium text-neutral-800">{p.locationName}</p> : null}
+                    <p className="sent-body mt-3 whitespace-pre-wrap text-neutral-800">{p.body}</p>
+                  </div>
                 </div>
-                {p.locationName ? <p className="mt-2 text-sm font-medium text-neutral-700">{p.locationName}</p> : null}
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-neutral-800">{p.body}</p>
               </Card>
             ))}
           </div>
@@ -287,17 +312,17 @@ export default function MissionaryUpdates() {
 
       <section className="space-y-3" aria-labelledby="mission-map-heading">
         <div className="space-y-1">
-          <h2 id="mission-map-heading" className="text-sm font-semibold text-neutral-900">
+          <h2 id="mission-map-heading" className="sent-section-title text-neutral-900">
             Mission map
           </h2>
-          <p className="text-sm text-neutral-600">
+          <p className="sent-body text-mission-muted">
             Your home base and update locations (from plain-text places on posts). Pins connect in chronological order.
           </p>
         </div>
         <MapView points={mapPoints} route height={380} />
         <Card className="p-5">
-          <p className="text-sm font-semibold">How pins work</p>
-          <p className="mt-2 text-sm text-neutral-600">
+          <p className="sent-section-title">How pins work</p>
+          <p className="sent-body mt-2 text-mission-muted">
             Set your home location as text in Settings. When you post an update with a location, we place a pin automatically — no coordinates needed.
           </p>
         </Card>

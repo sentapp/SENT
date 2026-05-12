@@ -88,7 +88,11 @@ export default function SupporterPrayer() {
       </header>
 
       {!missionaryId ? (
-        <EmptyState title="Connect to a missionary" subtitle="Use your SENT invite code so your requests appear on their wall." />
+        <EmptyState
+          icon="link"
+          title="Connect to a missionary"
+          subtitle="Use your SENT invite code so your requests appear on their wall."
+        />
       ) : (
         <>
           <Card className="p-5">
@@ -120,7 +124,11 @@ export default function SupporterPrayer() {
             {loading ? (
               <p className="text-sm text-neutral-500">Loading…</p>
             ) : requests.length === 0 ? (
-              <EmptyState title="No prayer requests yet — be the first to submit one" />
+              <EmptyState
+                icon="sparkles"
+                title="No prayer requests yet"
+                subtitle="Be the first to share how we can pray with you."
+              />
             ) : (
               <div className="space-y-3">
                 {requests.map((r) => (

@@ -115,10 +115,10 @@ function FullPageLoading() {
 
 function SideNav() {
   return (
-    <aside className="hidden w-[240px] shrink-0 border-r border-neutral-200 bg-white md:flex md:flex-col">
-      <div className="border-b border-neutral-200 px-6 py-5">
-        <p className="text-lg font-semibold">SENT</p>
-        <p className="mt-1 text-xs text-neutral-500">For missionaries and the people who send them.</p>
+    <aside className="hidden w-[240px] shrink-0 border-r border-mission-line bg-white md:flex md:flex-col">
+      <div className="border-b border-mission-line px-6 py-5">
+        <p className="sent-section-title">SENT</p>
+        <p className="sent-caption mt-1">For missionaries and the people who send them.</p>
       </div>
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-1">
@@ -128,7 +128,7 @@ function SideNav() {
                 to={it.to}
                 end={it.to === '/missionary'}
                 className={({ isActive }) =>
-                  `flex w-full items-center rounded-card px-3 py-2.5 text-left text-sm font-medium ${
+                  `sent-body flex w-full items-center rounded-btn px-3 py-2.5 text-left font-medium transition-colors ${
                     isActive
                       ? 'bg-mission-blue/10 text-mission-blue ring-1 ring-mission-blue/20'
                       : 'text-neutral-700 hover:bg-neutral-100'
@@ -148,27 +148,33 @@ function SideNav() {
 function BottomNav() {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 h-[60px] border-t border-mission-line bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_3px_rgba(0,0,0,0.04)] md:hidden"
       aria-label="Missionary navigation"
     >
-      <ul className="mx-auto grid min-h-14 max-w-mobile grid-cols-5 px-1">
+      <ul className="mx-auto grid h-[60px] max-w-mobile grid-cols-5 items-stretch px-0.5">
         {bottomNavItems.map((it) => {
           const Icon = it.Icon;
           return (
-            <li key={it.to} className="flex min-h-[56px] items-stretch justify-center">
+            <li key={it.to} className="flex min-h-0 items-stretch justify-center">
               <NavLink
                 to={it.to}
                 end={it.to === '/missionary'}
                 aria-label={it.ariaLabel}
                 className={({ isActive }) =>
-                  `flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 font-semibold transition-colors active:bg-neutral-100 ${
-                    isActive ? 'text-mission-blue' : 'text-neutral-500'
+                  `flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1 text-[10px] font-medium transition-colors active:bg-neutral-50 ${
+                    isActive ? 'text-mission-blue' : 'text-gray-400'
                   }`
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <Icon className="h-6 w-6 min-h-[22px] min-w-[22px] shrink-0" />
+                    <Icon className="h-[22px] w-[22px] shrink-0" />
+                    <span
+                      className={`h-1 w-1 shrink-0 rounded-full transition-opacity ${
+                        isActive ? 'bg-mission-blue opacity-100' : 'bg-transparent opacity-0'
+                      }`}
+                      aria-hidden
+                    />
                     {isActive ? (
                       <span className="max-w-full truncate text-center text-[10px] leading-none tracking-tight">
                         {it.activeLabel}
@@ -207,7 +213,9 @@ export default function MissionaryLayout() {
       <SideNav />
       <main className="flex-1 px-6 py-8 md:px-10">
         <div className="mx-auto w-full max-w-mobile pb-[max(7rem,calc(4rem+env(safe-area-inset-bottom)))] md:max-w-6xl md:pb-0">
-          <Outlet />
+          <div key={location.pathname} className="sent-outlet-enter">
+            <Outlet />
+          </div>
         </div>
       </main>
       <BottomNav />

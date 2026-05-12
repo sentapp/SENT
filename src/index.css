@@ -3,11 +3,35 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --sent-bg: #f8f8f6;
+    --sent-card: #ffffff;
+    --sent-line: #e8e8e6;
+    --sent-primary: #185fa5;
+    --sent-muted: #6b7280;
+    --sent-success: #0f6e56;
+    --sent-danger: #dc2626;
+    --sent-nav-inactive: #9ca3af;
+  }
+
   html,
   body,
   #root {
-    @apply h-full min-h-0 antialiased font-sans text-neutral-900;
+    @apply h-full min-h-0 antialiased font-sans bg-mission-canvas text-neutral-900;
   }
+}
+
+@keyframes sent-outlet-fade {
+  from {
+    opacity: 0.88;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.sent-outlet-enter {
+  animation: sent-outlet-fade 0.32s ease-out;
 }
 
 /* Leaflet — readable popups for emoji markers (custom icons in src/lib/mapMarkers.js) */
@@ -28,6 +52,38 @@
 }
 .leaflet-container a.leaflet-popup-close-button:hover {
   color: #171717;
+}
+
+@layer components {
+  .sent-page-title {
+    @apply text-2xl font-semibold tracking-tight text-neutral-900;
+    font-size: 1.5rem;
+    line-height: 1.25;
+  }
+
+  .sent-section-title {
+    @apply font-semibold tracking-tight text-neutral-900;
+    font-size: 1.125rem;
+    line-height: 1.35;
+  }
+
+  .sent-card-title {
+    @apply font-medium tracking-tight text-neutral-900;
+    font-size: 0.9375rem;
+    line-height: 1.35;
+  }
+
+  .sent-body {
+    @apply font-normal text-neutral-900;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .sent-caption {
+    @apply font-normal text-mission-muted;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
 }
 
 /* Profile / supporter feed — dynamic accent via CSS variable --profile-accent or --feed-accent */

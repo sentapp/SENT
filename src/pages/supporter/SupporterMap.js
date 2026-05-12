@@ -37,7 +37,11 @@ export default function SupporterMap() {
           <h1 className="text-2xl font-semibold tracking-tight">Mission map</h1>
           <p className="text-sm text-neutral-600">Connect to your missionary with their SENT invite code to see pins.</p>
         </header>
-        <EmptyState title="No missionary connected" subtitle="Add your invite code when you sign up or contact support." />
+        <EmptyState
+          icon="link"
+          title="No missionary connected"
+          subtitle="Add your invite code when you sign up or contact support."
+        />
       </div>
     );
   }

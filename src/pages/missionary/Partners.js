@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { Button, Card, EmptyState } from '../../components/ui';
@@ -12,8 +13,8 @@ function Tabs({ tab, setTab }) {
           key={t}
           type="button"
           onClick={() => setTab(t)}
-          className={`rounded-btn px-3 py-2 text-sm font-semibold ${
-            tab === t ? 'bg-mission-blue/10 text-mission-blue ring-1 ring-mission-blue/20' : 'text-neutral-600 hover:bg-neutral-100'
+          className={`rounded-btn px-3 py-2 text-sm font-medium ${
+            tab === t ? 'bg-mission-blue/10 text-mission-blue ring-1 ring-mission-blue/20' : 'text-mission-muted hover:bg-neutral-100'
           }`}
         >
           {t}
@@ -24,6 +25,7 @@ function Tabs({ tab, setTab }) {
 }
 
 export default function MissionaryPartners() {
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { contacts } = useSupabaseContacts(user?.id, { authLoading });
   const [selectedId, setSelectedId] = useState(null);
@@ -43,12 +45,21 @@ export default function MissionaryPartners() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Partners</h1>
-        <p className="text-sm text-neutral-600">Monthly partners are derived from your contacts. Starts empty.</p>
+        <h1 className="sent-page-title">Partners</h1>
+        <p className="sent-body text-mission-muted">Monthly partners are derived from your contacts. Starts empty.</p>
       </header>
 
       {partners.length === 0 ? (
-        <EmptyState title="No partners yet — add contacts and mark them as monthly partners" />
+        <EmptyState
+          icon="heart"
+          title="No partners yet — start asking"
+          subtitle="Add contacts on the Contacts tab and mark monthly amounts or partner status — they’ll roll up here."
+          action={
+            <Button type="button" onClick={() => navigate('/missionary/contacts')}>
+              Open contacts
+            </Button>
+          }
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-3 md:col-span-1">
@@ -96,11 +107,15 @@ export default function MissionaryPartners() {
                 </div>
 
                 <div className="mt-4">
-                  <EmptyState title="No activity yet" subtitle="Once you log calls/texts/notes, they’ll appear here." />
+              <EmptyState
+                icon="clipboard"
+                title="No activity yet"
+                subtitle="Once you log calls, texts, notes, and prayers, they’ll show up in this timeline."
+              />
                 </div>
               </Card>
             ) : (
-              <EmptyState title="Select a partner to view details" />
+              <EmptyState icon="compass" title="Select a partner" subtitle="Choose someone from the list to see details and log touchpoints." />
             )}
           </div>
         </div>
