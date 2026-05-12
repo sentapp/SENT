@@ -1,4 +1,4 @@
-import { cleanPhone } from './importCleaners';
+import { cleanPhone, separatePhoneFromName } from './importCleaners';
 
 function firstString(val) {
   if (val == null) return '';
@@ -20,15 +20,19 @@ function firstString(val) {
 
 export function contactPickerEntryToDraft(c, index) {
   const nameFromParts = [c.givenName, c.familyName].filter(Boolean).join(' ').trim();
-  const name = firstString(c.name) || nameFromParts || firstString(c.nickname) || '';
   const email = firstString(c.email);
   const telRaw = firstString(c.tel) || firstString(c.telephone);
-  const tel = cleanPhone(telRaw);
+  const nameRaw = firstString(c.name) || nameFromParts || firstString(c.nickname) || '';
+  const sep = separatePhoneFromName(nameRaw, telRaw);
+  let name = sep.name.trim();
+  if (!name && email) name = email.split('@')[0] || '';
+  if (!name) name = 'Contact';
+  const tel = cleanPhone(telRaw || sep.phone);
 
   return {
     id: `device-${index}-${name}-${tel}-${email}`,
     selected: true,
-    full_name: name || email || tel || 'Contact',
+    full_name: name,
     phone: tel,
     email,
     category: 'potential',

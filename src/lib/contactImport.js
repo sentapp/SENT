@@ -7,7 +7,7 @@ import {
   findBestMonthlyAmountColumnIndex,
   findBestStatusColumnIndex,
 } from './importRowSemantics';
-import { cleanNotes, cleanPhone } from './importCleaners';
+import { cleanNotes, cleanPhone, separatePhoneFromName } from './importCleaners';
 import {
   importNameFieldShouldSkip,
   pickBestSheet,
@@ -749,36 +749,6 @@ function normalizeUsPhoneDigits(raw) {
   return d.slice(-10);
 }
 
-const PHONE_EMBEDDED_IN_NAME_RE = /(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
-
-/**
- * Pull a US-style phone out of a free-text name cell; keep existing digits when already provided.
- * @param {string} rawName
- * @param {string} [existingPhone]
- * @returns {{ name: string, phone: string }} phone is digits-only (may be empty)
- */
-export function separatePhoneFromName(rawName, existingPhone = '') {
-  const raw = String(rawName ?? '').trim();
-  const existingDigits = String(existingPhone ?? '').replace(/\D/g, '');
-  if (!raw) {
-    return { name: '', phone: existingDigits };
-  }
-  const m = raw.match(PHONE_EMBEDDED_IN_NAME_RE);
-  if (!m) {
-    return { name: raw.replace(/\s+/g, ' ').trim(), phone: existingDigits };
-  }
-  const matched = m[0];
-  let extracted = normalizeUsPhoneDigits(matched);
-  if (extracted.length !== 10) {
-    extracted = matched.replace(/\D/g, '');
-    if (extracted.length === 11 && extracted.startsWith('1')) extracted = extracted.slice(1);
-    if (extracted.length > 10) extracted = extracted.slice(-10);
-  }
-  const name = raw.replace(matched, ' ').replace(/\s+/g, ' ').trim();
-  const phone = existingDigits.length >= 7 ? existingDigits : extracted;
-  return { name, phone };
-}
-
 /** Detect header like: # Full Name | Phone Number | Email (NetCasting Tracker). */
 function isNetCastingHeaderLine(line) {
   const t = String(line || '')
@@ -829,10 +799,9 @@ function parseNetCastingDataLine(trimmedLine) {
     const em = afterPhone.match(PDF_EMAIL_RE);
     if (em) email = em[0];
 
-    const phoneDigits =
-      String(phoneInfo.digits || '').replace(/\D/g, '').length >= 7
-        ? String(phoneInfo.digits || '').replace(/\D/g, '')
-        : String(sepName.phone || '').replace(/\D/g, '');
+    const fromLine = String(phoneInfo.digits || '').replace(/\D/g, '');
+    const fromSep = String(sepName.phone || '').replace(/\D/g, '');
+    const phoneDigits = fromLine.length >= 7 ? fromLine : fromSep || fromLine;
 
     return draftFromParts(full_name, phoneDigits, email);
   }
@@ -1141,3 +1110,6 @@ export async function fetchGoogleSheetAsCsv(sheetUrl) {
 
   throw new Error(SHEET_NOT_PUBLIC_MSG);
 }
+
+export { separatePhoneFromName } from './importCleaners';
+export { pickBestSheet } from './spreadsheetSheetPick';

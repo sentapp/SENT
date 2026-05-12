@@ -354,6 +354,9 @@ export default function MissionaryContacts() {
         inserted += data?.length ?? chunk.length;
         onProgress?.({ inserted, total });
       }
+      if (skippedDuplicates > 0) {
+        console.log('[import] Skipped duplicate contacts (same phone or normalized name):', skippedDuplicates);
+      }
       return { inserted, skippedDuplicates };
     },
     [schemaPartial],

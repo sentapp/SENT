@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-globals */
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { pickBestSheet } from '../lib/spreadsheetSheetPick';
 
 function postProgress(id, processed, total, note) {
   const pct = total > 0 ? Math.round((processed / total) * 100) : 0;
@@ -38,9 +39,12 @@ self.onmessage = (e) => {
       const buffer = payload?.buffer;
       if (!buffer) throw new Error('Missing file data');
       const wb = XLSX.read(buffer, { type: 'array' });
-      const sheetName = wb.SheetNames[0];
-      const sheet = wb.Sheets[sheetName];
-      const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      const sheetMetas = wb.SheetNames.map((sheetName) => ({
+        name: sheetName,
+        rawRows: XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' }),
+      }));
+      const best = pickBestSheet(sheetMetas) || sheetMetas[0];
+      const rawRows = best?.rawRows || [];
       if (!rawRows?.length) {
         self.postMessage({ id, ok: true, result: { headers: [], rows: [] } });
         return;

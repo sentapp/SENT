@@ -90,7 +90,8 @@ export async function fetchSheetMatrixViaGoogleApi(spreadsheetId, apiKey, { onPr
   if (!best?.rawRows?.length) throw new Error('The sheet appears empty.');
 
   const values = best.rawRows;
-  const headers = values[0].map((c) => String(c ?? ''));
+  if (!values.length) throw new Error('The sheet appears empty.');
+  const headers = (values[0] || []).map((c) => String(c ?? ''));
   const rawRows = values.slice(1).filter((r) => Array.isArray(r) && r.some((c) => String(c ?? '').trim()));
   const total = rawRows.length;
   const rows = [];
