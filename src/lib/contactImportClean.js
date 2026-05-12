@@ -1,22 +1,5 @@
-/** Normalize phone/email/notes before Supabase import. */
-
-export function cleanPhone(value) {
-  if (value === null || value === undefined || value === '') return '';
-  const str = value.toString().toLowerCase();
-  if (
-    str.includes('facebook') ||
-    str.includes('instagram') ||
-    str.includes('fb.com') ||
-    str.includes('twitter') ||
-    str.includes('linkedin') ||
-    str.includes('.com') ||
-    str.includes('@')
-  ) {
-    return '';
-  }
-  const digits = value.toString().replace(/\D/g, '');
-  return digits.length >= 7 ? digits : '';
-}
+/** Normalize email before Supabase import; phone uses {@link importCleaners.cleanPhone}. */
+export { cleanPhone } from './importCleaners';
 
 export function cleanEmail(value) {
   if (!value) return '';
@@ -31,7 +14,7 @@ export function cleanEmail(value) {
 /**
  * Collect original phone/email values that were rejected so they can be preserved in notes.
  */
-export function cleanNotes(phone, email, originalPhone, originalEmail) {
+export function extrasFromRejectedContactFields(phone, email, originalPhone, originalEmail) {
   const extras = [];
   if (originalPhone && !phone) extras.push(originalPhone);
   if (originalEmail && !email) extras.push(originalEmail);
