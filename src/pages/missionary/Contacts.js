@@ -954,30 +954,26 @@ export default function MissionaryContacts() {
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-mission-muted">Pipeline</p>
           <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 pt-0.5 [-webkit-overflow-scrolling:touch]">
-            {pipelineStripContacts.map((c) => {
-              const st = normalizeStatusFromDb(c.status);
-              return (
+            {pipelineStripContacts.map((c) => (
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => openDetail(c)}
+                  onClick={() => openEdit(c)}
                   className="w-[min(200px,72vw)] shrink-0 rounded-card border border-mission-line bg-surface p-3 text-left shadow-none transition hover:border-accent/40"
                 >
                   <div className="flex items-center gap-2">
                     <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: STRIP_DOT[st] || '#78716c' }}
+                      className={`h-2 w-2 shrink-0 rounded-full ${pipelineStripStageDotClass(c.status)}`}
                       aria-hidden
                     />
                     <span className="truncate text-[10px] font-bold uppercase tracking-wide text-mission-muted">
-                      {STRIP_STAGE_LABEL[st] || statusLabel(c.status)}
+                      {statusLabel(c.status)}
                     </span>
                   </div>
                   <p className="mt-1 truncate text-sm font-semibold text-ink">{c.fullName || 'Unnamed'}</p>
                   <p className="mt-0.5 truncate text-xs text-neutral-600">{c.phone || '—'}</p>
                 </button>
-              );
-            })}
+            ))}
             <button
               type="button"
               onClick={openAdd}
@@ -1071,6 +1067,16 @@ export default function MissionaryContacts() {
                   {c.notes ? <p className="mt-1 text-sm text-neutral-600">{c.notes}</p> : null}
                 </div>
                 <div className="flex shrink-0 gap-2 self-start" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    disabled={selectMode}
+                    onClick={() => openEdit(c)}
+                    className="rounded-btn border border-neutral-200 p-2 text-neutral-600 hover:bg-neutral-50 disabled:pointer-events-none disabled:opacity-40"
+                    aria-label="Edit contact"
+                    title="Edit"
+                  >
+                    ✎
+                  </button>
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(c)}

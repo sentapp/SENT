@@ -21,7 +21,7 @@ const QUICK_LOG_TYPES = ['call', 'text', 'email', 'meeting', 'note'];
 const PAGE_SIZE = 1000;
 
 /** Days since last contact; never contacted → large sentinel. */
-export function daysSince(isoOrNull) {
+function daysSince(isoOrNull) {
   if (!isoOrNull) return 999;
   const d = new Date(isoOrNull);
   if (Number.isNaN(d.getTime())) return 999;
@@ -295,7 +295,6 @@ export default function MissionaryPartners() {
       }
       setQuickLog(null);
       setQuickNotes('');
-      void loadLastContacts();
     } catch (e) {
       setQuickError(e?.message || 'Could not save log.');
     } finally {
@@ -342,7 +341,9 @@ export default function MissionaryPartners() {
             }`}
           >
             {touchpointCount > 0
-              ? `${touchpointCount} partner${touchpointCount === 1 ? '' : 's'} need a touchpoint`
+              ? touchpointCount === 1
+                ? '1 partner needs a touchpoint'
+                : `${touchpointCount} partners need a touchpoint`
               : 'All partners up to date'}
           </p>
 
@@ -356,13 +357,11 @@ export default function MissionaryPartners() {
                   const borderLeft =
                     d >= 30 ? '3px solid #A32D2D' : '3px solid #854F0B';
                   return (
-                    <Card
-                      key={p.id}
-                      className="overflow-hidden p-4"
-                      style={{ borderLeft, borderLeftWidth: 3 }}
-                    >
+                    <Card key={p.id} className="overflow-hidden p-4" style={{ borderLeft }}>
                       <p className="font-bold text-ink">{p.fullName || 'Unnamed partner'}</p>
-                      <p className="mt-1 text-sm text-neutral-500">No contact in {d === 999 ? '…' : `${d}`} days</p>
+                      <p className="mt-1 text-sm text-neutral-500">
+                        {last ? `No contact in ${d} days` : 'No contact yet'}
+                      </p>
                       <p className="mt-2 text-sm text-neutral-700">{formatMonthly(p.monthlyAmount)}</p>
                       <Button type="button" className="mt-3 w-full sm:w-auto" onClick={() => openQuickLog(p)}>
                         Reach out
