@@ -116,6 +116,53 @@ export function interpretImportStatusCell(raw) {
 }
 
 /**
+ * Import category: default `potential` unless monthly giving, supporter/partner/monthly cues in status text,
+ * or church/org / former-supporter cues in status, name, or notes.
+ * @param {{ statusText?: string, nameText?: string, notesText?: string }} row parsed fields (spreadsheet row context)
+ * @param {number} monthlyAmount resolved monthly support amount for this row
+ * @returns {'supporter'|'church'|'former'|'potential'}
+ */
+export function determineCategory(row, monthlyAmount) {
+  const signals = row && typeof row === 'object' && !Array.isArray(row) ? row : {};
+  const statusText = String(signals.statusText ?? '').trim();
+  const nameText = String(signals.nameText ?? '').trim();
+  const notesText = String(signals.notesText ?? '').trim();
+  const blob = [statusText, nameText, notesText].filter(Boolean).join('\n').toLowerCase();
+
+  const monthly = Number(monthlyAmount);
+  const amt = Number.isFinite(monthly) && monthly > 0 ? monthly : 0;
+
+  if (
+    /\b(no\s+longer|previously|previous\s+partner|previous\s+supporter|formerly|past\s+supporter|ex-?\s?partner|lapsed)\b/i.test(
+      blob,
+    ) ||
+    /\bformer\s+(partner|supporter|donor|giver|mission\s*partner)\b/i.test(blob)
+  ) {
+    return 'former';
+  }
+
+  if (
+    /\b(church|chapel|congregation|parish|cathedral|denomination|presbytery|diocese)\b/i.test(blob) ||
+    /\borga[mn]i[sz]ation\b/i.test(blob) ||
+    /\bministry\b(?!\s*partner)/i.test(blob)
+  ) {
+    return 'church';
+  }
+
+  if (amt > 0) return 'supporter';
+
+  if (statusText) {
+    const interpreted = interpretImportStatusCell(statusText);
+    if (interpreted.partnerKeywords || interpreted.explicitEnum === 'partner') return 'supporter';
+    const st = statusText.toLowerCase();
+    if (/\b(supporter|giving\s*partner|mission\s*partner|pledge|recurring)\b/i.test(st)) return 'supporter';
+    if (/\bmonthly\b/i.test(st) && /\b(\$|usd|gift|donation|support|pledge|amount|giving)\b/i.test(st)) return 'supporter';
+  }
+
+  return 'potential';
+}
+
+/**
  * Merge parsed name/phone/email row with optional status + monthly columns.
  * @param {object} draft base draft (potential/prospect defaults ok)
  * @param {unknown[]} row
@@ -123,19 +170,19 @@ export function interpretImportStatusCell(raw) {
  */
 export function applyImportRowSemantics(draft, row, ctx) {
   const { statusIdx, monthlyIdx, width } = ctx;
-  let category = normalizeCategoryForSave(draft.category);
   let status = normalizeStatusForSave(draft.status);
   let monthly_amount = Number.isFinite(Number(draft.monthly_amount)) ? Number(draft.monthly_amount) : 0;
 
   let explicitStatusFromSheet = false;
+  let statusCell = '';
 
   if (statusIdx >= 0 && statusIdx < width) {
     const cell = String(row[statusIdx] ?? '').trim();
+    statusCell = cell;
     if (cell) {
       const interpreted = interpretImportStatusCell(cell);
       explicitStatusFromSheet = Boolean(interpreted.explicitEnum);
       if (interpreted.partnerKeywords || interpreted.explicitEnum === 'partner') {
-        category = 'supporter';
         status = 'partner';
       } else if (interpreted.explicitEnum) {
         status = normalizeStatusForSave(interpreted.explicitEnum);
@@ -148,13 +195,16 @@ export function applyImportRowSemantics(draft, row, ctx) {
     if (amt > 0) {
       monthly_amount = amt;
       if (!explicitStatusFromSheet) {
-        category = 'supporter';
         status = 'partner';
       }
     }
   }
 
   const finalStatus = normalizeStatusForSave(status);
+  const category = determineCategory(
+    { statusText: statusCell, nameText: String(draft.full_name ?? '').trim(), notesText: String(draft.notes ?? '').trim() },
+    monthly_amount,
+  );
   const finalCategory = finalStatus === 'partner' ? 'supporter' : normalizeCategoryForSave(category);
 
   return {

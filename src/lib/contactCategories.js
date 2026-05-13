@@ -26,6 +26,11 @@ export function normalizeCategoryFromDb(value) {
   return 'potential';
 }
 
+/** Same as {@link normalizeCategoryFromDb} — use for list filters and pill matching. */
+export function normalizeCategory(cat) {
+  return normalizeCategoryFromDb(cat);
+}
+
 /** Coerce UI / import payloads to a valid DB enum before save. */
 export function normalizeCategoryForSave(value) {
   if (value === 'supporters') return 'supporter';
