@@ -142,12 +142,12 @@ export function interpretImportStatusCell(raw) {
 }
 
 /**
- * Default **potential** unless monthly &gt; 0 → supporter; explicit supporter/partner/monthly cues in
- * **category** or **status** column → supporter; church/org from those columns → church;
+ * Default **null** (no category) unless monthly &gt; 0 → supporter; explicit supporter/partner/monthly
+ * cues in **category** or **status** column → supporter; church/org from those columns → church;
  * previous/former/dropped → former. Does not read name/notes (avoids blanket mis-tags).
  * @param {{ statusText?: string, categoryText?: string }} row parsed fields
  * @param {number} monthlyAmount resolved monthly support amount for this row
- * @returns {'supporter'|'church'|'former'|'potential'}
+ * @returns {'supporter'|'church'|'former'|null}
  */
 export function determineCategory(row, monthlyAmount) {
   const signals = row && typeof row === 'object' && !Array.isArray(row) ? row : {};
@@ -198,12 +198,12 @@ export function determineCategory(row, monthlyAmount) {
     if (interpreted.partnerKeywords || interpreted.explicitEnum === 'partner') return 'supporter';
   }
 
-  return 'potential';
+  return null;
 }
 
 /**
  * Merge parsed name/phone/email row with optional status + monthly + category columns.
- * @param {object} draft base draft (potential/prospect defaults ok)
+ * @param {object} draft base draft (uncategorized + prospect defaults are fine)
  * @param {unknown[]} row
  * @param {{ statusIdx: number, monthlyIdx: number, categoryIdx: number, width: number }} ctx
  */
@@ -245,7 +245,7 @@ export function applyImportRowSemantics(draft, row, ctx) {
     { statusText: statusCell, categoryText: categoryCell },
     monthly_amount,
   );
-  let finalCategory = normalizeCategoryForSave(inferredCategory);
+  let finalCategory = inferredCategory == null ? null : normalizeCategoryForSave(inferredCategory);
 
   if (finalStatus === 'partner') finalCategory = 'supporter';
   if (finalCategory === 'supporter' && finalStatus !== 'declined') finalStatus = 'partner';

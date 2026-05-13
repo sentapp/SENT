@@ -689,7 +689,7 @@ function draftFromParts(full_name, phone, email) {
     full_name: full_name || email || phone || 'Imported contact',
     phone: cleanPhone(phone),
     email: email || '',
-    category: 'potential',
+    category: null,
     status: 'prospect',
     monthly_amount: 0,
     notes: '',

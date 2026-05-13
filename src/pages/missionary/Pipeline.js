@@ -7,7 +7,7 @@ import {
   useMissionaryPipelineContacts,
 } from '../../hooks/useMissionaryPipelineContacts';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
-import { categoryLabel } from '../../lib/contactCategories';
+import { categoryLabel, shouldShowCategoryTag } from '../../lib/contactCategories';
 import { normalizeStatusFromDb } from '../../lib/contactStatuses';
 import { formatPhone } from '../../lib/phoneFormat';
 import { Button, Card, Input, Modal } from '../../components/ui';
@@ -178,9 +178,11 @@ export default function MissionaryPipeline() {
                     >
                       <p className="text-sm font-bold text-ink">{c.fullName || 'Unnamed'}</p>
                       <p className="mt-1 text-xs text-neutral-600">{formatPhone(c.phone) || '—'}</p>
-                      <p className="mt-2">
-                        <span className={CATEGORY_BADGE}>{categoryLabel(c.category)}</span>
-                      </p>
+                      {shouldShowCategoryTag(c.category) ? (
+                        <p className="mt-2">
+                          <span className={CATEGORY_BADGE}>{categoryLabel(c.category)}</span>
+                        </p>
+                      ) : null}
                       <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-neutral-600">
                         {truncateNotes(c.notes) || <span className="text-neutral-400">No notes yet</span>}
                       </p>

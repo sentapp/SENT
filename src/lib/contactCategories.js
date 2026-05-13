@@ -1,35 +1,38 @@
-/** Canonical DB enum values for `public.contact_category` (order = filter / form order after "All"). */
+/** Canonical DB enum values for `public.contact_category` (includes `potential` = uncategorized in UI). */
 export const CONTACT_CATEGORY_VALUES = ['supporter', 'church', 'former', 'potential'];
 
+/** List filters: first tab is All; `potential` has no tab (only appears under All). */
 export const CONTACT_CATEGORY_FILTER_TABS = [
   { id: 'all', label: 'All' },
   { id: 'supporter', label: 'Partners' },
-  { id: 'church', label: 'Church/Org' },
-  { id: 'former', label: 'Previous' },
-  { id: 'potential', label: 'My Network' },
+  { id: 'church', label: 'Churches / Orgs' },
+  { id: 'former', label: 'Previous Partners' },
 ];
 
-export const CONTACT_CATEGORY_FORM_OPTIONS = CONTACT_CATEGORY_FILTER_TABS.filter((t) => t.id !== 'all');
+/** "Who are they?" pills — None saves `potential` in DB. */
+export const CONTACT_CATEGORY_FORM_OPTIONS = [
+  { id: 'supporter', label: 'Partner' },
+  { id: 'church', label: 'Church / Org' },
+  { id: 'former', label: 'Previous Partner' },
+  { id: 'potential', label: 'None' },
+];
 
-export const CATEGORY_LABELS = CONTACT_CATEGORY_FORM_OPTIONS.reduce((acc, { id, label }) => {
+/** Labels for selects and saves; `potential` is shown as "None", never as a category tag in lists. */
+const CATEGORY_FORM_LABELS = CONTACT_CATEGORY_FORM_OPTIONS.reduce((acc, { id, label }) => {
   acc[id] = label;
   return acc;
 }, {});
 
-/** Category `supporter` is stored in DB; display as Partner everywhere. */
-CATEGORY_LABELS.supporter = 'Partner';
-
-/** Tailwind-friendly pill styles (WHO tag) — border + text use accent #185FA5 for partner cohort. */
+/** Tailwind-friendly pill styles — only for categories that show a tag in list/detail. */
 export const CATEGORY_TAG_COLORS = {
   supporter: { bg: '#E8F4FC', text: '#185FA5', border: 'rgba(24, 95, 165, 0.35)' },
   church: { bg: '#FFFBEB', text: '#854F0B', border: 'rgba(133, 79, 11, 0.25)' },
   former: { bg: '#F4F4F5', text: '#52525B', border: 'rgba(82, 82, 91, 0.35)' },
-  potential: { bg: '#F4F4F5', text: '#404040', border: 'rgba(163, 163, 163, 0.8)' },
 };
 
 const ALLOWED = new Set(CONTACT_CATEGORY_VALUES);
 
-/** Map DB / legacy rows to a canonical category for UI. */
+/** Map DB / legacy rows to a canonical category for UI and filters. */
 export function normalizeCategoryFromDb(value) {
   if (value === 'supporters') return 'supporter';
   if (value === 'warm' || value === 'potential_partner') return 'potential';
@@ -50,7 +53,20 @@ export function normalizeCategoryForSave(value) {
   return 'potential';
 }
 
+/** True when a category tag should appear in list rows, detail header, pipeline, etc. */
+export function shouldShowCategoryTag(value) {
+  const id = normalizeCategoryFromDb(value);
+  return id === 'supporter' || id === 'church' || id === 'former';
+}
+
+/** Style object for a visible category tag, or null when uncategorized (`potential`). */
+export function getCategoryTagColors(value) {
+  const id = normalizeCategoryFromDb(value);
+  return CATEGORY_TAG_COLORS[id] ?? null;
+}
+
+/** Form / select label (includes "None" for `potential`). */
 export function categoryLabel(value) {
   const id = normalizeCategoryFromDb(value);
-  return CATEGORY_LABELS[id] || CATEGORY_LABELS[value] || value || '—';
+  return CATEGORY_FORM_LABELS[id] ?? '';
 }

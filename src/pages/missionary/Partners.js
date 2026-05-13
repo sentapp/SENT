@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { supabase } from '../../lib/supabaseClient';
-import { categoryLabel, normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
+import { categoryLabel, normalizeCategory, normalizeCategoryForSave, shouldShowCategoryTag } from '../../lib/contactCategories';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../../lib/contactStatuses';
 import { formatPhone } from '../../lib/phoneFormat';
 import { Button, Card, EmptyState, Modal, Textarea } from '../../components/ui';
@@ -479,7 +479,9 @@ export default function MissionaryPartners() {
       <div className="flex flex-wrap items-start justify-between gap-3 border-t border-mission-line px-4 pb-2 pt-4 sm:px-5">
         <div>
           <p className="text-lg font-semibold text-ink">{expandedPartner.fullName || 'Unnamed partner'}</p>
-          <p className="mt-1 text-sm text-neutral-600">{categoryLabel(expandedPartner.category)}</p>
+          {shouldShowCategoryTag(expandedPartner.category) ? (
+            <p className="mt-1 text-sm text-neutral-600">{categoryLabel(expandedPartner.category)}</p>
+          ) : null}
           {expandedPartner.phone ? (
             <p className="mt-2 text-sm font-medium text-neutral-800">{formatPhone(expandedPartner.phone)}</p>
           ) : null}

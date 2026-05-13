@@ -1,9 +1,4 @@
-import {
-  CATEGORY_TAG_COLORS,
-  CONTACT_CATEGORY_FORM_OPTIONS,
-  categoryLabel,
-  normalizeCategory,
-} from '../../lib/contactCategories';
+import { CONTACT_CATEGORY_FORM_OPTIONS, categoryLabel, getCategoryTagColors } from '../../lib/contactCategories';
 import { CONTACT_STATUS_FORM_OPTIONS, STATUS_TAG_COLORS, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { Input, Label, Textarea } from '../../components/ui';
@@ -36,20 +31,21 @@ function ContactFormHeaderTags({ category, status }) {
       </div>
     );
   }
-  const catId = normalizeCategory(category);
-  const catSt = CATEGORY_TAG_COLORS[catId] || CATEGORY_TAG_COLORS.potential;
+  const catSt = getCategoryTagColors(category);
   return (
     <div className="flex flex-wrap gap-1.5">
-      <span
-        className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-        style={{
-          backgroundColor: catSt.bg,
-          color: catSt.text,
-          borderColor: catSt.border,
-        }}
-      >
-        {categoryLabel(category)}
-      </span>
+      {catSt ? (
+        <span
+          className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+          style={{
+            backgroundColor: catSt.bg,
+            color: catSt.text,
+            borderColor: catSt.border,
+          }}
+        >
+          {categoryLabel(category)}
+        </span>
+      ) : null}
       {st !== 'prospect' ? (
         (() => {
           const stSt = STATUS_TAG_COLORS[st] || STATUS_TAG_COLORS.prospect;
@@ -178,7 +174,7 @@ export default function ContactEditFormLayout({ form, setForm, phoneDupWarn, ema
       <section className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-mission-muted">Who are they?</h3>
         <div className="flex flex-wrap gap-2">
-          {CONTACT_CATEGORY_FORM_OPTIONS.map(({ id }) => {
+          {CONTACT_CATEGORY_FORM_OPTIONS.map(({ id, label }) => {
             const selected = form.category === id;
             return (
               <button
@@ -193,7 +189,7 @@ export default function ContactEditFormLayout({ form, setForm, phoneDupWarn, ema
                 }}
                 className={pillButtonClass(selected)}
               >
-                {categoryLabel(id)}
+                {label}
               </button>
             );
           })}

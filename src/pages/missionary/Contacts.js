@@ -26,9 +26,9 @@ import {
 } from '../../lib/phoneContacts';
 import { supabase } from '../../lib/supabaseClient';
 import {
-  CATEGORY_TAG_COLORS,
   CONTACT_CATEGORY_FILTER_TABS,
   categoryLabel,
+  getCategoryTagColors,
   normalizeCategory,
   normalizeCategoryForSave,
 } from '../../lib/contactCategories';
@@ -63,7 +63,7 @@ const emptyForm = {
   email: '',
   address: '',
   social: '',
-  category: 'potential',
+  category: null,
   status: 'prospect',
   monthlyAmount: '',
   isOneTimeDonor: false,
@@ -141,11 +141,6 @@ function IconPencil({ className }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
   );
-}
-
-function contactCategoryTagStyle(cat) {
-  const id = normalizeCategory(cat);
-  return CATEGORY_TAG_COLORS[id] || CATEGORY_TAG_COLORS.potential;
 }
 
 function contactStatusTagStyle(status) {
@@ -1328,8 +1323,8 @@ export default function MissionaryContacts() {
         ) : showEmpty ? (
           <EmptyState
             icon="compass"
-            title="Your network starts here"
-            subtitle="Import a spreadsheet or add one person you’re inviting to partner with your ministry."
+            title="No contacts yet"
+            subtitle="Import a spreadsheet or add someone you’re inviting to partner with your ministry."
             action={
               <Button type="button" onClick={openAdd}>
                 Add contact
@@ -1384,19 +1379,21 @@ export default function MissionaryContacts() {
                             </span>
                           );
                         }
-                        const catSt = contactCategoryTagStyle(c.category);
+                        const catSt = getCategoryTagColors(c.category);
                         return (
                           <>
-                            <span
-                              className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                              style={{
-                                backgroundColor: catSt.bg,
-                                color: catSt.text,
-                                borderColor: catSt.border,
-                              }}
-                            >
-                              {categoryLabel(c.category)}
-                            </span>
+                            {catSt ? (
+                              <span
+                                className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                                style={{
+                                  backgroundColor: catSt.bg,
+                                  color: catSt.text,
+                                  borderColor: catSt.border,
+                                }}
+                              >
+                                {categoryLabel(c.category)}
+                              </span>
+                            ) : null}
                             {c.status && st !== 'prospect' ? (
                               (() => {
                                 const stSt = contactStatusTagStyle(c.status);
@@ -1502,20 +1499,21 @@ export default function MissionaryContacts() {
                     </span>
                   );
                 }
-                const catId = normalizeCategory(detailContact.category);
-                const catSt = CATEGORY_TAG_COLORS[catId] || CATEGORY_TAG_COLORS.potential;
+                const catSt = getCategoryTagColors(detailContact.category);
                 return (
                   <>
-                    <span
-                      className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                      style={{
-                        backgroundColor: catSt.bg,
-                        color: catSt.text,
-                        borderColor: catSt.border,
-                      }}
-                    >
-                      {categoryLabel(detailContact.category)}
-                    </span>
+                    {catSt ? (
+                      <span
+                        className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                        style={{
+                          backgroundColor: catSt.bg,
+                          color: catSt.text,
+                          borderColor: catSt.border,
+                        }}
+                      >
+                        {categoryLabel(detailContact.category)}
+                      </span>
+                    ) : null}
                     {st !== 'prospect' ? (
                       <span
                         className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
