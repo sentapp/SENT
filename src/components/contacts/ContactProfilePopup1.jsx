@@ -57,7 +57,8 @@ const BTN_BORDERED =
  * @param {{
  *   contact: Record<string, unknown> | null,
  *   onClose: () => void,
- *   updateContact?: (id: string, payload: Record<string, unknown>) => Promise<{ ok?: boolean }>,
+ *   saveQuickTag?: (contact: Record<string, unknown>, field: string, value: string) => Promise<{ ok?: boolean }>,
+ *   patchContactInList?: (id: string, partial: Record<string, unknown>) => void,
  *   onAfterQuickTagSave?: () => void,
  *   onPatchContact?: (next: Record<string, unknown>) => void,
  *   openEditForm: (c: Record<string, unknown>) => void,
@@ -73,7 +74,8 @@ const BTN_BORDERED =
 export function ContactProfilePopup1({
   contact,
   onClose,
-  updateContact,
+  saveQuickTag,
+  patchContactInList,
   onAfterQuickTagSave,
   onPatchContact,
   openEditForm,
@@ -180,11 +182,12 @@ export function ContactProfilePopup1({
           </div>
         </div>
 
-        {updateContact ? (
+        {saveQuickTag ? (
           <div className="border-b border-[#E5E2DD] px-4 py-3">
             <ContactThreeQuickTagRows
               contact={contact}
-              updateContact={updateContact}
+              saveQuickTag={saveQuickTag}
+              patchContactInList={patchContactInList}
               onPatchContact={onPatchContact}
               onAfterSave={onAfterQuickTagSave}
             />

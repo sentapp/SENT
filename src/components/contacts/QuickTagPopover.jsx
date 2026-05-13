@@ -18,6 +18,8 @@ export const QUICK_CATEGORY_EDIT_OPTIONS = [
   { value: 'supporter', label: 'Partner', accent: '#0F6E56' },
   { value: 'church', label: 'Church / Org', accent: '#7C3AED' },
   { value: 'former', label: 'Previous Partner', accent: '#A32D2D' },
+  { value: 'connector', label: 'Connector', accent: '#C2410C' },
+  { value: 'individual', label: 'Individual', accent: '#0369A1' },
   { value: 'none', label: 'None', accent: '#78716C' },
 ];
 
@@ -111,8 +113,10 @@ const PH_COMPACT =
  * @param {{
  *   contact: Record<string, unknown>,
  *   updateContact?: (id: string, payload: Record<string, unknown>) => Promise<{ ok: boolean, error?: string }>,
+ *   saveQuickTag?: (contact: Record<string, unknown>, field: string, value: string) => Promise<{ ok: boolean, error?: string }>,
  *   onAfterSave?: () => void,
  *   onPatchContact?: (next: Record<string, unknown>) => void,
+ *   patchContactInList?: (id: string, partial: Record<string, unknown>) => void,
  *   variant?: 'default' | 'compact',
  *   className?: string,
  *   deferSave?: boolean,
@@ -122,8 +126,10 @@ const PH_COMPACT =
 export function ContactThreeQuickTagRows({
   contact,
   updateContact,
+  saveQuickTag,
   onAfterSave,
   onPatchContact,
+  patchContactInList,
   variant = 'default',
   className = 'flex flex-col gap-1',
   deferSave = false,
@@ -156,12 +162,22 @@ export function ContactThreeQuickTagRows({
       });
       return;
     }
-    if (!updateContact) return;
-    const payload = fullContactPayloadFromQuickTag(contact, field, value);
-    const res = await updateContact(contact.id, payload);
+    if (!updateContact && !saveQuickTag) return;
+    const merged = mergeContactAfterQuickTag(contact, field, value);
+    let res;
+    if (saveQuickTag) {
+      res = await saveQuickTag(contact, field, value);
+    } else {
+      const payload = fullContactPayloadFromQuickTag(contact, field, value);
+      res = await updateContact(contact.id, payload);
+    }
     if (res?.ok) {
-      onPatchContact?.(mergeContactAfterQuickTag(contact, field, value));
+      patchContactInList?.(contact.id, merged);
+      onPatchContact?.(merged);
       onAfterSave?.();
+    } else if (import.meta.env.DEV && res?.error) {
+      // eslint-disable-next-line no-console
+      console.error('[ContactThreeQuickTagRows] save failed:', res.error);
     }
   };
 

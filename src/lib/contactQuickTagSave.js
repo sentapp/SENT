@@ -4,6 +4,37 @@ import { normalizeRelationshipForSave } from './contactRelationships';
 import { normalizeStatusForSave, normalizeStatusFromDb } from './contactStatuses';
 
 /**
+ * Persist a single quick-tag field with a scoped partial `UPDATE` (category+status, or relationship only).
+ * Prefer this over sending a full `contacts` row so optional-column stripping cannot drop the field being edited.
+ */
+export async function saveQuickTagToSupabase(supabase, { missionaryId, contact, field, value }) {
+  if (!supabase || !missionaryId || !contact?.id) {
+    return { ok: false, error: 'Missing Supabase context.' };
+  }
+  let patch = {};
+  if (field === 'relationship') {
+    patch = { relationship: normalizeRelationshipForSave(value) };
+  } else if (field === 'category' || field === 'status') {
+    const { category, status } = buildQuickTagCategoryStatusPayload(contact, field, value);
+    patch = {
+      category: safeCategoryValue(category),
+      status: normalizeStatusForSave(status),
+    };
+  } else {
+    return { ok: false, error: 'Unknown quick-tag field.' };
+  }
+
+  const { error } = await supabase
+    .from('contacts')
+    .update(patch)
+    .eq('id', contact.id)
+    .eq('missionary_id', missionaryId);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
  * Computes next category + status after a quick-tag edit (supporter category ↔ partner status).
  */
 export function buildQuickTagCategoryStatusPayload(contact, field, value) {
@@ -66,7 +97,7 @@ export function mergeContactAfterQuickTag(contact, field, value) {
     return next;
   }
   const { category, status } = buildQuickTagCategoryStatusPayload(contact, field, value);
-  next.category = category;
+  next.category = normalizeCategoryFromDb(category);
   next.status = status;
   return next;
 }

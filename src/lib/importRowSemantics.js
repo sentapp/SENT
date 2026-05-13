@@ -148,7 +148,7 @@ export function interpretImportStatusCell(raw) {
  * previous/former/dropped → former. Does not read name/notes (avoids blanket mis-tags).
  * @param {{ statusText?: string, categoryText?: string }} row parsed fields
  * @param {number} monthlyAmount resolved monthly support amount for this row
- * @returns {'supporter'|'church'|'former'|null}
+ * @returns {'supporter'|'church'|'former'|'connector'|'individual'|null}
  */
 export function determineCategory(row, monthlyAmount) {
   const signals = row && typeof row === 'object' && !Array.isArray(row) ? row : {};
@@ -173,6 +173,12 @@ export function determineCategory(row, monthlyAmount) {
       )
     ) {
       return 'church';
+    }
+    if (/\b(connector|connectors?|referrals?|referrer|network\s+connector)\b/i.test(categoryLower)) {
+      return 'connector';
+    }
+    if (/\b(individuals?|private\s+donor|single\s+donor|single\s+giver|person\s+donor)\b/i.test(categoryLower)) {
+      return 'individual';
     }
     if (
       /\b(supporter|partner|monthly(\s+|$)|recurring|pledge|mission\s*partner|giving\s*partner)\b/i.test(categoryLower)

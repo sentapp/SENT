@@ -78,6 +78,10 @@ function filterContacts(contacts, activeFilter) {
       return contacts.filter((c) => normalizeCategory(c.category) === 'church');
     case 'former':
       return contacts.filter((c) => normalizeCategory(c.category) === 'former');
+    case 'connector':
+      return contacts.filter((c) => normalizeCategory(c.category) === 'connector');
+    case 'individual':
+      return contacts.filter((c) => normalizeCategory(c.category) === 'individual');
     default:
       return contacts;
   }
@@ -199,6 +203,8 @@ export default function MissionaryContacts() {
     refetch,
     insertContact,
     updateContact,
+    saveQuickTag,
+    patchContactInList,
     deleteContact,
     removeDuplicateContacts,
   } = useSupabaseContacts(user?.id, { authLoading });
@@ -1346,7 +1352,8 @@ export default function MissionaryContacts() {
                     <div onClick={(e) => e.stopPropagation()}>
                       <ContactThreeQuickTagRows
                         contact={c}
-                        updateContact={updateContact}
+                        saveQuickTag={saveQuickTag}
+                        patchContactInList={patchContactInList}
                         variant="compact"
                         className="flex flex-col gap-1"
                       />
@@ -1393,7 +1400,8 @@ export default function MissionaryContacts() {
       <ContactProfilePopup1
         contact={detailContact}
         onClose={closeDetail}
-        updateContact={updateContact}
+        saveQuickTag={saveQuickTag}
+        patchContactInList={patchContactInList}
         onAfterQuickTagSave={() => void refetch()}
         onPatchContact={(next) =>
           setDetailContact((prev) =>

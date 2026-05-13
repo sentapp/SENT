@@ -3,6 +3,6 @@
  * Some deployments keep NOT NULL on `category`; use `potential` instead of null/invalid.
  */
 export function safeCategoryValue(cat) {
-  const valid = ['supporter', 'church', 'former', 'potential'];
+  const valid = ['supporter', 'church', 'former', 'potential', 'connector', 'individual'];
   return valid.includes(cat) ? cat : 'potential';
 }

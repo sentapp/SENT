@@ -35,6 +35,8 @@ export function PartnerQuickViewPopup({
   onViewFullProfile,
   suppressEscape = false,
   actionError = '',
+  saveQuickTag,
+  patchContactInList,
   updateContact,
   onPatchContact,
   onAfterQuickTagSave,
@@ -139,10 +141,12 @@ export function PartnerQuickViewPopup({
                 ✕
               </button>
             </div>
-            {updateContact ? (
+            {saveQuickTag || updateContact ? (
               <div className="mt-3 border-t border-mission-line/80 pt-3" onClick={(e) => e.stopPropagation()}>
                 <ContactThreeQuickTagRows
                   contact={partner}
+                  saveQuickTag={saveQuickTag}
+                  patchContactInList={patchContactInList}
                   updateContact={updateContact}
                   onPatchContact={onPatchContact}
                   onAfterSave={onAfterQuickTagSave}

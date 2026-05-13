@@ -127,7 +127,9 @@ function contactRowToForm(c) {
 export default function MissionaryPartners() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { contacts, refetch, updateContact } = useSupabaseContacts(user?.id, { authLoading });
+  const { contacts, refetch, updateContact, saveQuickTag, patchContactInList } = useSupabaseContacts(user?.id, {
+    authLoading,
+  });
 
   const [popupPartner, setPopupPartner] = useState(null);
   const [quickLog, setQuickLog] = useState(null);
@@ -167,7 +169,7 @@ export default function MissionaryPartners() {
     if (partnerViewFilter === 'individual') {
       return allPartners.filter((c) => {
         const cat = normalizeCategory(c.category);
-        return cat === 'supporter' && cat !== 'church';
+        return cat === 'individual' || (cat !== 'church' && cat !== 'connector');
       });
     }
     if (partnerViewFilter === 'church') {
@@ -585,7 +587,8 @@ export default function MissionaryPartners() {
                             <div onClick={(e) => e.stopPropagation()} className="mt-2">
                               <ContactThreeQuickTagRows
                                 contact={p}
-                                updateContact={updateContact}
+                                saveQuickTag={saveQuickTag}
+                                patchContactInList={patchContactInList}
                                 onAfterSave={() => void refetch()}
                                 onPatchContact={(next) =>
                                   setPopupPartner((cur) =>
@@ -666,7 +669,8 @@ export default function MissionaryPartners() {
                         <div onClick={(e) => e.stopPropagation()}>
                           <ContactThreeQuickTagRows
                             contact={p}
-                            updateContact={updateContact}
+                            saveQuickTag={saveQuickTag}
+                            patchContactInList={patchContactInList}
                             onAfterSave={() => void refetch()}
                             onPatchContact={(next) =>
                               setPopupPartner((cur) =>
@@ -716,7 +720,8 @@ export default function MissionaryPartners() {
         onViewFullProfile={openFullProfileFromPopup}
         suppressEscape={Boolean(quickLog)}
         actionError={commActionError}
-        updateContact={updateContact}
+        saveQuickTag={saveQuickTag}
+        patchContactInList={patchContactInList}
         onPatchContact={(next) =>
           setPopupPartner((cur) => (cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur))
         }

@@ -4,6 +4,7 @@ import { normalizeCategoryForSave, normalizeCategoryFromDb } from '../lib/contac
 import { safeCategoryValue } from '../lib/safeCategory';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../lib/contactStatuses';
 import { isImportDuplicateByPhoneOrName, removeDuplicateContacts as removeDuplicateContactsFromDb } from '../lib/contactDuplicates';
+import { saveQuickTagToSupabase } from '../lib/contactQuickTagSave';
 
 /** Columns present in the original schema — safe before optional migrations. */
 const CONTACT_SELECT_MINIMAL =
@@ -362,6 +363,27 @@ export function useSupabaseContacts(authUserId, options = {}) {
     [refetch, schemaPartial, authUserId],
   );
 
+  const patchContactInList = useCallback((id, partial) => {
+    if (id == null || partial == null) return;
+    setContacts((prev) => prev.map((c) => (String(c.id) === String(id) ? { ...c, ...partial } : c)));
+  }, []);
+
+  const saveQuickTag = useCallback(
+    async (contact, field, value) => {
+      if (!supabase || !contact?.id) return { ok: false, error: 'Missing id.' };
+      const missionaryId = await resolveMissionaryId(supabase, authUserId);
+      if (!missionaryId) return { ok: false, error: 'Not signed in.' };
+      const res = await saveQuickTagToSupabase(supabase, { missionaryId, contact, field, value });
+      if (!res.ok) {
+        if (import.meta.env.DEV) console.error('[contacts] saveQuickTag failed:', res.error);
+        return res;
+      }
+      await refetch();
+      return { ok: true };
+    },
+    [refetch, authUserId],
+  );
+
   const deleteContact = useCallback(
     async (id) => {
       if (!supabase || !id) return { ok: false, error: 'Missing id.' };
@@ -424,6 +446,8 @@ export function useSupabaseContacts(authUserId, options = {}) {
     refetch,
     insertContact,
     updateContact,
+    saveQuickTag,
+    patchContactInList,
     deleteContact,
     removeDuplicateContacts,
     removeContactsByIds,
