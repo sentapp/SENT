@@ -112,7 +112,6 @@ function toRow(payload, missionaryId) {
       ? normalizeStatusForSave(statusPick)
       : 'prospect';
   const monthlyNum = Number.isFinite(Number(monthly)) ? Number(monthly) : 0;
-  const monthly_amount = status === 'partner' ? monthlyNum : 0;
 
   return {
     missionary_id: missionaryId,
@@ -121,7 +120,7 @@ function toRow(payload, missionaryId) {
     email: String(payload.email ?? '').trim(),
     category,
     status,
-    monthly_amount,
+    monthly_amount: monthlyNum,
     notes: String(payload.notes ?? '').trim(),
     address: String(payload.address ?? '').trim(),
     ...(() => {

@@ -18,8 +18,8 @@ export const CONTACT_STATUS_FORM_OPTIONS = [
   { value: 'asked', label: 'Asked' },
   { value: 'meeting_scheduled', label: 'Meeting Scheduled' },
   { value: 'committed', label: 'Committed' },
-  { value: 'partner', label: 'Partner' },
-  { value: 'declined', label: 'Declined' },
+  { value: 'partner', label: 'Partner (Monthly Supporter)' },
+  { value: 'declined', label: 'Not Interested' },
 ];
 
 const LABEL_BY_VALUE = CONTACT_STATUS_FORM_OPTIONS.reduce((acc, { value, label }) => {

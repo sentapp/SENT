@@ -20,6 +20,7 @@ const ALLOWED = new Set(CONTACT_CATEGORY_VALUES);
 
 /** Map DB / legacy rows to a canonical category for UI. */
 export function normalizeCategoryFromDb(value) {
+  if (value === 'supporters') return 'supporter';
   if (value === 'warm' || value === 'potential_partner') return 'potential';
   if (ALLOWED.has(value)) return value;
   return 'potential';
@@ -27,6 +28,7 @@ export function normalizeCategoryFromDb(value) {
 
 /** Coerce UI / import payloads to a valid DB enum before save. */
 export function normalizeCategoryForSave(value) {
+  if (value === 'supporters') return 'supporter';
   if (ALLOWED.has(value)) return value;
   if (value === 'warm' || value === 'potential_partner') return 'potential';
   return 'potential';

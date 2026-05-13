@@ -66,6 +66,13 @@ const emptyForm = {
   notes: '',
 };
 
+function cleanDisplayNotes(notes) {
+  if (!notes) return '';
+  const trimmed = notes.toString().trim();
+  if (/^\d+$/.test(trimmed)) return '';
+  return trimmed;
+}
+
 function contactFormSnapshot(f) {
   return JSON.stringify({
     fullName: f.fullName ?? '',
@@ -632,7 +639,7 @@ export default function MissionaryContacts() {
           ? String(c.oneTimeDonationAmount)
           : '',
       oneTimeDonationDate: c.oneTimeDonationDate || '',
-      notes: c.notes ?? '',
+      notes: cleanDisplayNotes(c.notes),
     };
     originalFormSnapshotRef.current = contactFormSnapshot(nextForm);
     setForm(nextForm);
@@ -961,6 +968,7 @@ export default function MissionaryContacts() {
   }, [user?.id, detailContact?.id, commModal, commNotes]);
 
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
+  const detailDisplayNotes = detailContact ? cleanDisplayNotes(detailContact.notes) : '';
 
   return (
     <div className="flex flex-col gap-4">
@@ -1249,7 +1257,9 @@ export default function MissionaryContacts() {
                           : ''}
                       </p>
                     ) : null}
-                    {c.notes ? <p className="mt-1 text-sm text-neutral-600">{c.notes}</p> : null}
+                    {cleanDisplayNotes(c.notes) ? (
+                      <p className="mt-1 text-sm text-neutral-600">{cleanDisplayNotes(c.notes)}</p>
+                    ) : null}
                   </div>
                   <div className="flex shrink-0 gap-2 self-start" onClick={(e) => e.stopPropagation()}>
                     <button
@@ -1322,15 +1332,30 @@ export default function MissionaryContacts() {
                 </a>
               </div>
             ) : null}
-            {Number(detailContact.monthlyAmount) > 0 ? (
+            <p>
+              <span className="sent-section-label mb-1 block">Monthly support amount</span>
+              <span className="font-semibold text-ink">${Number(detailContact.monthlyAmount || 0).toFixed(0)} / month</span>
+            </p>
+            {detailContact.isOneTimeDonor ? (
               <p>
-                <span className="sent-section-label mb-1 block">Monthly amount</span>
-                <span className="font-semibold text-ink">${Number(detailContact.monthlyAmount).toFixed(0)} / month</span>
+                <span className="sent-section-label mb-1 block">One-time donor</span>
+                <span className="font-semibold text-ink">
+                  Yes
+                  {Number(detailContact.oneTimeDonationAmount) > 0
+                    ? ` · $${Number(detailContact.oneTimeDonationAmount).toLocaleString(undefined, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2,
+                      })}`
+                    : ''}
+                  {detailContact.oneTimeDonationDate
+                    ? ` · ${new Date(`${detailContact.oneTimeDonationDate}T12:00:00`).toLocaleDateString()}`
+                    : ''}
+                </span>
               </p>
             ) : null}
             <div>
               <span className="sent-section-label mb-1 block">Notes</span>
-              <p className="whitespace-pre-wrap leading-relaxed text-neutral-800">{detailContact.notes || '—'}</p>
+              <p className="whitespace-pre-wrap leading-relaxed text-neutral-800">{detailDisplayNotes || '—'}</p>
             </div>
             <p className="text-xs text-neutral-600">
               <span className="font-semibold text-ink">Last contacted: </span>
@@ -1538,16 +1563,14 @@ export default function MissionaryContacts() {
               </select>
             </Label>
           </div>
-          {form.status === 'partner' ? (
-            <Label title="Monthly amount">
-              <Input
-                inputMode="numeric"
-                value={form.monthlyAmount}
-                onChange={(e) => setForm((f) => ({ ...f, monthlyAmount: e.target.value }))}
-                placeholder="0"
-              />
-            </Label>
-          ) : null}
+          <Label title="Monthly support amount ($)">
+            <Input
+              inputMode="decimal"
+              value={form.monthlyAmount}
+              onChange={(e) => setForm((f) => ({ ...f, monthlyAmount: e.target.value }))}
+              placeholder="0"
+            />
+          </Label>
 
           <label className="flex cursor-pointer items-center gap-3 rounded-card border border-neutral-200 bg-white px-4 py-3">
             <input
@@ -1566,7 +1589,7 @@ export default function MissionaryContacts() {
           </label>
           {form.isOneTimeDonor ? (
             <div className="grid gap-3 md:grid-cols-2">
-              <Label title="Donation amount">
+              <Label title="Donation amount ($)">
                 <div className="relative">
                   <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500">
                     $
