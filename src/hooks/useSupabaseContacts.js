@@ -114,7 +114,7 @@ function toRow(payload, missionaryId) {
   const categoryBase =
     catPick !== undefined && catPick !== null && String(catPick).trim() !== ''
       ? normalizeCategoryForSave(catPick)
-      : null;
+      : 'potential';
   let category = categoryBase;
   if (status === 'partner') category = 'supporter';
   const monthlyNum = Number.isFinite(Number(monthly)) ? Number(monthly) : 0;

@@ -63,7 +63,7 @@ const emptyForm = {
   email: '',
   address: '',
   social: '',
-  category: null,
+  category: 'potential',
   status: 'prospect',
   monthlyAmount: '',
   isOneTimeDonor: false,
