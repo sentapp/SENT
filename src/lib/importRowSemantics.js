@@ -61,6 +61,27 @@ export function findBestStatusColumnIndex(headerCells) {
   return bestScore >= 70 ? best : -1;
 }
 
+/** @returns {number} column index or -1 */
+export function findBestCategoryColumnIndex(headerCells) {
+  if (!headerCells?.length) return -1;
+  let best = -1;
+  let bestScore = 0;
+  headerCells.forEach((raw, i) => {
+    const c = compactHeader(raw);
+    const n = normHeader(raw);
+    let score = 0;
+    if (c === 'category' || c === 'type' || c === 'segment' || c === 'role' || c === 'constituenttype') score = 100;
+    else if (n.includes('contact type') || n.includes('constituent type')) score = 96;
+    else if (c.includes('category') || c.includes('relationshiptype')) score = 92;
+    else if (/^(tag|tags|group|cohort)$/i.test(n.trim())) score = 82;
+    if (score > bestScore) {
+      bestScore = score;
+      best = i;
+    }
+  });
+  return bestScore >= 80 ? best : -1;
+}
+
 export function parseMonthlyAmountCell(val) {
   const raw = String(val ?? '').trim();
   if (!raw) return 0;
@@ -78,6 +99,11 @@ export function interpretImportStatusCell(raw) {
   if (!s) return { explicitEnum: null, partnerKeywords: false };
 
   const lower = s.toLowerCase();
+  if (
+    /\b(former|previous|past|ex-?\s?partner|ex-?\s?supporter|no\s+longer|lapsed|dropped)\b/i.test(lower)
+  ) {
+    return { explicitEnum: null, partnerKeywords: false };
+  }
   if (/\b(supporter|monthly\s*supporter|monthly\s*partner|giving\s*partner|mission\s*partner)\b/i.test(lower)) {
     return { explicitEnum: 'partner', partnerKeywords: true };
   }
@@ -116,25 +142,47 @@ export function interpretImportStatusCell(raw) {
 }
 
 /**
- * Import category: default `potential`. Monthly amount → supporter. Supporter/partner cues from the status cell.
- * Former / church only when that signal appears in the **status column** (avoid blanket tagging from notes/name).
- * @param {{ statusText?: string, nameText?: string, notesText?: string }} row parsed fields (spreadsheet row context)
+ * Default **potential** unless monthly &gt; 0 → supporter; explicit supporter/partner/monthly cues in
+ * **category** or **status** column → supporter; church/org from those columns → church;
+ * previous/former/dropped → former. Does not read name/notes (avoids blanket mis-tags).
+ * @param {{ statusText?: string, categoryText?: string }} row parsed fields
  * @param {number} monthlyAmount resolved monthly support amount for this row
  * @returns {'supporter'|'church'|'former'|'potential'}
  */
 export function determineCategory(row, monthlyAmount) {
   const signals = row && typeof row === 'object' && !Array.isArray(row) ? row : {};
   const statusText = String(signals.statusText ?? '').trim();
+  const categoryText = String(signals.categoryText ?? '').trim();
   const statusLower = statusText.toLowerCase();
+  const categoryLower = categoryText.toLowerCase();
 
   const monthly = Number(monthlyAmount);
   const amt = Number.isFinite(monthly) && monthly > 0 ? monthly : 0;
-
   if (amt > 0) return 'supporter';
+
+  if (categoryText) {
+    if (
+      /\b(former|previous|past|dropped|lapsed|inactive|no\s+longer|ex-?\s?partner|ex-?\s?supporter)\b/i.test(categoryLower)
+    ) {
+      return 'former';
+    }
+    if (
+      /\b(church|chapel|congregation|parish|cathedral|denomination|organization|organisation|org\b|ministry\s+team)\b/i.test(
+        categoryLower,
+      )
+    ) {
+      return 'church';
+    }
+    if (
+      /\b(supporter|partner|monthly(\s+|$)|recurring|pledge|mission\s*partner|giving\s*partner)\b/i.test(categoryLower)
+    ) {
+      return 'supporter';
+    }
+  }
 
   if (statusText) {
     if (
-      /\b(no\s+longer|previously|previous\s+partner|previous\s+supporter|formerly|past\s+supporter|ex-?\s?partner|lapsed)\b/i.test(
+      /\b(no\s+longer|previously|previous\s+partner|previous\s+supporter|formerly|past\s+supporter|ex-?\s?partner|lapsed|dropped)\b/i.test(
         statusLower,
       ) ||
       /\bformer\s+(partner|supporter|donor|giver|mission\s*partner)\b/i.test(statusLower)
@@ -148,27 +196,28 @@ export function determineCategory(row, monthlyAmount) {
 
     const interpreted = interpretImportStatusCell(statusText);
     if (interpreted.partnerKeywords || interpreted.explicitEnum === 'partner') return 'supporter';
-    if (/\b(supporter|giving\s*partner|mission\s*partner|pledge|recurring)\b/i.test(statusLower)) return 'supporter';
-    if (/\bmonthly\b/i.test(statusLower) && /\b(\$|usd|gift|donation|support|pledge|amount|giving)\b/i.test(statusLower)) {
-      return 'supporter';
-    }
   }
 
   return 'potential';
 }
 
 /**
- * Merge parsed name/phone/email row with optional status + monthly columns.
+ * Merge parsed name/phone/email row with optional status + monthly + category columns.
  * @param {object} draft base draft (potential/prospect defaults ok)
  * @param {unknown[]} row
- * @param {{ statusIdx: number, monthlyIdx: number, width: number }} ctx
+ * @param {{ statusIdx: number, monthlyIdx: number, categoryIdx: number, width: number }} ctx
  */
 export function applyImportRowSemantics(draft, row, ctx) {
-  const { statusIdx, monthlyIdx, width } = ctx;
+  const { statusIdx, monthlyIdx, categoryIdx = -1, width } = ctx;
   let status = normalizeStatusForSave(draft.status);
   let monthly_amount = Number.isFinite(Number(draft.monthly_amount)) ? Number(draft.monthly_amount) : 0;
 
   let statusCell = '';
+  let categoryCell = '';
+
+  if (categoryIdx >= 0 && categoryIdx < width) {
+    categoryCell = String(row[categoryIdx] ?? '').trim();
+  }
 
   if (statusIdx >= 0 && statusIdx < width) {
     const cell = String(row[statusIdx] ?? '').trim();
@@ -191,12 +240,15 @@ export function applyImportRowSemantics(draft, row, ctx) {
     }
   }
 
-  const finalStatus = normalizeStatusForSave(status);
-  const category = determineCategory(
-    { statusText: statusCell, nameText: String(draft.full_name ?? '').trim(), notesText: String(draft.notes ?? '').trim() },
+  let finalStatus = normalizeStatusForSave(status);
+  const inferredCategory = determineCategory(
+    { statusText: statusCell, categoryText: categoryCell },
     monthly_amount,
   );
-  const finalCategory = finalStatus === 'partner' ? 'supporter' : normalizeCategoryForSave(category);
+  let finalCategory = normalizeCategoryForSave(inferredCategory);
+
+  if (finalStatus === 'partner') finalCategory = 'supporter';
+  if (finalCategory === 'supporter' && finalStatus !== 'declined') finalStatus = 'partner';
 
   return {
     ...draft,

@@ -46,8 +46,9 @@ export const MISSIONARY_PIPELINE_TRACKED_STATUSES = CONTACTS_PIPELINE_STRIP_STAT
 /** Pipeline Kanban columns only (Prospect / Not Interested are lifecycle states, not board columns). */
 export const MISSIONARY_KANBAN_STATUSES = ['contacted', 'meeting_scheduled', 'committed', 'partner'];
 
-/** Advance toward Partner (Monthly Supporter). */
+/** Advance through pipeline stages; advancing to `partner` sets `category: supporter`. */
 export const PIPELINE_NEXT_STATUS = {
+  prospect: 'contacted',
   contacted: 'meeting_scheduled',
   meeting_scheduled: 'committed',
   committed: 'partner',
@@ -117,13 +118,16 @@ export function useMissionaryPipelineContacts(authUserId, options = {}) {
   }, [authUserId, authLoading, fetchPipeline]);
 
   const updatePipelineContactStatus = useCallback(
-    async (id, status) => {
+    async (id, status, extraPatch = {}) => {
       if (!supabase || !id) return { ok: false, error: 'Not available.' };
       const missionaryId = await resolveMissionaryId(supabase, authUserId);
       if (!missionaryId) return { ok: false, error: 'Not signed in.' };
+      const nextStatus = normalizeStatusForSave(status);
+      const patch = { status: nextStatus, ...extraPatch };
+      if (nextStatus === 'partner') patch.category = 'supporter';
       const { error } = await supabase
         .from('contacts')
-        .update({ status: normalizeStatusForSave(status) })
+        .update(patch)
         .eq('id', id)
         .eq('missionary_id', missionaryId);
       if (error) return { ok: false, error: error.message };

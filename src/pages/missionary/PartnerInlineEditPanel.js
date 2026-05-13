@@ -1,4 +1,4 @@
-import { CONTACT_CATEGORY_FORM_OPTIONS } from '../../lib/contactCategories';
+import { CONTACT_CATEGORY_FORM_OPTIONS, categoryLabel } from '../../lib/contactCategories';
 import { Button, Input, Label, Textarea } from '../../components/ui';
 
 /** Partners page — subset of `contact_status` (DB-aligned labels per product copy). */
@@ -111,9 +111,9 @@ export function PartnerInlineEditPanel({
             value={draft.category}
             onChange={(e) => set({ category: e.target.value })}
           >
-            {CONTACT_CATEGORY_FORM_OPTIONS.map(({ id, label }) => (
+            {CONTACT_CATEGORY_FORM_OPTIONS.map(({ id }) => (
               <option key={id} value={id}>
-                {label}
+                {categoryLabel(id)}
               </option>
             ))}
           </select>

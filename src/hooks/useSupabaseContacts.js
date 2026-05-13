@@ -105,12 +105,18 @@ function toRow(payload, missionaryId) {
         ? payload.monthly_amount
         : 0;
 
-  const category = normalizeCategoryForSave(payload.category || 'supporter');
   const statusPick = payload.status ?? payload.contact_status;
   const status =
     statusPick !== undefined && statusPick !== null && String(statusPick).trim() !== ''
       ? normalizeStatusForSave(statusPick)
       : 'prospect';
+  const catPick = payload.category ?? payload.contact_category;
+  const categoryBase =
+    catPick !== undefined && catPick !== null && String(catPick).trim() !== ''
+      ? normalizeCategoryForSave(catPick)
+      : 'potential';
+  let category = categoryBase;
+  if (status === 'partner') category = 'supporter';
   const monthlyNum = Number.isFinite(Number(monthly)) ? Number(monthly) : 0;
 
   return {

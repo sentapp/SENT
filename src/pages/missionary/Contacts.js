@@ -12,7 +12,7 @@ import {
 import { fetchGoogleSheetMatrix } from '../../lib/googleSheetsApi';
 import { cleanEmail, extrasFromRejectedContactFields, mergeImportNotes } from '../../lib/contactImportClean';
 import { cleanNotes, cleanPhone } from '../../lib/importCleaners';
-import { formatPhone } from '../../lib/phoneFormat';
+import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
 import { phaseLabelFromPct } from '../../lib/importProgressText';
 import {
   findEmailConflict,
@@ -26,13 +26,20 @@ import {
 } from '../../lib/phoneContacts';
 import { supabase } from '../../lib/supabaseClient';
 import {
+  CATEGORY_TAG_COLORS,
   CONTACT_CATEGORY_FILTER_TABS,
   CONTACT_CATEGORY_FORM_OPTIONS,
   categoryLabel,
   normalizeCategory,
   normalizeCategoryForSave,
 } from '../../lib/contactCategories';
-import { CONTACT_STATUS_FORM_OPTIONS, normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
+import {
+  CONTACT_STATUS_FORM_OPTIONS,
+  STATUS_TAG_COLORS,
+  normalizeStatusForSave,
+  normalizeStatusFromDb,
+  statusLabel,
+} from '../../lib/contactStatuses';
 import { Button, Card, EmptyState, Input, Label, LoadingSpinner, Modal, Textarea } from '../../components/ui';
 
 /** Pipeline strip: active outreach stages, excluding monthly supporters (shown under Partners). */
@@ -62,8 +69,8 @@ const emptyForm = {
   phone: '',
   email: '',
   address: '',
-  category: 'supporter',
-  status: 'partner',
+  category: 'potential',
+  status: 'prospect',
   monthlyAmount: '',
   isOneTimeDonor: false,
   oneTimeDonationAmount: '',
@@ -140,31 +147,14 @@ function IconPencil({ className }) {
   );
 }
 
-function pipelineStripStageDotClass(status) {
-  switch (normalizeStatusFromDb(status)) {
-    case 'contacted':
-      return 'bg-mission-blue';
-    case 'meeting_scheduled':
-      return 'bg-mission-green';
-    case 'committed':
-      return 'bg-mission-purple';
-    default:
-      return 'bg-neutral-400';
-  }
+function contactCategoryTagStyle(cat) {
+  const id = normalizeCategory(cat);
+  return CATEGORY_TAG_COLORS[id] || CATEGORY_TAG_COLORS.potential;
 }
 
-function Tab({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-btn px-3 py-2 text-sm font-semibold transition ${
-        active ? 'bg-mission-blue/10 text-mission-blue ring-1 ring-mission-blue/20' : 'text-neutral-600 hover:bg-neutral-100'
-      }`}
-    >
-      {children}
-    </button>
-  );
+function contactStatusTagStyle(status) {
+  const id = normalizeStatusFromDb(status);
+  return STATUS_TAG_COLORS[id] || STATUS_TAG_COLORS.prospect;
 }
 
 function ImportBlockingOverlay({ open, progress, onCancel }) {
@@ -750,27 +740,24 @@ export default function MissionaryContacts() {
     handleOpenContact,
   ]);
 
-  useEffect(() => {
-    if (!detailContact?.id || !supabase) {
+  const refreshLastContacted = useCallback(async () => {
+    if (!supabase || !detailContact?.id) {
       setLastTouchAt(null);
-      return undefined;
+      return;
     }
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from('communication_logs')
-        .select('created_at')
-        .eq('contact_id', detailContact.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (cancelled) return;
-      if (!error && data?.[0]?.created_at) setLastTouchAt(data[0].created_at);
-      else setLastTouchAt(null);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    const { data, error } = await supabase
+      .from('communication_logs')
+      .select('created_at')
+      .eq('contact_id', detailContact.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (!error && data?.[0]?.created_at) setLastTouchAt(data[0].created_at);
+    else setLastTouchAt(null);
   }, [detailContact?.id]);
+
+  useEffect(() => {
+    void refreshLastContacted();
+  }, [refreshLastContacted]);
 
   useEffect(() => {
     if (!detailContact?.id) return;
@@ -1008,12 +995,18 @@ export default function MissionaryContacts() {
 
   const logCommunication = useCallback(
     async (type, notes = '') => {
-      if (!supabase || !user?.id || !detailContact?.id) {
-        return { ok: false, error: 'Not signed in or no contact selected.' };
+      if (!supabase || !detailContact?.id) {
+        return { ok: false, error: 'No contact selected.' };
       }
+      const {
+        data: { user: authUser },
+        error: userErr,
+      } = await supabase.auth.getUser();
+      const mid = !userErr && authUser?.id ? authUser.id : null;
+      if (!mid) return { ok: false, error: 'Not signed in.' };
       const created_at = new Date().toISOString();
       const { error } = await supabase.from('communication_logs').insert({
-        missionary_id: user.id,
+        missionary_id: mid,
         contact_id: detailContact.id,
         comm_type: type,
         notes: notes ?? '',
@@ -1021,10 +1014,10 @@ export default function MissionaryContacts() {
       });
       if (error) return { ok: false, error: error.message || 'Could not save log.' };
       await refetch();
-      setLastTouchAt(created_at);
+      await refreshLastContacted();
       return { ok: true, created_at };
     },
-    [user?.id, detailContact?.id, refetch],
+    [detailContact?.id, refetch, refreshLastContacted],
   );
 
   const handleCall = useCallback(() => {
@@ -1033,7 +1026,7 @@ export default function MissionaryContacts() {
       alert('No phone number on file');
       return;
     }
-    const digits = phone.replace(/\D/g, '');
+    const digits = phoneDigits(phone);
     if (!digits) {
       alert('No phone number on file');
       return;
@@ -1054,7 +1047,7 @@ export default function MissionaryContacts() {
       alert('No phone number on file');
       return;
     }
-    const digits = phone.replace(/\D/g, '');
+    const digits = phoneDigits(phone);
     if (!digits) {
       alert('No phone number on file');
       return;
@@ -1256,12 +1249,31 @@ export default function MissionaryContacts() {
           placeholder="Search contacts…"
           className="py-3 text-sm"
         />
-        <div className="flex flex-wrap gap-2">
-          {FILTERS.map((t) => (
-            <Tab key={t.id} active={activeFilter === t.id} onClick={() => setActiveFilter(t.id)}>
-              {t.label}
-            </Tab>
-          ))}
+        <div
+          className="grid w-full gap-1 rounded-lg border border-mission-line bg-neutral-100 p-1"
+          style={{ gridTemplateColumns: `repeat(${FILTERS.length}, minmax(0, 1fr))` }}
+          role="tablist"
+          aria-label="Filter contacts by category"
+        >
+          {FILTERS.map((t) => {
+            const active = activeFilter === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveFilter(t.id)}
+                className={`min-h-[44px] rounded-md px-1 py-2 text-center text-xs font-semibold leading-tight transition sm:px-2 sm:text-sm ${
+                  active
+                    ? 'border-b-2 border-[#185FA5] bg-white text-[#185FA5] shadow-sm'
+                    : 'border-b-2 border-transparent text-neutral-600 hover:bg-white/70'
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -1350,29 +1362,44 @@ export default function MissionaryContacts() {
                   <div className="min-w-0 flex-1 flex flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
-                      {isPipelineStripContact(c) ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-mission-line bg-mission-blue/5 px-2 py-0.5 text-[10px] font-semibold text-mission-blue">
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {(() => {
+                        const catSt = contactCategoryTagStyle(c.category);
+                        return (
                           <span
-                            className={`h-1.5 w-1.5 shrink-0 rounded-full ${pipelineStripStageDotClass(c.status)}`}
-                            aria-hidden
-                          />
-                          {statusLabel(c.status)}
-                        </span>
+                            className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                            style={{
+                              backgroundColor: catSt.bg,
+                              color: catSt.text,
+                              borderColor: catSt.border,
+                            }}
+                          >
+                            {categoryLabel(c.category)}
+                          </span>
+                        );
+                      })()}
+                      {c.status && normalizeStatusFromDb(c.status) !== 'prospect' ? (
+                        (() => {
+                          const stSt = contactStatusTagStyle(c.status);
+                          return (
+                            <span
+                              className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                              style={{
+                                backgroundColor: stSt.bg,
+                                color: stSt.text,
+                                borderColor: stSt.border,
+                              }}
+                            >
+                              {statusLabel(c.status)}
+                            </span>
+                          );
+                        })()
                       ) : null}
                     </div>
-                    <p className="text-xs text-neutral-500">
-                      {isPipelineStripContact(c) ? (
-                        <>
-                          {categoryLabel(c.category)}
-                          {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
-                        </>
-                      ) : (
-                        <>
-                          {categoryLabel(c.category)} · {statusLabel(c.status)}
-                          {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
-                        </>
-                      )}
-                    </p>
+                    {Number(c.monthlyAmount) > 0 ? (
+                      <p className="text-xs text-neutral-500">${Number(c.monthlyAmount).toFixed(0)}/mo</p>
+                    ) : null}
                     {c.phone ? <p className="text-sm text-neutral-700">{formatPhone(c.phone)}</p> : null}
                     {c.email ? <p className="text-sm text-neutral-700">{c.email}</p> : null}
                     {c.address ? <p className="text-sm text-neutral-700">{c.address}</p> : null}
@@ -1448,7 +1475,7 @@ export default function MissionaryContacts() {
               <div>
                 <span className="sent-section-label mb-1 block">Phone</span>
                 <a
-                  href={`tel:${String(detailContact.phone).replace(/\D/g, '')}`}
+                  href={`tel:${phoneDigits(detailContact.phone)}`}
                   className="text-base font-semibold text-accent underline"
                 >
                   {formatPhone(detailContact.phone)}
@@ -1659,7 +1686,7 @@ export default function MissionaryContacts() {
               >
                 {CATEGORY_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
-                    {opt.label}
+                    {categoryLabel(opt.value)}
                   </option>
                 ))}
               </select>
@@ -1667,7 +1694,14 @@ export default function MissionaryContacts() {
             <Label title="Status">
               <select
                 value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                onChange={(e) => {
+                  const nextStatus = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    status: nextStatus,
+                    ...(nextStatus === 'partner' ? { category: 'supporter' } : {}),
+                  }));
+                }}
                 className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[16px] outline-none focus:border-mission-blue"
               >
                 {CONTACT_STATUS_FORM_OPTIONS.map((opt) => (

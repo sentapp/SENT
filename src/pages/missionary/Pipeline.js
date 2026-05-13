@@ -22,7 +22,7 @@ const STAGE_COLUMNS = [
   { status: 'contacted', label: 'Contacted' },
   { status: 'meeting_scheduled', label: 'Meeting Scheduled' },
   { status: 'committed', label: 'Committed' },
-  { status: 'partner', label: 'Monthly Supporter' },
+  { status: 'partner', label: 'Partner' },
 ];
 
 const CATEGORY_BADGE =
@@ -86,7 +86,8 @@ export default function MissionaryPipeline() {
 
   const handleMoveForward = async (contact) => {
     if (!contact?.id) return;
-    const next = PIPELINE_NEXT_STATUS[contact.status];
+    const st = normalizeStatusFromDb(contact.status);
+    const next = PIPELINE_NEXT_STATUS[st];
     if (!next) return;
     setSaveError('');
     setSavingId(contact.id);
@@ -160,7 +161,7 @@ export default function MissionaryPipeline() {
               </div>
               <div className="flex min-h-[100px] flex-col gap-4">
                 {columnContacts.map((c) => {
-                  const canAdvance = Boolean(PIPELINE_NEXT_STATUS[c.status]);
+                  const canAdvance = Boolean(PIPELINE_NEXT_STATUS[normalizeStatusFromDb(c.status)]);
                   return (
                     <Card
                       key={c.id}

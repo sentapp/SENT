@@ -4,6 +4,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { normalizeFullName } from './contactDuplicates';
 import {
   applyImportRowSemantics,
+  findBestCategoryColumnIndex,
   findBestMonthlyAmountColumnIndex,
   findBestStatusColumnIndex,
 } from './importRowSemantics';
@@ -419,6 +420,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
 
   const monthlyImportIdx = findBestMonthlyAmountColumnIndex(headerCells);
   const statusImportIdx = findBestStatusColumnIndex(headerCells);
+  const categoryImportIdx = findBestCategoryColumnIndex(headerCells);
 
   const drafts = [];
   for (let i = 0; i < dataRows.length; i += 1) {
@@ -445,6 +447,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
       if (j === nameIdx || j === phoneIdx || j === emailIdx) continue;
       if (monthlyImportIdx >= 0 && j === monthlyImportIdx) continue;
       if (statusImportIdx >= 0 && j === statusImportIdx) continue;
+      if (categoryImportIdx >= 0 && j === categoryImportIdx) continue;
       const cell = String(row[j] ?? '').trim();
       if (cell) notesParts.push(cell);
     }
@@ -464,6 +467,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
       applyImportRowSemantics(baseDraft, row, {
         statusIdx: statusImportIdx,
         monthlyIdx: monthlyImportIdx,
+        categoryIdx: categoryImportIdx,
         width,
       }),
     );
@@ -562,6 +566,7 @@ export function rowsToContacts(rows, headers) {
   const headerCells = (headers || []).map((h) => String(h ?? ''));
   const monthlyIdx = findBestMonthlyAmountColumnIndex(headerCells);
   const statusIdx = findBestStatusColumnIndex(headerCells);
+  const categoryIdx = findBestCategoryColumnIndex(headerCells);
   const out = [];
   for (const row of rows) {
     if (!Array.isArray(row) && typeof row !== 'object') continue;
@@ -584,7 +589,7 @@ export function rowsToContacts(rows, headers) {
       monthly_amount: 0,
       notes: '',
     };
-    out.push(applyImportRowSemantics(base, arr, { statusIdx, monthlyIdx, width }));
+    out.push(applyImportRowSemantics(base, arr, { statusIdx, monthlyIdx, categoryIdx, width }));
   }
   return out;
 }

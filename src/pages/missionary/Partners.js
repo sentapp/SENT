@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { supabase } from '../../lib/supabaseClient';
-import { categoryLabel, normalizeCategoryForSave } from '../../lib/contactCategories';
-import { normalizeStatusForSave } from '../../lib/contactStatuses';
+import { categoryLabel, normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
+import { normalizeStatusForSave, normalizeStatusFromDb } from '../../lib/contactStatuses';
 import { formatPhone } from '../../lib/phoneFormat';
 import { Button, Card, EmptyState, Modal, Textarea } from '../../components/ui';
 import {
@@ -153,8 +153,8 @@ export default function MissionaryPartners() {
   const partners = useMemo(() => {
     return contacts.filter(
       (c) =>
-        c.category === 'supporter' ||
-        c.status === 'partner' ||
+        normalizeCategory(c.category) === 'supporter' ||
+        normalizeStatusFromDb(c.status) === 'partner' ||
         Number(c.monthlyAmount) > 0,
     );
   }, [contacts]);

@@ -3,7 +3,7 @@ export const CONTACT_CATEGORY_VALUES = ['supporter', 'church', 'former', 'potent
 
 export const CONTACT_CATEGORY_FILTER_TABS = [
   { id: 'all', label: 'All' },
-  { id: 'supporter', label: 'Supporters' },
+  { id: 'supporter', label: 'Partners' },
   { id: 'church', label: 'Churches' },
   { id: 'former', label: 'Previous' },
   { id: 'potential', label: 'Potential' },
@@ -15,6 +15,17 @@ export const CATEGORY_LABELS = CONTACT_CATEGORY_FORM_OPTIONS.reduce((acc, { id, 
   acc[id] = label;
   return acc;
 }, {});
+
+/** Category `supporter` is stored in DB; display as Partner everywhere. */
+CATEGORY_LABELS.supporter = 'Partner';
+
+/** Tailwind-friendly pill styles (WHO tag) — border + text use accent #185FA5 for partner cohort. */
+export const CATEGORY_TAG_COLORS = {
+  supporter: { bg: '#E8F4FC', text: '#185FA5', border: 'rgba(24, 95, 165, 0.35)' },
+  church: { bg: '#FFFBEB', text: '#854F0B', border: 'rgba(133, 79, 11, 0.25)' },
+  former: { bg: '#F4F4F5', text: '#52525B', border: 'rgba(82, 82, 91, 0.35)' },
+  potential: { bg: '#F4F4F5', text: '#404040', border: 'rgba(163, 163, 163, 0.8)' },
+};
 
 const ALLOWED = new Set(CONTACT_CATEGORY_VALUES);
 
@@ -40,5 +51,6 @@ export function normalizeCategoryForSave(value) {
 }
 
 export function categoryLabel(value) {
-  return CATEGORY_LABELS[value] || value || '—';
+  const id = normalizeCategoryFromDb(value);
+  return CATEGORY_LABELS[id] || CATEGORY_LABELS[value] || value || '—';
 }
