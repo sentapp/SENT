@@ -10,7 +10,7 @@ const CONTACT_SELECT_MINIMAL =
 
 /** Optional CRM columns — only used when they exist in the database. */
 const CONTACT_SELECT_OPTIONAL_SUFFIX =
-  'address, is_one_time_donor, one_time_donation_amount, one_time_donation_date';
+  'address, is_one_time_donor, one_time_donation_amount, one_time_donation_date, relationship';
 
 const CONTACT_SELECT_FULL = `${CONTACT_SELECT_MINIMAL}, ${CONTACT_SELECT_OPTIONAL_SUFFIX}`;
 
@@ -40,6 +40,7 @@ export function stripOptionalContactColumnsFromRow(row, schemaPartial) {
   delete out.is_one_time_donor;
   delete out.one_time_donation_amount;
   delete out.one_time_donation_date;
+  delete out.relationship;
   return out;
 }
 
@@ -90,6 +91,7 @@ function mapRow(row) {
       ? String(row.one_time_donation_date).slice(0, 10)
       : '',
     notes: row.notes || '',
+    relationship: row.relationship != null ? String(row.relationship) : '',
     updatedAt: row.updated_at,
     createdAt: row.created_at,
   };
@@ -119,6 +121,10 @@ function toRow(payload, missionaryId) {
   if (status === 'partner') category = 'supporter';
   const monthlyNum = Number.isFinite(Number(monthly)) ? Number(monthly) : 0;
 
+  const relRaw = payload.relationship ?? payload.relationship_label;
+  const relationship =
+    relRaw !== undefined && relRaw !== null && String(relRaw).trim() !== '' ? String(relRaw).trim() : null;
+
   return {
     missionary_id: missionaryId,
     full_name: fullName,
@@ -126,6 +132,7 @@ function toRow(payload, missionaryId) {
     email: String(payload.email ?? '').trim(),
     category,
     status,
+    relationship,
     monthly_amount: monthlyNum,
     notes: String(payload.notes ?? '').trim(),
     address: String(payload.address ?? '').trim(),

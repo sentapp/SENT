@@ -32,6 +32,8 @@ import {
 } from '../../lib/contactCategories';
 import { mergeNotesWithSocial, notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
 import { normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
+import { normalizeRelationshipForSave } from '../../lib/contactRelationships';
+import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { ContactQuickTagsRow } from '../../components/contacts/QuickTagPopover';
 import { Button, Card, EmptyState, Input, LoadingSpinner, Modal, Textarea } from '../../components/ui';
 import ContactEditFormLayout from './ContactEditFormLayout';
@@ -64,6 +66,7 @@ const emptyForm = {
   social: '',
   category: null,
   status: 'prospect',
+  relationship: '',
   monthlyAmount: '',
   isOneTimeDonor: false,
   oneTimeDonationAmount: '',
@@ -88,6 +91,7 @@ function contactFormSnapshot(f) {
     social: f.social ?? '',
     category: f.category ?? '',
     status: f.status ?? '',
+    relationship: f.relationship ?? '',
     monthlyAmount: f.monthlyAmount ?? '',
     isOneTimeDonor: Boolean(f.isOneTimeDonor),
     oneTimeDonationAmount: f.oneTimeDonationAmount ?? '',
@@ -667,6 +671,7 @@ export default function MissionaryContacts() {
       // Map legacy categories into the current enum set for the form.
       category: normalizeCategoryForSave(c.category),
       status: normalizeStatusFromDb(c.status),
+      relationship: c.relationship != null && String(c.relationship).trim() !== '' ? String(c.relationship).trim() : '',
       monthlyAmount: c.monthlyAmount ? String(c.monthlyAmount) : '',
       isOneTimeDonor: Boolean(c.isOneTimeDonor),
       oneTimeDonationAmount:
@@ -773,6 +778,7 @@ export default function MissionaryContacts() {
         address: form.address,
         category: normalizeCategoryForSave(form.category),
         status: normalizeStatusForSave(form.status),
+        relationship: normalizeRelationshipForSave(form.relationship) ?? '',
         monthlyAmount: form.monthlyAmount,
         isOneTimeDonor: isOneTimeDonorEffective,
         oneTimeDonationAmount: form.oneTimeDonationAmount,
@@ -801,6 +807,7 @@ export default function MissionaryContacts() {
       address: form.address,
       category: categorySaved,
       status: statusSaved,
+      relationship: normalizeRelationshipForSave(form.relationship) ?? '',
       monthlyAmount: form.monthlyAmount,
       isOneTimeDonor: isOneTimeDonorEffective,
       oneTimeDonationAmount: form.oneTimeDonationAmount,
@@ -1207,7 +1214,7 @@ export default function MissionaryContacts() {
           <p className="font-semibold">Database upgrade suggested</p>
           <p className="mt-1 text-amber-900/90">
             Your contacts are loading with core fields only. Run the latest Supabase migrations for optional columns
-            (address, one-time donor fields). Until then, those fields won&apos;t save.
+            (address, one-time donor fields, relationship). Until then, those fields won&apos;t save.
           </p>
         </div>
       ) : null}
@@ -1360,6 +1367,7 @@ export default function MissionaryContacts() {
                         contact={c}
                         updateContact={updateContact}
                         showPotentialAddTag
+                        addTagWhen="empty-tags"
                       />
                     </div>
                     {Number(c.monthlyAmount) > 0 ? (
@@ -1403,7 +1411,7 @@ export default function MissionaryContacts() {
 
       <Modal
         open={Boolean(detailContact)}
-        title="Contact"
+        title="View contact"
         backdropClose={false}
         closeButtonLabel="✕"
         onClose={closeDetail}
@@ -1427,12 +1435,25 @@ export default function MissionaryContacts() {
       >
         {detailContact ? (
           <div className="space-y-4 text-sm">
-            <p className="text-2xl font-bold tracking-tight text-ink">{detailContact.fullName || 'Unnamed contact'}</p>
+            <div className="flex gap-3">
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#185FA5] text-lg font-semibold leading-none text-white"
+                aria-hidden
+              >
+                {initialsFromDisplayName(detailContact.fullName || '')}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-2xl font-bold tracking-tight text-ink">{detailContact.fullName || 'Unnamed contact'}</p>
+                <p className="mt-1 text-xs text-mission-muted">Tap tags to update category, status, or relationship.</p>
+              </div>
+            </div>
             <div className="group flex flex-wrap gap-1.5">
               <ContactQuickTagsRow
                 contact={detailContact}
                 updateContact={updateContact}
                 showPotentialAddTag
+                addTagLabel="+ Add tag"
+                addTagVariant="detail"
               />
             </div>
             {detailContact.phone ? (

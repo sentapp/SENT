@@ -117,6 +117,7 @@ export default function MissionaryPipeline() {
       oneTimeDonationAmount: c.oneTimeDonationAmount,
       oneTimeDonationDate: c.oneTimeDonationDate,
       notes: c.notes,
+      relationship: c.relationship ?? '',
     });
     setAddBusyId(null);
     if (!res.ok) {

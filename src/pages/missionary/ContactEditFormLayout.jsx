@@ -1,4 +1,9 @@
 import { CONTACT_CATEGORY_FORM_OPTIONS, categoryLabel, getCategoryTagColors } from '../../lib/contactCategories';
+import {
+  getRelationshipTagColors,
+  relationshipLabel,
+  RELATIONSHIP_TAG_OPTIONS,
+} from '../../lib/contactRelationships';
 import { CONTACT_STATUS_FORM_OPTIONS, STATUS_TAG_COLORS, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { Input, Label, Textarea } from '../../components/ui';
@@ -12,12 +17,26 @@ function pillButtonClass(selected) {
   ].join(' ');
 }
 
-function ContactFormHeaderTags({ category, status }) {
+function ContactFormHeaderTags({ category, status, relationship }) {
   const st = normalizeStatusFromDb(status);
+  const rel = relationship != null && String(relationship).trim() !== '' ? String(relationship).trim() : '';
+  const relSt = rel ? getRelationshipTagColors(rel) : null;
   if (st === 'partner') {
     const stSt = STATUS_TAG_COLORS.partner;
     return (
       <div className="flex flex-wrap gap-1.5">
+        {relSt ? (
+          <span
+            className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+            style={{
+              backgroundColor: relSt.bg,
+              color: relSt.text,
+              borderColor: relSt.border,
+            }}
+          >
+            {relationshipLabel(rel)}
+          </span>
+        ) : null}
         <span
           className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
           style={{
@@ -44,6 +63,18 @@ function ContactFormHeaderTags({ category, status }) {
           }}
         >
           {categoryLabel(category)}
+        </span>
+      ) : null}
+      {relSt ? (
+        <span
+          className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+          style={{
+            backgroundColor: relSt.bg,
+            color: relSt.text,
+            borderColor: relSt.border,
+          }}
+        >
+          {relationshipLabel(rel)}
         </span>
       ) : null}
       {st !== 'prospect' ? (
@@ -97,7 +128,7 @@ export default function ContactEditFormLayout({ form, setForm, phoneDupWarn, ema
             {name.trim() || 'New contact'}
           </p>
           <div className="mt-2">
-            <ContactFormHeaderTags category={form.category} status={form.status} />
+            <ContactFormHeaderTags category={form.category} status={form.status} relationship={form.relationship} />
           </div>
         </div>
       </div>
@@ -190,6 +221,32 @@ export default function ContactEditFormLayout({ form, setForm, phoneDupWarn, ema
                     ...(id === 'supporter' ? { status: 'partner' } : {}),
                   }));
                 }}
+                className={pillButtonClass(selected)}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-mission-muted">Relationship</h3>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setForm((f) => ({ ...f, relationship: '' }))}
+            className={pillButtonClass(!form.relationship || String(form.relationship).trim() === '')}
+          >
+            None
+          </button>
+          {RELATIONSHIP_TAG_OPTIONS.map(({ value, label }) => {
+            const selected = form.relationship === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, relationship: value }))}
                 className={pillButtonClass(selected)}
               >
                 {label}

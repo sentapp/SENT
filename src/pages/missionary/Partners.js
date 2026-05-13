@@ -15,6 +15,12 @@ import {
   serializeDraft,
 } from './PartnerInlineEditPanel';
 
+const partnerFilters = [
+  { label: 'All', value: 'all' },
+  { label: 'Individuals', value: 'individual' },
+  { label: 'Churches', value: 'church' },
+];
+
 const COMM_TYPE_LABEL = {
   call: 'Call',
   text: 'Text',
@@ -163,7 +169,9 @@ export default function MissionaryPartners() {
   const [savedNoticeId, setSavedNoticeId] = useState(null);
   const savedNoticeTimerRef = useRef(null);
 
-  const partners = useMemo(() => {
+  const [partnerViewFilter, setPartnerViewFilter] = useState('all');
+
+  const allPartners = useMemo(() => {
     return contacts.filter(
       (c) =>
         normalizeCategory(c.category) === 'supporter' ||
@@ -171,6 +179,26 @@ export default function MissionaryPartners() {
         Number(c.monthlyAmount) > 0,
     );
   }, [contacts]);
+
+  const partners = useMemo(() => {
+    if (partnerViewFilter === 'all') return allPartners;
+    if (partnerViewFilter === 'individual') {
+      return allPartners.filter((c) => {
+        const cat = normalizeCategory(c.category);
+        return cat === 'supporter' && cat !== 'church';
+      });
+    }
+    if (partnerViewFilter === 'church') {
+      return allPartners.filter((c) => normalizeCategory(c.category) === 'church');
+    }
+    return allPartners;
+  }, [allPartners, partnerViewFilter]);
+
+  useEffect(() => {
+    if (expandedPartnerId && !partners.some((p) => p.id === expandedPartnerId)) {
+      setExpandedPartnerId(null);
+    }
+  }, [expandedPartnerId, partners]);
 
   const expandedPartner = useMemo(
     () => (expandedPartnerId ? partners.find((p) => p.id === expandedPartnerId) ?? null : null),
@@ -593,7 +621,43 @@ export default function MissionaryPartners() {
         ) : null}
       </header>
 
-      {partners.length === 0 ? (
+      {allPartners.length > 0 ? (
+        <div
+          className="flex w-full flex-wrap gap-2 rounded-lg border border-mission-line bg-neutral-100 p-1"
+          role="tablist"
+          aria-label="Filter partners"
+        >
+          {partnerFilters.map((f) => {
+            const active = partnerViewFilter === f.value;
+            return (
+              <button
+                key={f.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setPartnerViewFilter(f.value)}
+                className={`min-h-[40px] flex-1 rounded-md px-3 py-2 text-center text-xs font-semibold transition sm:text-sm ${
+                  active
+                    ? 'border-b-2 border-[#185FA5] bg-white text-[#185FA5] shadow-sm'
+                    : 'border-b-2 border-transparent text-neutral-600 hover:bg-white/70'
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {allPartners.length > 0 && partners.length === 0 ? (
+        <EmptyState
+          icon="heart"
+          title="No partners in this view"
+          subtitle="Try a different filter — your partners are still saved under All."
+        />
+      ) : null}
+
+      {allPartners.length === 0 ? (
         <EmptyState
           icon="heart"
           title="No partners yet"
@@ -604,7 +668,7 @@ export default function MissionaryPartners() {
             </Button>
           }
         />
-      ) : (
+      ) : partners.length === 0 ? null : (
         <>
           {needsContact.length > 0 ? (
             <section className="space-y-3" aria-labelledby="reach-out-heading">
