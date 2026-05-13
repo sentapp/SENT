@@ -8,6 +8,8 @@ import {
 } from '../../hooks/useMissionaryPipelineContacts';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { categoryLabel } from '../../lib/contactCategories';
+import { normalizeStatusFromDb } from '../../lib/contactStatuses';
+import { formatPhone } from '../../lib/phoneFormat';
 import { Button, Card, Input, Modal } from '../../components/ui';
 
 const KANBAN_SET = new Set(MISSIONARY_KANBAN_STATUSES);
@@ -17,10 +19,8 @@ const KANBAN_SET = new Set(MISSIONARY_KANBAN_STATUSES);
  * Must match `MISSIONARY_KANBAN_STATUSES` and `PIPELINE_NEXT_STATUS` in `useMissionaryPipelineContacts`.
  */
 const STAGE_COLUMNS = [
-  { status: 'prospect', label: 'New Lead' },
   { status: 'contacted', label: 'Contacted' },
-  { status: 'asked', label: 'Asked' },
-  { status: 'meeting_scheduled', label: 'Meeting Set' },
+  { status: 'meeting_scheduled', label: 'Meeting Scheduled' },
   { status: 'committed', label: 'Committed' },
   { status: 'partner', label: 'Monthly Supporter' },
 ];
@@ -72,7 +72,7 @@ export default function MissionaryPipeline() {
   const addCandidates = useMemo(() => {
     const q = addQuery.trim().toLowerCase();
     return contacts
-      .filter((c) => !KANBAN_SET.has(c.status) && c.status !== 'declined')
+      .filter((c) => !KANBAN_SET.has(normalizeStatusFromDb(c.status)) && normalizeStatusFromDb(c.status) !== 'declined')
       .filter((c) => {
         if (!q) return true;
         return (
@@ -149,7 +149,7 @@ export default function MissionaryPipeline() {
         <p className="text-sm text-neutral-500">Loading pipeline…</p>
       ) : null}
 
-      <div className="flex gap-4 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-6 md:gap-4 md:overflow-visible">
+      <div className="flex gap-4 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
         {STAGE_COLUMNS.map((col) => {
           const columnContacts = byColumn[col.status] || [];
           return (
@@ -176,7 +176,7 @@ export default function MissionaryPipeline() {
                       className="cursor-pointer border-mission-line p-4 shadow-none transition hover:bg-[color:var(--color-bg)]"
                     >
                       <p className="text-sm font-bold text-ink">{c.fullName || 'Unnamed'}</p>
-                      <p className="mt-1 text-xs text-neutral-600">{c.phone || '—'}</p>
+                      <p className="mt-1 text-xs text-neutral-600">{formatPhone(c.phone) || '—'}</p>
                       <p className="mt-2">
                         <span className={CATEGORY_BADGE}>{categoryLabel(c.category)}</span>
                       </p>
@@ -241,7 +241,7 @@ export default function MissionaryPipeline() {
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-ink">{c.fullName || 'Unnamed'}</p>
-                  <p className="truncate text-xs text-neutral-500">{c.phone || c.email || '—'}</p>
+                  <p className="truncate text-xs text-neutral-500">{formatPhone(c.phone) || c.email || '—'}</p>
                 </div>
                 <Button
                   type="button"

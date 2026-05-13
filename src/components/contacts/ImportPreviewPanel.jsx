@@ -1,3 +1,4 @@
+import { formatPhone } from '../../lib/phoneFormat';
 import { Button, Label } from '../ui';
 
 export function ImportPreviewPanel({
@@ -121,7 +122,7 @@ export function ImportPreviewPanel({
                     />
                   </td>
                   <td className="px-3 py-2 font-medium text-ink">{d.full_name || '—'}</td>
-                  <td className="px-3 py-2 text-neutral-700">{d.phone || '—'}</td>
+                  <td className="px-3 py-2 text-neutral-700">{formatPhone(d.phone) || '—'}</td>
                   <td className="max-w-[200px] truncate px-3 py-2 text-neutral-700">{d.email || '—'}</td>
                   <td className="px-3 py-2">
                     {d.duplicateOf ? (

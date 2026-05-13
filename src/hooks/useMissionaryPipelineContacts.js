@@ -37,27 +37,18 @@ function mapRow(row) {
   };
 }
 
-/** Active conversation stages — Overview widget + Contacts pipeline strip. */
-export const CONTACTS_PIPELINE_STRIP_STATUSES = ['contacted', 'asked', 'meeting_scheduled', 'committed'];
+/** Active conversation stages — Overview widget (matches Contacts pipeline strip, without declined). */
+export const CONTACTS_PIPELINE_STRIP_STATUSES = ['contacted', 'meeting_scheduled', 'committed'];
 
 /** @deprecated use CONTACTS_PIPELINE_STRIP_STATUSES */
 export const MISSIONARY_PIPELINE_TRACKED_STATUSES = CONTACTS_PIPELINE_STRIP_STATUSES;
 
-/** Full Pipeline Kanban left-to-right order (declined omitted — not shown on board). */
-export const MISSIONARY_KANBAN_STATUSES = [
-  'prospect',
-  'contacted',
-  'asked',
-  'meeting_scheduled',
-  'committed',
-  'partner',
-];
+/** Pipeline Kanban columns only (Prospect / Not Interested are lifecycle states, not board columns). */
+export const MISSIONARY_KANBAN_STATUSES = ['contacted', 'meeting_scheduled', 'committed', 'partner'];
 
 /** Advance toward Partner (Monthly Supporter). */
 export const PIPELINE_NEXT_STATUS = {
-  prospect: 'contacted',
-  contacted: 'asked',
-  asked: 'meeting_scheduled',
+  contacted: 'meeting_scheduled',
   meeting_scheduled: 'committed',
   committed: 'partner',
 };

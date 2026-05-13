@@ -97,7 +97,7 @@ export function interpretImportStatusCell(raw) {
     return { explicitEnum: 'contacted', partnerKeywords: false };
   }
   if (/\basked\b/i.test(lower)) {
-    return { explicitEnum: 'asked', partnerKeywords: false };
+    return { explicitEnum: 'contacted', partnerKeywords: false };
   }
   if (/\bdeclined\b/i.test(lower) || /\bnot\s+interested\b/i.test(lower)) {
     return { explicitEnum: 'declined', partnerKeywords: false };
@@ -116,8 +116,8 @@ export function interpretImportStatusCell(raw) {
 }
 
 /**
- * Import category: default `potential` unless monthly giving, supporter/partner/monthly cues in status text,
- * or church/org / former-supporter cues in status, name, or notes.
+ * Import category: default `potential`. Monthly amount → supporter. Supporter/partner cues from the status cell.
+ * Former / church only when that signal appears in the **status column** (avoid blanket tagging from notes/name).
  * @param {{ statusText?: string, nameText?: string, notesText?: string }} row parsed fields (spreadsheet row context)
  * @param {number} monthlyAmount resolved monthly support amount for this row
  * @returns {'supporter'|'church'|'former'|'potential'}
@@ -125,38 +125,33 @@ export function interpretImportStatusCell(raw) {
 export function determineCategory(row, monthlyAmount) {
   const signals = row && typeof row === 'object' && !Array.isArray(row) ? row : {};
   const statusText = String(signals.statusText ?? '').trim();
-  const nameText = String(signals.nameText ?? '').trim();
-  const notesText = String(signals.notesText ?? '').trim();
-  const blob = [statusText, nameText, notesText].filter(Boolean).join('\n').toLowerCase();
+  const statusLower = statusText.toLowerCase();
 
   const monthly = Number(monthlyAmount);
   const amt = Number.isFinite(monthly) && monthly > 0 ? monthly : 0;
 
-  if (
-    /\b(no\s+longer|previously|previous\s+partner|previous\s+supporter|formerly|past\s+supporter|ex-?\s?partner|lapsed)\b/i.test(
-      blob,
-    ) ||
-    /\bformer\s+(partner|supporter|donor|giver|mission\s*partner)\b/i.test(blob)
-  ) {
-    return 'former';
-  }
-
-  if (
-    /\b(church|chapel|congregation|parish|cathedral|denomination|presbytery|diocese)\b/i.test(blob) ||
-    /\borga[mn]i[sz]ation\b/i.test(blob) ||
-    /\bministry\b(?!\s*partner)/i.test(blob)
-  ) {
-    return 'church';
-  }
-
   if (amt > 0) return 'supporter';
 
   if (statusText) {
+    if (
+      /\b(no\s+longer|previously|previous\s+partner|previous\s+supporter|formerly|past\s+supporter|ex-?\s?partner|lapsed)\b/i.test(
+        statusLower,
+      ) ||
+      /\bformer\s+(partner|supporter|donor|giver|mission\s*partner)\b/i.test(statusLower)
+    ) {
+      return 'former';
+    }
+
+    if (/\b(church|chapel|congregation|parish|cathedral|denomination|presbytery|diocese)\b/i.test(statusLower)) {
+      return 'church';
+    }
+
     const interpreted = interpretImportStatusCell(statusText);
     if (interpreted.partnerKeywords || interpreted.explicitEnum === 'partner') return 'supporter';
-    const st = statusText.toLowerCase();
-    if (/\b(supporter|giving\s*partner|mission\s*partner|pledge|recurring)\b/i.test(st)) return 'supporter';
-    if (/\bmonthly\b/i.test(st) && /\b(\$|usd|gift|donation|support|pledge|amount|giving)\b/i.test(st)) return 'supporter';
+    if (/\b(supporter|giving\s*partner|mission\s*partner|pledge|recurring)\b/i.test(statusLower)) return 'supporter';
+    if (/\bmonthly\b/i.test(statusLower) && /\b(\$|usd|gift|donation|support|pledge|amount|giving)\b/i.test(statusLower)) {
+      return 'supporter';
+    }
   }
 
   return 'potential';
@@ -194,9 +189,7 @@ export function applyImportRowSemantics(draft, row, ctx) {
     const amt = parseMonthlyAmountCell(row[monthlyIdx]);
     if (amt > 0) {
       monthly_amount = amt;
-      if (!explicitStatusFromSheet) {
-        status = 'partner';
-      }
+      status = 'partner';
     }
   }
 
