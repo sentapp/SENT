@@ -1,4 +1,5 @@
 import { normalizeCategoryForSave } from './contactCategories';
+import { safeCategoryValue } from './safeCategory';
 import { normalizeStatusForSave } from './contactStatuses';
 
 /** Normalize for duplicate comparison */
@@ -180,7 +181,7 @@ export function draftToInsertPayload(d) {
     full_name,
     phone: d.phone || '',
     email: d.email || '',
-    category: normalizeCategoryForSave(d.category),
+    category: safeCategoryValue(normalizeCategoryForSave(d.category)),
     status: normalizeStatusForSave(d.status),
     monthly_amount: Number.isFinite(Number(d.monthly_amount)) ? Number(d.monthly_amount) : 0,
     notes: d.notes || '',

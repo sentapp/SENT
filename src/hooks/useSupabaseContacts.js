@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { normalizeCategoryForSave, normalizeCategoryFromDb } from '../lib/contactCategories';
+import { safeCategoryValue } from '../lib/safeCategory';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../lib/contactStatuses';
 import { isImportDuplicateByPhoneOrName, removeDuplicateContacts as removeDuplicateContactsFromDb } from '../lib/contactDuplicates';
 
@@ -119,6 +120,7 @@ function toRow(payload, missionaryId) {
       : null;
   let category = categoryBase;
   if (status === 'partner') category = 'supporter';
+  category = safeCategoryValue(category);
   const monthlyNum = Number.isFinite(Number(monthly)) ? Number(monthly) : 0;
 
   const relRaw = payload.relationship ?? payload.relationship_label;

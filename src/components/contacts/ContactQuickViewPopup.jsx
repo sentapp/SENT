@@ -1,10 +1,16 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { categoryLabel, normalizeCategory } from '../../lib/contactCategories';
-import { formatPhone } from '../../lib/phoneFormat';
+import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { Textarea } from '../../components/ui';
 import { ContactThreeQuickTagRows } from './QuickTagPopover';
+import {
+  QUICK_LOG_BACKDROP_Z,
+  QUICK_LOG_MODAL_Z,
+  QUICK_VIEW_BACKDROP_BG,
+  QUICK_VIEW_BACKDROP_Z,
+  QUICK_VIEW_MODAL_Z,
+} from './quickViewOverlayZIndex';
 
 const COMM_TYPE_LABEL = {
   call: 'Call',
@@ -51,15 +57,17 @@ function formatMonthly(amount) {
   return Number.isFinite(n) && n > 0 ? `$${n.toFixed(0)}/mo` : '$0/mo';
 }
 
-function subtitle(contact) {
-  const monthly = formatMonthly(contact?.monthlyAmount);
-  const cat = normalizeCategory(contact?.category);
-  const lab = cat ? categoryLabel(contact.category) : '';
-  return lab ? `${monthly} · ${lab}` : monthly;
+function InfoRow({ label, children }) {
+  return (
+    <div>
+      <span className="text-xs font-semibold uppercase tracking-wide text-mission-muted">{label}</span>
+      <div className="mt-0.5 text-sm text-ink">{children}</div>
+    </div>
+  );
 }
 
 /**
- * Small fixed-centered quick view (not full-screen). Backdrop z-[199], panel z-[200].
+ * Regular contact quick view (list row tap). Backdrop {@link QUICK_VIEW_BACKDROP_Z}, panel {@link QUICK_VIEW_MODAL_Z}.
  */
 export function ContactQuickViewPopup({
   open,
@@ -92,17 +100,23 @@ export function ContactQuickViewPopup({
 
   const badge = lastContactBadgeFromIso(lastContactIso ?? null);
   const phoneDisp = contact.phone ? formatPhone(contact.phone) : '—';
+  const telHref = contact.phone ? `tel:${phoneDigits(contact.phone) || ''}` : null;
+  const emailRaw = String(contact.email ?? '').trim();
+  const notesBody = String(contact.notes ?? '').trim();
+  const showMonthly = Number(contact.monthlyAmount) > 0;
 
   return createPortal(
     <>
       <button
         type="button"
-        className="fixed inset-0 z-[199] cursor-default border-0 bg-[rgba(0,0,0,0.2)] p-0"
+        className="fixed inset-0 cursor-default border-0 p-0"
+        style={{ zIndex: QUICK_VIEW_BACKDROP_Z, backgroundColor: QUICK_VIEW_BACKDROP_BG }}
         aria-label="Close"
         onClick={onClose}
       />
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-none"
+        className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none"
+        style={{ zIndex: QUICK_VIEW_MODAL_Z }}
         role="presentation"
       >
         <div
@@ -123,7 +137,9 @@ export function ContactQuickViewPopup({
                 <p id="contact-quick-view-name" className="truncate text-base font-semibold text-ink">
                   {contact.fullName || 'Unnamed'}
                 </p>
-                <p className="mt-0.5 truncate text-xs text-neutral-600">{subtitle(contact)}</p>
+                {showMonthly ? (
+                  <p className="mt-0.5 truncate text-xs text-neutral-600">{formatMonthly(contact.monthlyAmount)}</p>
+                ) : null}
               </div>
               <button
                 type="button"
@@ -134,28 +150,47 @@ export function ContactQuickViewPopup({
                 ✕
               </button>
             </div>
+            {updateContact ? (
+              <div className="mt-3 border-t border-mission-line/80 pt-3" onClick={(e) => e.stopPropagation()}>
+                <ContactThreeQuickTagRows
+                  contact={contact}
+                  updateContact={updateContact}
+                  onPatchContact={onPatchContact}
+                  onAfterSave={onAfterQuickTagSave}
+                />
+              </div>
+            ) : null}
           </div>
 
-          {updateContact ? (
-            <div className="border-b border-mission-line px-4 py-2" onClick={(e) => e.stopPropagation()}>
-              <ContactThreeQuickTagRows
-                contact={contact}
-                updateContact={updateContact}
-                onPatchContact={onPatchContact}
-                onAfterSave={onAfterQuickTagSave}
-              />
-            </div>
-          ) : null}
-
-          <div className="space-y-3 px-4 py-3 text-sm">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-mission-muted">Phone</span>
-              <p className="mt-0.5 font-medium text-ink">{phoneDisp}</p>
-            </div>
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-mission-muted">Last contact</span>
-              <p className={`mt-0.5 text-sm ${badge.className}`}>{badge.label}</p>
-            </div>
+          <div className="space-y-3 px-4 py-3">
+            <InfoRow label="Phone">
+              {telHref ? (
+                <a href={telHref} className="font-medium text-mission-blue underline">
+                  {phoneDisp}
+                </a>
+              ) : (
+                <span className="font-medium">{phoneDisp}</span>
+              )}
+            </InfoRow>
+            <InfoRow label="Email">
+              {emailRaw ? (
+                <a href={`mailto:${emailRaw}`} className="break-all font-medium text-mission-blue underline">
+                  {emailRaw}
+                </a>
+              ) : (
+                <span className="font-medium text-neutral-500">—</span>
+              )}
+            </InfoRow>
+            <InfoRow label="Last contact">
+              <span className={badge.className}>{badge.label}</span>
+            </InfoRow>
+            <InfoRow label="Notes">
+              {notesBody ? (
+                <p className="whitespace-pre-wrap break-words text-neutral-800">{notesBody}</p>
+              ) : (
+                <span className="text-neutral-500">—</span>
+              )}
+            </InfoRow>
             {actionError ? <p className="text-sm text-red-600">{actionError}</p> : null}
           </div>
 
@@ -195,7 +230,7 @@ export function ContactQuickViewPopup({
               className="w-full py-2 text-center text-sm font-semibold text-mission-blue hover:underline"
               onClick={onViewFullProfile}
             >
-              View full profile →
+              Edit full profile →
             </button>
           </div>
         </div>
@@ -206,7 +241,7 @@ export function ContactQuickViewPopup({
 }
 
 /**
- * Second-layer quick log dialog. Backdrop z-[201], panel z-[202].
+ * Second-layer quick log dialog.
  */
 export function ContactQuickLogPopup({
   open,
@@ -220,6 +255,8 @@ export function ContactQuickLogPopup({
   onSave,
   onClose,
   types = QUICK_LOG_COMM_TYPES,
+  backdropZIndex = QUICK_LOG_BACKDROP_Z,
+  panelZIndex = QUICK_LOG_MODAL_Z,
 }) {
   useEffect(() => {
     if (!open) return undefined;
@@ -240,11 +277,15 @@ export function ContactQuickLogPopup({
     <>
       <button
         type="button"
-        className="fixed inset-0 z-[201] cursor-default border-0 bg-[rgba(0,0,0,0.2)] p-0"
+        className="fixed inset-0 cursor-default border-0 p-0"
+        style={{ zIndex: backdropZIndex, backgroundColor: QUICK_VIEW_BACKDROP_BG }}
         aria-label="Close"
         onClick={() => !saving && onClose?.()}
       />
-      <div className="fixed inset-0 z-[202] flex items-center justify-center p-4 pointer-events-none">
+      <div
+        className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none"
+        style={{ zIndex: panelZIndex }}
+      >
         <div
           className="pointer-events-auto w-full max-w-[min(360px,calc(100vw-2rem))] rounded-card border border-mission-line bg-surface p-4 shadow-lg"
           role="dialog"

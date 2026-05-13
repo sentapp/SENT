@@ -1,4 +1,5 @@
 import { normalizeCategoryForSave, normalizeCategoryFromDb } from './contactCategories';
+import { safeCategoryValue } from './safeCategory';
 import { normalizeRelationshipForSave } from './contactRelationships';
 import { normalizeStatusForSave, normalizeStatusFromDb } from './contactStatuses';
 
@@ -15,7 +16,7 @@ export function buildQuickTagCategoryStatusPayload(contact, field, value) {
     status = normalizeStatusForSave(value);
     if (status === 'partner') category = 'supporter';
   }
-  return { category, status };
+  return { category: safeCategoryValue(category), status };
 }
 
 /** Full camelCase base for `useSupabaseContacts().updateContact` / `toRow`. */
@@ -43,7 +44,7 @@ export function fullContactPayloadFromQuickTag(contact, field, value) {
     const saved = normalizeRelationshipForSave(value);
     return {
       ...baseContactPayloadForSave(contact),
-      category: normalizeCategoryFromDb(contact.category),
+      category: safeCategoryValue(normalizeCategoryFromDb(contact.category)),
       status: normalizeStatusFromDb(contact.status),
       relationship: saved == null ? '' : saved,
     };

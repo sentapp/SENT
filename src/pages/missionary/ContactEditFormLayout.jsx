@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { Input, Label, Textarea } from '../../components/ui';
+import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
 
 /**
  * Layout A: avatar + name header, sectioned fields (add + edit).
@@ -9,16 +11,65 @@ import { Input, Label, Textarea } from '../../components/ui';
  *   phoneDupWarn: { id: string, fullName?: string } | null,
  *   emailDupWarn: { id: string, fullName?: string } | null,
  *   scrollToContact: (id: string) => void,
+ *   deferQuickTags?: boolean,
+ *   editingContactId?: string | null,
  * }} props
  */
-export default function ContactEditFormLayout({ form, setForm, phoneDupWarn, emailDupWarn, scrollToContact }) {
+export default function ContactEditFormLayout({
+  form,
+  setForm,
+  phoneDupWarn,
+  emailDupWarn,
+  scrollToContact,
+  deferQuickTags = false,
+  editingContactId = null,
+}) {
   const name = String(form.fullName ?? '');
   const initials = initialsFromDisplayName(name);
   const oneTimeNum = Number.parseFloat(String(form.oneTimeDonationAmount ?? '').replace(/,/g, ''));
   const showOneTimeDate = Number.isFinite(oneTimeNum) && oneTimeNum > 0;
 
+  const quickTagContact = useMemo(
+    () => ({
+      id: editingContactId ?? '',
+      fullName: form.fullName ?? '',
+      phone: form.phone ?? '',
+      email: form.email ?? '',
+      address: form.address ?? '',
+      monthlyAmount: form.monthlyAmount ?? '',
+      notes: form.notes ?? '',
+      category: form.category,
+      status: form.status,
+      relationship: form.relationship ?? '',
+      isOneTimeDonor: form.isOneTimeDonor,
+      oneTimeDonationAmount: form.oneTimeDonationAmount,
+      oneTimeDonationDate: form.oneTimeDonationDate,
+    }),
+    [
+      editingContactId,
+      form.fullName,
+      form.phone,
+      form.email,
+      form.address,
+      form.monthlyAmount,
+      form.notes,
+      form.category,
+      form.status,
+      form.relationship,
+      form.isOneTimeDonor,
+      form.oneTimeDonationAmount,
+      form.oneTimeDonationDate,
+    ],
+  );
+
   return (
     <div className="space-y-6">
+      {deferQuickTags ? (
+        <div className="space-y-2 border-b border-mission-line pb-4" onClick={(e) => e.stopPropagation()}>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-mission-muted">Tags</h3>
+          <ContactThreeQuickTagRows contact={quickTagContact} deferSave setForm={setForm} />
+        </div>
+      ) : null}
       <div className="flex gap-3 border-b border-mission-line pb-4">
         <div
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#185FA5] text-[15px] font-medium leading-none text-white"

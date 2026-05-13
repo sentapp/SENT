@@ -1,4 +1,5 @@
 import { normalizeCategoryForSave } from './contactCategories';
+import { safeCategoryValue } from './safeCategory';
 import { CONTACT_STATUS_VALUES, normalizeStatusForSave } from './contactStatuses';
 
 const STATUS_SET = new Set(CONTACT_STATUS_VALUES);
@@ -252,7 +253,7 @@ export function applyImportRowSemantics(draft, row, ctx) {
 
   return {
     ...draft,
-    category: finalCategory,
+    category: safeCategoryValue(finalCategory),
     status: finalStatus,
     monthly_amount,
   };

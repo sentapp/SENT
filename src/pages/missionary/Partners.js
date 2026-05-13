@@ -4,13 +4,14 @@ import { useAuth } from '../../auth/AuthContext';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
 import {
   ContactQuickLogPopup,
-  ContactQuickViewPopup,
   lastContactBadgeFromIso,
 } from '../../components/contacts/ContactQuickViewPopup';
+import { PartnerQuickViewPopup } from '../../components/contacts/PartnerQuickViewPopup';
 import { Button, EmptyState, Modal } from '../../components/ui';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { findEmailConflict, findPhoneConflict } from '../../lib/contactDuplicates';
 import { normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
+import { safeCategoryValue } from '../../lib/safeCategory';
 import { mergeNotesWithSocial, notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
 import { normalizeRelationshipForSave } from '../../lib/contactRelationships';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../../lib/contactStatuses';
@@ -447,7 +448,7 @@ export default function MissionaryPartners() {
       phone: fullProfileForm.phone,
       email: fullProfileForm.email,
       address: fullProfileForm.address,
-      category: normalizeCategoryForSave(fullProfileForm.category),
+      category: safeCategoryValue(normalizeCategoryForSave(fullProfileForm.category)),
       status: normalizeStatusForSave(fullProfileForm.status),
       relationship: normalizeRelationshipForSave(fullProfileForm.relationship) ?? '',
       monthlyAmount: fullProfileForm.monthlyAmount,
@@ -701,9 +702,9 @@ export default function MissionaryPartners() {
         </>
       )}
 
-      <ContactQuickViewPopup
+      <PartnerQuickViewPopup
         open={Boolean(popupPartner)}
-        contact={popupPartner}
+        partner={popupPartner}
         lastContactIso={popupPartner ? lastContactMap[popupPartner.id] ?? null : null}
         onClose={() => {
           setPopupPartner(null);
@@ -760,6 +761,8 @@ export default function MissionaryPartners() {
           phoneDupWarn={phoneDupWarn}
           emailDupWarn={emailDupWarn}
           scrollToContact={scrollToContact}
+          deferQuickTags
+          editingContactId={fullProfileId}
         />
       </Modal>
 

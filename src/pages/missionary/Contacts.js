@@ -30,13 +30,14 @@ import {
   normalizeCategory,
   normalizeCategoryForSave,
 } from '../../lib/contactCategories';
+import { safeCategoryValue } from '../../lib/safeCategory';
 import { mergeNotesWithSocial, notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
 import { normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { normalizeRelationshipForSave } from '../../lib/contactRelationships';
 import {
   ContactQuickLogPopup,
-  ContactQuickViewPopup,
 } from '../../components/contacts/ContactQuickViewPopup';
+import { ContactProfilePopup1 } from '../../components/contacts/ContactProfilePopup1';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
 import { Button, Card, EmptyState, Input, LoadingSpinner, Modal } from '../../components/ui';
 import ContactEditFormLayout from './ContactEditFormLayout';
@@ -386,7 +387,7 @@ export default function MissionaryContacts() {
           phone,
           email,
           address: String(d.address ?? '').trim(),
-          category: normalizeCategoryForSave(d.category),
+          category: safeCategoryValue(normalizeCategoryForSave(d.category)),
           status: normalizeStatusForSave(d.status),
           notes,
           monthly_amount: Number.isFinite(Number(d.monthly_amount)) ? Number(d.monthly_amount) : 0,
@@ -753,7 +754,7 @@ export default function MissionaryContacts() {
         phone: form.phone,
         email: form.email,
         address: form.address,
-        category: normalizeCategoryForSave(form.category),
+        category: safeCategoryValue(normalizeCategoryForSave(form.category)),
         status: normalizeStatusForSave(form.status),
         relationship: normalizeRelationshipForSave(form.relationship) ?? '',
         monthlyAmount: form.monthlyAmount,
@@ -774,7 +775,7 @@ export default function MissionaryContacts() {
       return;
     }
 
-    const categorySaved = normalizeCategoryForSave(form.category);
+    const categorySaved = safeCategoryValue(normalizeCategoryForSave(form.category));
     const statusSaved = normalizeStatusForSave(form.status);
 
     const res = await insertContact({
@@ -1396,28 +1397,30 @@ export default function MissionaryContacts() {
         )}
       </div>
 
-      <ContactQuickViewPopup
-        open={Boolean(detailContact)}
+      <ContactProfilePopup1
         contact={detailContact}
-        lastContactIso={lastTouchAt}
         onClose={closeDetail}
-        onCall={handleCall}
-        onText={handleText}
-        onLog={openQuickLogFromDetail}
-        onViewFullProfile={handleViewFullProfile}
-        suppressEscape={showLogModal}
-        actionError={commActionError}
         updateContact={updateContact}
+        onAfterQuickTagSave={() => void refetch()}
         onPatchContact={(next) =>
           setDetailContact((prev) =>
             prev && String(prev.id) === String(next.id) ? { ...prev, ...next } : prev,
           )
         }
-        onAfterQuickTagSave={() => void refetch()}
+        openEditForm={openEdit}
+        lastContactIso={lastTouchAt}
+        showLog={showLogModal}
+        setShowLog={setShowLogModal}
+        onCall={handleCall}
+        onText={handleText}
+        onLog={openQuickLogFromDetail}
+        actionError={commActionError}
       />
 
       <ContactQuickLogPopup
         open={showLogModal}
+        backdropZIndex={310}
+        panelZIndex={311}
         title={detailContact ? `Quick log — ${detailContact.fullName || 'Contact'}` : 'Quick log'}
         selectedType={logType}
         onSelectType={setLogType}
@@ -1459,6 +1462,8 @@ export default function MissionaryContacts() {
           phoneDupWarn={phoneDupWarn}
           emailDupWarn={emailDupWarn}
           scrollToContact={scrollToContact}
+          deferQuickTags
+          editingContactId={editingId}
         />
       </Modal>
 

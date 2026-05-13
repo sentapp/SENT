@@ -110,11 +110,13 @@ const PH_COMPACT =
  * Three stacked rows: WHO (category), RELATIONSHIP, WHERE (status). Placeholders always visible when unset.
  * @param {{
  *   contact: Record<string, unknown>,
- *   updateContact: (id: string, payload: Record<string, unknown>) => Promise<{ ok: boolean, error?: string }>,
+ *   updateContact?: (id: string, payload: Record<string, unknown>) => Promise<{ ok: boolean, error?: string }>,
  *   onAfterSave?: () => void,
  *   onPatchContact?: (next: Record<string, unknown>) => void,
  *   variant?: 'default' | 'compact',
  *   className?: string,
+ *   deferSave?: boolean,
+ *   setForm?: (fn: (prev: Record<string, unknown>) => Record<string, unknown>) => void,
  * }} props
  */
 export function ContactThreeQuickTagRows({
@@ -124,6 +126,8 @@ export function ContactThreeQuickTagRows({
   onPatchContact,
   variant = 'default',
   className = 'flex flex-col gap-1',
+  deferSave = false,
+  setForm,
 }) {
   const [catOpen, setCatOpen] = useState(false);
   const [stOpen, setStOpen] = useState(false);
@@ -139,6 +143,20 @@ export function ContactThreeQuickTagRows({
   };
 
   const runSave = async (field, value) => {
+    if (deferSave && setForm) {
+      setForm((f) => {
+        const base = { ...contact, category: f.category, status: f.status, relationship: f.relationship ?? '' };
+        const merged = mergeContactAfterQuickTag(base, field, value);
+        return {
+          ...f,
+          category: merged.category,
+          status: merged.status,
+          relationship: merged.relationship ?? '',
+        };
+      });
+      return;
+    }
+    if (!updateContact) return;
     const payload = fullContactPayloadFromQuickTag(contact, field, value);
     const res = await updateContact(contact.id, payload);
     if (res?.ok) {
