@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { ContactQuickTagsRow } from '../../components/contacts/QuickTagPopover';
+import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
 import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { supabase } from '../../lib/supabaseClient';
 import { normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
@@ -531,12 +531,11 @@ export default function MissionaryPartners() {
       <div className="flex flex-wrap items-start justify-between gap-3 border-t border-mission-line px-4 pb-2 pt-4 sm:px-5">
         <div>
           <p className="text-lg font-semibold text-ink">{expandedPartner.fullName || 'Unnamed partner'}</p>
-          <ContactQuickTagsRow
+          <ContactThreeQuickTagRows
             contact={expandedPartner}
             updateContact={updateContact}
             onAfterSave={invalidateExpandedDraft}
-            showPotentialAddTag
-            className="mt-1 flex flex-wrap items-center gap-1.5"
+            className="mt-1 flex flex-col gap-1"
           />
           {expandedPartner.phone ? (
             <p className="mt-2 text-sm font-medium text-neutral-800">{formatPhone(expandedPartner.phone)}</p>
@@ -683,7 +682,7 @@ export default function MissionaryPartners() {
                   return (
                     <li
                       key={p.id}
-                      className="group overflow-hidden rounded-card border border-mission-line border-l-[3px] border-l-[#A32D2D] bg-surface transition-shadow duration-200"
+                      className="overflow-hidden rounded-card border border-mission-line border-l-[3px] border-l-[#A32D2D] bg-surface transition-shadow duration-200"
                     >
                       <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-4">
                         <div
@@ -713,12 +712,12 @@ export default function MissionaryPartners() {
                             <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
                             <span className="mt-0.5 block text-xs font-medium text-[#A32D2D]">{daysSinceContactLabel(last)}</span>
                             <div onClick={(e) => e.stopPropagation()} className="mt-2">
-                              <ContactQuickTagsRow
+                              <ContactThreeQuickTagRows
                                 contact={p}
                                 updateContact={updateContact}
                                 onAfterSave={invalidateExpandedDraft}
-                                showPotentialAddTag
-                                className="flex flex-wrap items-center gap-1.5"
+                                variant="compact"
+                                className="flex flex-col gap-1"
                               />
                             </div>
                           </div>
@@ -777,7 +776,7 @@ export default function MissionaryPartners() {
                   const badge = lastContactedBadgeFromIso(last);
                   const isExpanded = p.id === expandedPartnerId;
                   return (
-                    <li key={p.id} className="group overflow-hidden rounded-card border border-mission-line bg-surface transition-shadow duration-200">
+                    <li key={p.id} className="overflow-hidden rounded-card border border-mission-line bg-surface transition-shadow duration-200">
                       <div
                         role="button"
                         tabIndex={0}
@@ -793,11 +792,12 @@ export default function MissionaryPartners() {
                         }}
                       >
                         <div onClick={(e) => e.stopPropagation()}>
-                          <ContactQuickTagsRow
+                          <ContactThreeQuickTagRows
                             contact={p}
                             updateContact={updateContact}
                             onAfterSave={invalidateExpandedDraft}
-                            showPotentialAddTag
+                            variant="compact"
+                            className="mb-1 flex flex-col gap-1"
                           />
                         </div>
                         <div className="flex items-center gap-3">

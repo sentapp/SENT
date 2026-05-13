@@ -10,14 +10,24 @@ export const CONTACT_STATUS_VALUES = [
 
 const ALLOWED = new Set(CONTACT_STATUS_VALUES);
 
-/** Add / Edit contact form — order matches product copy. */
+/** Labels for status (lists, popovers, `statusLabel`). */
 export const CONTACT_STATUS_FORM_OPTIONS = [
-  { value: 'prospect', label: 'Not contacted prospect' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'meeting_scheduled', label: 'Meeting scheduled' },
+  { value: 'prospect', label: 'Not contacted' },
+  { value: 'contacted', label: 'In conversation' },
+  { value: 'meeting_scheduled', label: 'Meeting set' },
   { value: 'committed', label: 'Committed' },
   { value: 'partner', label: 'Partner' },
   { value: 'declined', label: 'Not interested' },
+];
+
+/** WHERE row popover — same values as {@link CONTACT_STATUS_FORM_OPTIONS}, with accent stripes. */
+export const QUICK_STATUS_EDIT_OPTIONS = [
+  { value: 'prospect', label: 'Not contacted', accent: '#78716C' },
+  { value: 'contacted', label: 'In conversation', accent: '#185FA5' },
+  { value: 'meeting_scheduled', label: 'Meeting set', accent: '#0F6E56' },
+  { value: 'committed', label: 'Committed', accent: '#7C3AED' },
+  { value: 'partner', label: 'Partner', accent: '#185FA5' },
+  { value: 'declined', label: 'Not interested', accent: '#A32D2D' },
 ];
 
 const LABEL_BY_VALUE = CONTACT_STATUS_FORM_OPTIONS.reduce((acc, { value, label }) => {

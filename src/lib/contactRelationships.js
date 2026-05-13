@@ -1,21 +1,32 @@
 /**
- * Quick-select relationship tags (plain text stored on `contacts.relationship`).
- * Colors align with category/status accent palette.
+ * Quick-select relationship tags — stored as plain text on `contacts.relationship` (no DB enum).
+ *
+ * **Allowed quick-pick strings** (also accepted on save after trim): `friend`, `family`, `pastor`,
+ * `church_leader`, `mission_team`, `donor`, `other`. Any other non-empty string is stored as-is for
+ * legacy/custom values; the UI shows raw text with a neutral pill when not in this list.
  */
 export const RELATIONSHIP_TAG_OPTIONS = [
-  { value: 'friend', label: 'Friend', accent: '#185FA5' },
-  { value: 'family', label: 'Family', accent: '#0F6E56' },
-  { value: 'pastor', label: 'Pastor', accent: '#7C3AED' },
-  { value: 'church_leader', label: 'Church leader', accent: '#854F0B' },
-  { value: 'mission_team', label: 'Mission team', accent: '#0F766E' },
-  { value: 'donor', label: 'Donor', accent: '#A16207' },
-  { value: 'other', label: 'Other', accent: '#78716C' },
+  { value: 'friend', label: 'Friend', accent: '#1D4ED8' },
+  { value: 'family', label: 'Family', accent: '#2563EB' },
+  { value: 'pastor', label: 'Pastor', accent: '#1E40AF' },
+  { value: 'church_leader', label: 'Church leader', accent: '#0369A1' },
+  { value: 'mission_team', label: 'Mission team', accent: '#0E7490' },
+  { value: 'donor', label: 'Donor', accent: '#0284C7' },
+  { value: 'other', label: 'Other', accent: '#475569' },
 ];
 
 const VALUE_SET = new Set(RELATIONSHIP_TAG_OPTIONS.map((o) => o.value));
 
+/** Blue-forward tints for relationship row (row 2) vs category greens/purples and status ambers. */
 const REL_COLORS = Object.fromEntries(
-  RELATIONSHIP_TAG_OPTIONS.map((o) => [o.value, { bg: '#F5F5F4', text: o.accent, border: `${o.accent}40` }]),
+  RELATIONSHIP_TAG_OPTIONS.map((o) => [
+    o.value,
+    {
+      bg: '#EFF6FF',
+      text: o.accent,
+      border: `${o.accent}55`,
+    },
+  ]),
 );
 
 /** @param {unknown} value */
@@ -52,5 +63,5 @@ export function getRelationshipTagColors(value) {
     const c = REL_COLORS[id];
     return { bg: c.bg, text: c.text, border: c.border };
   }
-  return { bg: '#F5F5F4', text: '#44403C', border: 'rgba(68, 64, 60, 0.25)' };
+  return { bg: '#F1F5F9', text: '#334155', border: 'rgba(51, 65, 85, 0.28)' };
 }

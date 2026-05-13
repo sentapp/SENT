@@ -33,9 +33,12 @@ import {
 import { mergeNotesWithSocial, notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
 import { normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { normalizeRelationshipForSave } from '../../lib/contactRelationships';
-import { initialsFromDisplayName } from '../../lib/profileAppearance';
-import { ContactQuickTagsRow } from '../../components/contacts/QuickTagPopover';
-import { Button, Card, EmptyState, Input, LoadingSpinner, Modal, Textarea } from '../../components/ui';
+import {
+  ContactQuickLogPopup,
+  ContactQuickViewPopup,
+} from '../../components/contacts/ContactQuickViewPopup';
+import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
+import { Button, Card, EmptyState, Input, LoadingSpinner, Modal } from '../../components/ui';
 import ContactEditFormLayout from './ContactEditFormLayout';
 
 /** Pipeline strip: active outreach stages, excluding monthly supporters (shown under Partners). */
@@ -118,52 +121,6 @@ function contactFormSnapshot(f) {
     oneTimeDonationDate: f.oneTimeDonationDate ?? '',
     notes: f.notes ?? '',
   });
-}
-
-function IconPhone({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"
-      />
-    </svg>
-  );
-}
-
-function IconMessage({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-      />
-    </svg>
-  );
-}
-
-function IconCalendar({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" />
-    </svg>
-  );
-}
-
-function IconPencil({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-      />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  );
 }
 
 function ImportBlockingOverlay({ open, progress, onCancel }) {
@@ -278,7 +235,7 @@ export default function MissionaryContacts() {
 
   const [detailContact, setDetailContact] = useState(null);
   const [showLogModal, setShowLogModal] = useState(false);
-  const [logType, setLogType] = useState('note');
+  const [logType, setLogType] = useState('call');
   const [logText, setLogText] = useState('');
   const [logSaving, setLogSaving] = useState(false);
   const [logError, setLogError] = useState('');
@@ -1080,9 +1037,8 @@ export default function MissionaryContacts() {
     })();
   }, [detailContact?.phone, logCommunication]);
 
-  const handleLog = useCallback((type) => {
-    if (type !== 'meeting' && type !== 'note') return;
-    setLogType(type);
+  const openQuickLogFromDetail = useCallback(() => {
+    setLogType('call');
     setLogText('');
     setLogError('');
     setShowLogModal(true);
@@ -1108,8 +1064,14 @@ export default function MissionaryContacts() {
     }
   }, [logCommunication, logType, logText]);
 
+  const handleViewFullProfile = useCallback(() => {
+    if (!detailContact) return;
+    const c = detailContact;
+    openEdit(c);
+    closeDetail({ restoreScroll: false });
+  }, [detailContact, openEdit, closeDetail]);
+
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
-  const detailDisplayNotes = detailContact ? cleanDisplayNotes(detailContact.notes) : '';
 
   return (
     <div className="flex flex-col gap-4">
@@ -1203,6 +1165,12 @@ export default function MissionaryContacts() {
       {contactSaveSuccess ? (
         <div className="rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
           {contactSaveSuccess}
+        </div>
+      ) : null}
+
+      {loggedSuccess ? (
+        <div className="rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900" role="status">
+          Logged successfully
         </div>
       ) : null}
 
@@ -1361,7 +1329,7 @@ export default function MissionaryContacts() {
                   if (selectMode) toggleContactSelected(c.id);
                   else handleOpenContact(c);
                 }}
-                className="group scroll-mt-4 cursor-pointer border-mission-line p-4 text-left shadow-none"
+                className="scroll-mt-4 cursor-pointer border-mission-line p-4 text-left shadow-none"
               >
                 <div className="flex flex-row flex-nowrap items-start gap-3">
                   {selectMode ? (
@@ -1381,12 +1349,12 @@ export default function MissionaryContacts() {
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <ContactQuickTagsRow
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <ContactThreeQuickTagRows
                         contact={c}
                         updateContact={updateContact}
-                        showPotentialAddTag
-                        addTagWhen="empty-tags"
+                        variant="compact"
+                        className="flex flex-col gap-1"
                       />
                     </div>
                     {Number(c.monthlyAmount) > 0 ? (
@@ -1428,186 +1396,42 @@ export default function MissionaryContacts() {
         )}
       </div>
 
-      <Modal
+      <ContactQuickViewPopup
         open={Boolean(detailContact)}
-        title="View contact"
-        backdropClose={false}
-        closeButtonLabel="✕"
+        contact={detailContact}
+        lastContactIso={lastTouchAt}
         onClose={closeDetail}
-        footer={
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="secondary" type="button" onClick={closeDetail}>
-              Close
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                if (!detailContact) return;
-                openEdit(detailContact);
-                closeDetail({ restoreScroll: false });
-              }}
-            >
-              Edit
-            </Button>
-          </div>
+        onCall={handleCall}
+        onText={handleText}
+        onLog={openQuickLogFromDetail}
+        onViewFullProfile={handleViewFullProfile}
+        suppressEscape={showLogModal}
+        actionError={commActionError}
+        updateContact={updateContact}
+        onPatchContact={(next) =>
+          setDetailContact((prev) =>
+            prev && String(prev.id) === String(next.id) ? { ...prev, ...next } : prev,
+          )
         }
-      >
-        {detailContact ? (
-          <div className="space-y-4 text-sm">
-            <div className="flex gap-3">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#185FA5] text-lg font-semibold leading-none text-white"
-                aria-hidden
-              >
-                {initialsFromDisplayName(detailContact.fullName || '')}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-2xl font-bold tracking-tight text-ink">{detailContact.fullName || 'Unnamed contact'}</p>
-                <p className="mt-1 text-xs text-mission-muted">Tap tags to update category, status, or relationship.</p>
-              </div>
-            </div>
-            <div className="group flex flex-wrap gap-1.5">
-              <ContactQuickTagsRow
-                contact={detailContact}
-                updateContact={updateContact}
-                showPotentialAddTag
-                addTagLabel="+ Add tag"
-                addTagVariant="detail"
-              />
-            </div>
-            {detailContact.phone ? (
-              <div>
-                <span className="sent-section-label mb-1 block">Phone</span>
-                <a
-                  href={`tel:${phoneDigits(detailContact.phone)}`}
-                  className="text-base font-semibold text-accent underline"
-                >
-                  {formatPhone(detailContact.phone)}
-                </a>
-              </div>
-            ) : (
-              <p className="text-neutral-500">No phone on file</p>
-            )}
-            {detailContact.email ? (
-              <div>
-                <span className="sent-section-label mb-1 block">Email</span>
-                <a href={`mailto:${encodeURIComponent(detailContact.email)}`} className="break-all text-accent underline">
-                  {detailContact.email}
-                </a>
-              </div>
-            ) : null}
-            <p>
-              <span className="sent-section-label mb-1 block">Monthly support amount</span>
-              <span className="font-semibold text-ink">${Number(detailContact.monthlyAmount || 0).toFixed(0)} / month</span>
-            </p>
-            {detailContact.isOneTimeDonor ? (
-              <p>
-                <span className="sent-section-label mb-1 block">One-time donor</span>
-                <span className="font-semibold text-ink">
-                  Yes
-                  {Number(detailContact.oneTimeDonationAmount) > 0
-                    ? ` · $${Number(detailContact.oneTimeDonationAmount).toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 2,
-                      })}`
-                    : ''}
-                  {detailContact.oneTimeDonationDate
-                    ? ` · ${new Date(`${detailContact.oneTimeDonationDate}T12:00:00`).toLocaleDateString()}`
-                    : ''}
-                </span>
-              </p>
-            ) : null}
-            <div>
-              <span className="sent-section-label mb-1 block">Notes</span>
-              <p className="whitespace-pre-wrap leading-relaxed text-neutral-800">{detailDisplayNotes || '—'}</p>
-            </div>
-            <p className="text-xs text-neutral-600">
-              <span className="font-semibold text-ink">Last contacted: </span>
-              {lastTouchAt
-                ? new Date(lastTouchAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-                : '—'}
-            </p>
-            {loggedSuccess ? (
-              <p className="text-sm font-semibold text-emerald-800" role="status">
-                Logged successfully
-              </p>
-            ) : null}
-            {commActionError ? <p className="text-sm text-red-600">{commActionError}</p> : null}
-            <div className="flex flex-col gap-2 border-t border-mission-line pt-4 sm:grid sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={handleCall}
-                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-btn border-2 border-accent bg-surface px-3 text-sm font-semibold text-ink shadow-none transition hover:bg-accent/5"
-              >
-                <IconPhone className="h-5 w-5 shrink-0 text-accent" aria-hidden />
-                Call
-              </button>
-              <button
-                type="button"
-                onClick={handleText}
-                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-btn border-2 border-accent bg-surface px-3 text-sm font-semibold text-ink shadow-none transition hover:bg-accent/5"
-              >
-                <IconMessage className="h-5 w-5 shrink-0 text-accent" aria-hidden />
-                Text
-              </button>
-              <button
-                type="button"
-                onClick={() => handleLog('meeting')}
-                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-btn border-2 border-neutral-300 bg-surface px-3 text-sm font-semibold text-ink shadow-none transition hover:bg-neutral-50"
-              >
-                <IconCalendar className="h-5 w-5 shrink-0 text-neutral-600" aria-hidden />
-                Meeting
-              </button>
-              <button
-                type="button"
-                onClick={() => handleLog('note')}
-                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-btn border-2 border-neutral-300 bg-surface px-3 text-sm font-semibold text-ink shadow-none transition hover:bg-neutral-50"
-              >
-                <IconPencil className="h-5 w-5 shrink-0 text-neutral-600" aria-hidden />
-                Note
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
+      />
 
-      <Modal
+      <ContactQuickLogPopup
         open={showLogModal}
-        title={logType === 'meeting' ? 'Log meeting' : 'Log note'}
+        title={detailContact ? `Quick log — ${detailContact.fullName || 'Contact'}` : 'Quick log'}
+        selectedType={logType}
+        onSelectType={setLogType}
+        notes={logText}
+        onNotesChange={setLogText}
+        error={logError}
+        saving={logSaving}
+        onSave={() => void submitQuickLog()}
         onClose={() => {
           if (logSaving) return;
           setShowLogModal(false);
           setLogText('');
           setLogError('');
         }}
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="secondary"
-              type="button"
-              disabled={logSaving}
-              onClick={() => {
-                setShowLogModal(false);
-                setLogText('');
-                setLogError('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button type="button" disabled={logSaving} onClick={() => void submitQuickLog()}>
-              {logSaving ? 'Saving…' : 'Save'}
-            </Button>
-          </div>
-        }
-      >
-        {logError ? <p className="mb-2 text-sm text-red-600">{logError}</p> : null}
-        <Textarea
-          rows={4}
-          value={logText}
-          onChange={(e) => setLogText(e.target.value)}
-          placeholder={logType === 'meeting' ? 'Meeting notes…' : 'Note…'}
-        />
-      </Modal>
+      />
 
       <Modal
         open={modalOpen}

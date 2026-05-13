@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { categoryLabel, getCategoryTagColors, shouldShowCategoryTag } from '../../lib/contactCategories';
 import { getRelationshipTagColors, relationshipLabel, RELATIONSHIP_TAG_OPTIONS } from '../../lib/contactRelationships';
-import { fullContactPayloadFromQuickTag } from '../../lib/contactQuickTagSave';
-import { STATUS_TAG_COLORS, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
+import { fullContactPayloadFromQuickTag, mergeContactAfterQuickTag } from '../../lib/contactQuickTagSave';
+import { QUICK_STATUS_EDIT_OPTIONS, STATUS_TAG_COLORS, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 
 const PANEL_STYLE = {
   backgroundColor: '#ffffff',
   border: '1px solid #E5E2DD',
   borderRadius: 10,
   boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
-  zIndex: 100,
+  zIndex: 260,
   padding: 6,
   minWidth: 150,
 };
@@ -19,15 +19,6 @@ export const QUICK_CATEGORY_EDIT_OPTIONS = [
   { value: 'church', label: 'Church / Org', accent: '#7C3AED' },
   { value: 'former', label: 'Previous Partner', accent: '#A32D2D' },
   { value: 'none', label: 'None', accent: '#78716C' },
-];
-
-export const QUICK_STATUS_EDIT_OPTIONS = [
-  { value: 'prospect', label: 'Not contacted', accent: '#78716C' },
-  { value: 'contacted', label: 'In conversation', accent: '#185FA5' },
-  { value: 'meeting_scheduled', label: 'Meeting set', accent: '#0F6E56' },
-  { value: 'committed', label: 'Committed', accent: '#7C3AED' },
-  { value: 'partner', label: 'Partner', accent: '#185FA5' },
-  { value: 'declined', label: 'Not interested', accent: '#A32D2D' },
 ];
 
 export const QUICK_RELATIONSHIP_EDIT_OPTIONS = [
@@ -105,63 +96,55 @@ export function QuickTagPopover({ open, onClose, items, onPick, children }) {
   );
 }
 
-const PILL_CLASS =
+const PILL_DEFAULT =
   'inline-flex max-w-full cursor-pointer items-center truncate rounded-full border px-2.5 py-0.5 text-left text-[11px] font-semibold transition';
+const PILL_COMPACT =
+  'inline-flex max-w-full cursor-pointer items-center truncate rounded-full border px-2 py-0.5 text-left text-[9px] font-semibold leading-tight transition';
 
-const ADD_TAG_DETAIL_STYLE = {
-  fontSize: 11,
-  padding: '4px 10px',
-  borderRadius: 20,
-  border: '1px dashed #E5E2DD',
-  background: 'transparent',
-  color: '#9CA3AF',
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 4,
-};
-
-const ADD_TAG_COMPACT_STYLE = {
-  fontSize: 9,
-  padding: '2px 6px',
-  borderRadius: 20,
-  border: '1px dashed #D1D5DB',
-  color: '#D1D5DB',
-  cursor: 'pointer',
-  whiteSpace: 'nowrap',
-};
+const PH_DEFAULT =
+  'inline-flex min-h-[28px] cursor-pointer items-center rounded-full border border-dashed border-neutral-200 bg-transparent px-2.5 py-0.5 text-[11px] font-medium text-neutral-400';
+const PH_COMPACT =
+  'inline-flex min-h-[24px] cursor-pointer items-center rounded-full border border-dashed border-neutral-200 bg-transparent px-2 py-0.5 text-[9px] font-medium text-neutral-400';
 
 /**
- * Category + status + relationship tags with popover quick-edit (Contacts rows, detail modal, Partners).
+ * Three stacked rows: WHO (category), RELATIONSHIP, WHERE (status). Placeholders always visible when unset.
  * @param {{
  *   contact: Record<string, unknown>,
  *   updateContact: (id: string, payload: Record<string, unknown>) => Promise<{ ok: boolean, error?: string }>,
  *   onAfterSave?: () => void,
- *   showPotentialAddTag?: boolean,
- *   addTagLabel?: string,
- *   addTagVariant?: 'compact' | 'detail',
- *   addTagWhen?: 'no-category' | 'empty-tags',
+ *   onPatchContact?: (next: Record<string, unknown>) => void,
+ *   variant?: 'default' | 'compact',
  *   className?: string,
  * }} props
  */
-export function ContactQuickTagsRow({
+export function ContactThreeQuickTagRows({
   contact,
   updateContact,
   onAfterSave,
-  showPotentialAddTag = false,
-  addTagLabel = '+ tag',
-  addTagVariant = 'compact',
-  addTagWhen = 'no-category',
-  className = 'flex flex-wrap items-center gap-1.5',
+  onPatchContact,
+  variant = 'default',
+  className = 'flex flex-col gap-1',
 }) {
   const [catOpen, setCatOpen] = useState(false);
   const [stOpen, setStOpen] = useState(false);
   const [relOpen, setRelOpen] = useState(false);
 
+  const pillClass = variant === 'compact' ? PILL_COMPACT : PILL_DEFAULT;
+  const phClass = variant === 'compact' ? PH_COMPACT : PH_DEFAULT;
+
+  const closeOthers = (keep) => {
+    if (keep !== 'cat') setCatOpen(false);
+    if (keep !== 'st') setStOpen(false);
+    if (keep !== 'rel') setRelOpen(false);
+  };
+
   const runSave = async (field, value) => {
     const payload = fullContactPayloadFromQuickTag(contact, field, value);
     const res = await updateContact(contact.id, payload);
-    if (res?.ok) onAfterSave?.();
+    if (res?.ok) {
+      onPatchContact?.(mergeContactAfterQuickTag(contact, field, value));
+      onAfterSave?.();
+    }
   };
 
   const st = normalizeStatusFromDb(contact.status);
@@ -169,11 +152,54 @@ export function ContactQuickTagsRow({
   const relSt = hasRel ? getRelationshipTagColors(contact.relationship) : null;
   const showCatPill = shouldShowCategoryTag(contact.category);
   const catSt = showCatPill ? getCategoryTagColors(contact.category) : null;
-  const showStatusPill = Boolean(contact.status && st !== 'prospect');
-  const showAddTagHint =
-    showPotentialAddTag && !showCatPill && (addTagWhen === 'empty-tags' ? !hasRel : true);
+  const showWherePill = st !== 'prospect';
 
-  const relationshipPill = hasRel ? (
+  const whoTrigger = showCatPill ? (
+    <QuickTagPopover
+      open={catOpen}
+      onClose={() => setCatOpen(false)}
+      items={QUICK_CATEGORY_EDIT_OPTIONS}
+      onPick={(v) => void runSave('category', v)}
+    >
+      <button
+        type="button"
+        className={pillClass}
+        style={{
+          backgroundColor: catSt.bg,
+          color: catSt.text,
+          borderColor: catSt.border,
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          closeOthers('cat');
+          setCatOpen((o) => !o);
+        }}
+      >
+        {categoryLabel(contact.category)}
+      </button>
+    </QuickTagPopover>
+  ) : (
+    <QuickTagPopover
+      open={catOpen}
+      onClose={() => setCatOpen(false)}
+      items={QUICK_CATEGORY_EDIT_OPTIONS}
+      onPick={(v) => void runSave('category', v)}
+    >
+      <button
+        type="button"
+        className={phClass}
+        onClick={(e) => {
+          e.stopPropagation();
+          closeOthers('cat');
+          setCatOpen((o) => !o);
+        }}
+      >
+        + Who are they?
+      </button>
+    </QuickTagPopover>
+  );
+
+  const relTrigger = hasRel ? (
     <QuickTagPopover
       open={relOpen}
       onClose={() => setRelOpen(false)}
@@ -182,7 +208,7 @@ export function ContactQuickTagsRow({
     >
       <button
         type="button"
-        className={PILL_CLASS}
+        className={pillClass}
         style={{
           backgroundColor: relSt.bg,
           color: relSt.text,
@@ -190,155 +216,85 @@ export function ContactQuickTagsRow({
         }}
         onClick={(e) => {
           e.stopPropagation();
-          setCatOpen(false);
-          setStOpen(false);
+          closeOthers('rel');
           setRelOpen((o) => !o);
         }}
       >
         {relationshipLabel(contact.relationship)}
       </button>
     </QuickTagPopover>
-  ) : null;
-
-  const addTagControl = (
+  ) : (
     <QuickTagPopover
-      open={catOpen && !showCatPill}
-      onClose={() => setCatOpen(false)}
-      items={QUICK_CATEGORY_EDIT_OPTIONS}
-      onPick={(v) => void runSave('category', v)}
+      open={relOpen}
+      onClose={() => setRelOpen(false)}
+      items={QUICK_RELATIONSHIP_EDIT_OPTIONS}
+      onPick={(v) => void runSave('relationship', v)}
     >
-      {addTagVariant === 'detail' ? (
-        <button
-          type="button"
-          style={ADD_TAG_DETAIL_STYLE}
-          onClick={(e) => {
-            e.stopPropagation();
-            setCatOpen((o) => !o);
-            setStOpen(false);
-            setRelOpen(false);
-          }}
-        >
-          {addTagLabel}
-        </button>
-      ) : (
-        <span
-          role="button"
-          tabIndex={0}
-          style={ADD_TAG_COMPACT_STYLE}
-          onClick={(e) => {
-            e.stopPropagation();
-            setCatOpen((o) => !o);
-            setStOpen(false);
-            setRelOpen(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' && e.key !== ' ') return;
-            e.preventDefault();
-            e.stopPropagation();
-            setCatOpen((o) => !o);
-            setStOpen(false);
-            setRelOpen(false);
-          }}
-        >
-          {addTagLabel}
-        </span>
-      )}
+      <button
+        type="button"
+        className={phClass}
+        onClick={(e) => {
+          e.stopPropagation();
+          closeOthers('rel');
+          setRelOpen((o) => !o);
+        }}
+      >
+        + Relationship
+      </button>
     </QuickTagPopover>
   );
 
-  if (st === 'partner') {
-    const stSt = contactStatusTagStyle('partner');
-    return (
-      <div className={className}>
-        {showAddTagHint ? addTagControl : null}
-        {relationshipPill}
-        <QuickTagPopover
-          open={stOpen}
-          onClose={() => setStOpen(false)}
-          items={QUICK_STATUS_EDIT_OPTIONS}
-          onPick={(v) => void runSave('status', v)}
-        >
-          <button
-            type="button"
-            className={PILL_CLASS}
-            style={{
-              backgroundColor: stSt.bg,
-              color: stSt.text,
-              borderColor: stSt.border,
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setStOpen((o) => !o);
-              setCatOpen(false);
-              setRelOpen(false);
-            }}
-          >
-            {statusLabel('partner')}
-          </button>
-        </QuickTagPopover>
-      </div>
-    );
-  }
+  const whereSt = contactStatusTagStyle(contact.status);
+  const whereTrigger = showWherePill ? (
+    <QuickTagPopover
+      open={stOpen}
+      onClose={() => setStOpen(false)}
+      items={QUICK_STATUS_EDIT_OPTIONS}
+      onPick={(v) => void runSave('status', v)}
+    >
+      <button
+        type="button"
+        className={pillClass}
+        style={{
+          backgroundColor: whereSt.bg,
+          color: whereSt.text,
+          borderColor: whereSt.border,
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          closeOthers('st');
+          setStOpen((o) => !o);
+        }}
+      >
+        {statusLabel(contact.status)}
+      </button>
+    </QuickTagPopover>
+  ) : (
+    <QuickTagPopover
+      open={stOpen}
+      onClose={() => setStOpen(false)}
+      items={QUICK_STATUS_EDIT_OPTIONS}
+      onPick={(v) => void runSave('status', v)}
+    >
+      <button
+        type="button"
+        className={phClass}
+        onClick={(e) => {
+          e.stopPropagation();
+          closeOthers('st');
+          setStOpen((o) => !o);
+        }}
+      >
+        + Where are they?
+      </button>
+    </QuickTagPopover>
+  );
 
   return (
     <div className={className}>
-      {showCatPill ? (
-        <QuickTagPopover
-          open={catOpen}
-          onClose={() => setCatOpen(false)}
-          items={QUICK_CATEGORY_EDIT_OPTIONS}
-          onPick={(v) => void runSave('category', v)}
-        >
-          <button
-            type="button"
-            className={PILL_CLASS}
-            style={{
-              backgroundColor: catSt.bg,
-              color: catSt.text,
-              borderColor: catSt.border,
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setCatOpen((o) => !o);
-              setStOpen(false);
-              setRelOpen(false);
-            }}
-          >
-            {categoryLabel(contact.category)}
-          </button>
-        </QuickTagPopover>
-      ) : null}
-
-      {showAddTagHint ? addTagControl : null}
-
-      {showStatusPill ? (
-        <QuickTagPopover
-          open={stOpen}
-          onClose={() => setStOpen(false)}
-          items={QUICK_STATUS_EDIT_OPTIONS}
-          onPick={(v) => void runSave('status', v)}
-        >
-          <button
-            type="button"
-            className={PILL_CLASS}
-            style={{
-              backgroundColor: contactStatusTagStyle(contact.status).bg,
-              color: contactStatusTagStyle(contact.status).text,
-              borderColor: contactStatusTagStyle(contact.status).border,
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setStOpen((o) => !o);
-              setCatOpen(false);
-              setRelOpen(false);
-            }}
-          >
-            {statusLabel(contact.status)}
-          </button>
-        </QuickTagPopover>
-      ) : null}
-
-      {relationshipPill}
+      <div className="flex flex-wrap items-center gap-1.5">{whoTrigger}</div>
+      <div className="flex flex-wrap items-center gap-1.5">{relTrigger}</div>
+      <div className="flex flex-wrap items-center gap-1.5">{whereTrigger}</div>
     </div>
   );
 }
