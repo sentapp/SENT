@@ -5,6 +5,7 @@ import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../h
 import { supabase } from '../../lib/supabaseClient';
 import { categoryLabel, normalizeCategoryForSave } from '../../lib/contactCategories';
 import { normalizeStatusForSave } from '../../lib/contactStatuses';
+import { formatPhone } from '../../lib/phoneFormat';
 import { Button, Card, EmptyState, Modal, Textarea } from '../../components/ui';
 import {
   PartnerInlineEditPanel,
@@ -479,6 +480,9 @@ export default function MissionaryPartners() {
         <div>
           <p className="text-lg font-semibold text-ink">{expandedPartner.fullName || 'Unnamed partner'}</p>
           <p className="mt-1 text-sm text-neutral-600">{categoryLabel(expandedPartner.category)}</p>
+          {expandedPartner.phone ? (
+            <p className="mt-2 text-sm font-medium text-neutral-800">{formatPhone(expandedPartner.phone)}</p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" onClick={() => openLogModal('call')}>

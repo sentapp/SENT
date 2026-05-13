@@ -168,7 +168,6 @@ export function applyImportRowSemantics(draft, row, ctx) {
   let status = normalizeStatusForSave(draft.status);
   let monthly_amount = Number.isFinite(Number(draft.monthly_amount)) ? Number(draft.monthly_amount) : 0;
 
-  let explicitStatusFromSheet = false;
   let statusCell = '';
 
   if (statusIdx >= 0 && statusIdx < width) {
@@ -176,7 +175,6 @@ export function applyImportRowSemantics(draft, row, ctx) {
     statusCell = cell;
     if (cell) {
       const interpreted = interpretImportStatusCell(cell);
-      explicitStatusFromSheet = Boolean(interpreted.explicitEnum);
       if (interpreted.partnerKeywords || interpreted.explicitEnum === 'partner') {
         status = 'partner';
       } else if (interpreted.explicitEnum) {

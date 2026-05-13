@@ -12,6 +12,7 @@ import {
 import { fetchGoogleSheetMatrix } from '../../lib/googleSheetsApi';
 import { cleanEmail, extrasFromRejectedContactFields, mergeImportNotes } from '../../lib/contactImportClean';
 import { cleanNotes, cleanPhone } from '../../lib/importCleaners';
+import { formatPhone } from '../../lib/phoneFormat';
 import { phaseLabelFromPct } from '../../lib/importProgressText';
 import {
   findEmailConflict,
@@ -34,18 +35,20 @@ import {
 import { CONTACT_STATUS_FORM_OPTIONS, normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { Button, Card, EmptyState, Input, Label, LoadingSpinner, Modal, Textarea } from '../../components/ui';
 
-/** Pipeline strip: active outreach stages only (never prospect). */
-const PIPELINE_STRIP_VISIBLE_STATUSES = ['contacted', 'asked', 'meeting_scheduled', 'committed'];
+/** Pipeline strip: active outreach stages, excluding monthly supporters (shown under Partners). */
+const PIPELINE_STRIP_VISIBLE_STATUSES = ['contacted', 'meeting_scheduled', 'committed'];
 const PIPELINE_STRIP_SET = new Set(PIPELINE_STRIP_VISIBLE_STATUSES);
+function isPipelineStripContact(c) {
+  const st = normalizeStatusFromDb(c.status);
+  return PIPELINE_STRIP_SET.has(st) && normalizeCategory(c.category) !== 'supporter';
+}
 const STRIP_DOT = {
   contacted: '#185FA5',
-  asked: '#D97706',
   meeting_scheduled: '#0F6E56',
   committed: '#7C3AED',
 };
 const STRIP_STAGE_LABEL = {
   contacted: 'Contacted',
-  asked: 'Asked',
   meeting_scheduled: 'Meeting',
   committed: 'Committed',
 };
@@ -141,8 +144,6 @@ function pipelineStripStageDotClass(status) {
   switch (normalizeStatusFromDb(status)) {
     case 'contacted':
       return 'bg-mission-blue';
-    case 'asked':
-      return 'bg-amber-500';
     case 'meeting_scheduled':
       return 'bg-mission-green';
     case 'committed':
@@ -771,6 +772,12 @@ export default function MissionaryContacts() {
     };
   }, [detailContact?.id]);
 
+  useEffect(() => {
+    if (!detailContact?.id) return;
+    const fresh = contacts.find((x) => String(x.id) === String(detailContact.id));
+    if (fresh) setDetailContact(fresh);
+  }, [contacts, detailContact?.id]);
+
   const saveContact = async () => {
     setSaveError('');
     setContactSaveSuccess('');
@@ -860,7 +867,7 @@ export default function MissionaryContacts() {
   const pipelineStripContacts = useMemo(
     () =>
       contacts
-        .filter((c) => PIPELINE_STRIP_SET.has(normalizeStatusFromDb(c.status)))
+        .filter(isPipelineStripContact)
         .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', undefined, { sensitivity: 'base' })),
     [contacts],
   );
@@ -999,8 +1006,8 @@ export default function MissionaryContacts() {
     return () => clearTimeout(t);
   }, [loggedSuccess]);
 
-  const insertCommunicationLog = useCallback(
-    async ({ comm_type, notes }) => {
+  const logCommunication = useCallback(
+    async (type, notes = '') => {
       if (!supabase || !user?.id || !detailContact?.id) {
         return { ok: false, error: 'Not signed in or no contact selected.' };
       }
@@ -1008,14 +1015,16 @@ export default function MissionaryContacts() {
       const { error } = await supabase.from('communication_logs').insert({
         missionary_id: user.id,
         contact_id: detailContact.id,
-        comm_type,
+        comm_type: type,
         notes: notes ?? '',
         created_at,
       });
       if (error) return { ok: false, error: error.message || 'Could not save log.' };
+      await refetch();
+      setLastTouchAt(created_at);
       return { ok: true, created_at };
     },
-    [user?.id, detailContact?.id],
+    [user?.id, detailContact?.id, refetch],
   );
 
   const handleCall = useCallback(() => {
@@ -1032,14 +1041,12 @@ export default function MissionaryContacts() {
     setCommActionError('');
     window.open(`tel:${digits}`, '_self');
     void (async () => {
-      const res = await insertCommunicationLog({ comm_type: 'call', notes: '' });
+      const res = await logCommunication('call', '');
       if (!res.ok) {
         setCommActionError(res.error || 'Could not log call.');
-        return;
       }
-      setLastTouchAt(res.created_at);
     })();
-  }, [detailContact?.phone, insertCommunicationLog]);
+  }, [detailContact?.phone, logCommunication]);
 
   const handleText = useCallback(() => {
     const phone = detailContact?.phone;
@@ -1055,14 +1062,12 @@ export default function MissionaryContacts() {
     setCommActionError('');
     window.open(`sms:${digits}`, '_self');
     void (async () => {
-      const res = await insertCommunicationLog({ comm_type: 'text', notes: '' });
+      const res = await logCommunication('text', '');
       if (!res.ok) {
         setCommActionError(res.error || 'Could not log text.');
-        return;
       }
-      setLastTouchAt(res.created_at);
     })();
-  }, [detailContact?.phone, insertCommunicationLog]);
+  }, [detailContact?.phone, logCommunication]);
 
   const handleLog = useCallback((type) => {
     if (type !== 'meeting' && type !== 'note') return;
@@ -1077,12 +1082,11 @@ export default function MissionaryContacts() {
     setLogError('');
     setLogSaving(true);
     try {
-      const res = await insertCommunicationLog({ comm_type: logType, notes: logText.trim() });
+      const res = await logCommunication(logType, logText.trim());
       if (!res.ok) {
         setLogError(res.error || 'Could not save log.');
         return;
       }
-      setLastTouchAt(res.created_at);
       setShowLogModal(false);
       setLogText('');
       setLoggedSuccess(true);
@@ -1091,7 +1095,7 @@ export default function MissionaryContacts() {
     } finally {
       setLogSaving(false);
     }
-  }, [insertCommunicationLog, logType, logText]);
+  }, [logCommunication, logType, logText]);
 
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
   const detailDisplayNotes = detailContact ? cleanDisplayNotes(detailContact.notes) : '';
@@ -1289,7 +1293,7 @@ export default function MissionaryContacts() {
                       </span>
                     </div>
                     <p className="mt-1 truncate text-sm font-semibold text-ink">{c.fullName || 'Unnamed'}</p>
-                    <p className="mt-0.5 truncate text-xs text-neutral-600">{c.phone || '—'}</p>
+                    <p className="mt-0.5 truncate text-xs text-neutral-600">{formatPhone(c.phone) || '—'}</p>
                   </button>
                 );
               })}
@@ -1346,7 +1350,7 @@ export default function MissionaryContacts() {
                   <div className="min-w-0 flex-1 flex flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
-                      {PIPELINE_STRIP_SET.has(normalizeStatusFromDb(c.status)) ? (
+                      {isPipelineStripContact(c) ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-mission-line bg-mission-blue/5 px-2 py-0.5 text-[10px] font-semibold text-mission-blue">
                           <span
                             className={`h-1.5 w-1.5 shrink-0 rounded-full ${pipelineStripStageDotClass(c.status)}`}
@@ -1357,7 +1361,7 @@ export default function MissionaryContacts() {
                       ) : null}
                     </div>
                     <p className="text-xs text-neutral-500">
-                      {PIPELINE_STRIP_SET.has(normalizeStatusFromDb(c.status)) ? (
+                      {isPipelineStripContact(c) ? (
                         <>
                           {categoryLabel(c.category)}
                           {Number(c.monthlyAmount) > 0 ? ` · $${Number(c.monthlyAmount).toFixed(0)}/mo` : ''}
@@ -1369,7 +1373,7 @@ export default function MissionaryContacts() {
                         </>
                       )}
                     </p>
-                    {c.phone ? <p className="text-sm text-neutral-700">{c.phone}</p> : null}
+                    {c.phone ? <p className="text-sm text-neutral-700">{formatPhone(c.phone)}</p> : null}
                     {c.email ? <p className="text-sm text-neutral-700">{c.email}</p> : null}
                     {c.address ? <p className="text-sm text-neutral-700">{c.address}</p> : null}
                     {c.isOneTimeDonor ? (
@@ -1443,8 +1447,11 @@ export default function MissionaryContacts() {
             {detailContact.phone ? (
               <div>
                 <span className="sent-section-label mb-1 block">Phone</span>
-                <a href={`tel:${detailContact.phone}`} className="text-base font-semibold text-accent underline">
-                  {detailContact.phone}
+                <a
+                  href={`tel:${String(detailContact.phone).replace(/\D/g, '')}`}
+                  className="text-base font-semibold text-accent underline"
+                >
+                  {formatPhone(detailContact.phone)}
                 </a>
               </div>
             ) : (
