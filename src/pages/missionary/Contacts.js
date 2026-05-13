@@ -1065,13 +1065,6 @@ export default function MissionaryContacts() {
     }
   }, [logCommunication, logType, logText]);
 
-  const handleViewFullProfile = useCallback(() => {
-    if (!detailContact) return;
-    const c = detailContact;
-    openEdit(c);
-    closeDetail({ restoreScroll: false });
-  }, [detailContact, openEdit, closeDetail]);
-
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
 
   return (

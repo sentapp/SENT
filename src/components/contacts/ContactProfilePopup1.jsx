@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { categoryLabel, normalizeCategory } from '../../lib/contactCategories';
-import { formatPhone } from '../../lib/phoneFormat';
+import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { relationshipLabel } from '../../lib/contactRelationships';
 import { notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
@@ -63,6 +63,7 @@ const BTN_BORDERED =
  *   openEditForm: (c: Record<string, unknown>) => void,
  *   lastContactIso?: string | null,
  *   showLog: boolean,
+ *   setShowLog?: (v: boolean) => void,
  *   onCall: () => void,
  *   onText: () => void,
  *   onLog: () => void,
@@ -78,6 +79,7 @@ export function ContactProfilePopup1({
   openEditForm,
   lastContactIso,
   showLog,
+  setShowLog: _setShowLog,
   onCall,
   onText,
   onLog,
@@ -100,7 +102,7 @@ export function ContactProfilePopup1({
   const badge = lastContactBadgeFromIso(lastContactIso ?? null);
   const { social } = splitSocialFromNotes(contact.notes);
   const notesDisplay = cleanDisplayNotesBody(contact.notes);
-  const phoneDigitsRaw = contact.phone ? String(contact.phone).replace(/\D/g, '') : '';
+  const phoneDigitsRaw = contact.phone ? phoneDigits(contact.phone) : '';
   const phoneHref = phoneDigitsRaw ? `tel:${phoneDigitsRaw}` : undefined;
   const emailStr = contact.email ? String(contact.email).trim() : '';
   const emailHref = emailStr ? `mailto:${emailStr}` : undefined;
@@ -113,6 +115,14 @@ export function ContactProfilePopup1({
 
   const monthly = Number(contact.monthlyAmount);
   const monthlyDisp = Number.isFinite(monthly) && monthly > 0 ? `$${monthly.toFixed(0)}/mo` : '—';
+
+  const socialStr = social ? String(social).trim() : '';
+  const socialHref =
+    socialStr && /^https?:\/\//i.test(socialStr)
+      ? socialStr
+      : socialStr && /^www\./i.test(socialStr)
+        ? `https://${socialStr}`
+        : undefined;
 
   const handleEdit = () => {
     onClose();
@@ -129,7 +139,7 @@ export function ContactProfilePopup1({
       }}
     >
       <div
-        className="w-full overflow-y-auto bg-white shadow-lg"
+        className="w-full overflow-y-auto overflow-x-hidden bg-white shadow-lg"
         style={{
           maxWidth: 380,
           maxHeight: '85vh',
@@ -200,8 +210,8 @@ export function ContactProfilePopup1({
             <InfoRow label="Monthly" value={monthlyDisp} valueClassName="text-sm font-medium text-ink" />
             <InfoRow
               label="Social"
-              value={social ? String(social) : ''}
-              href={social && /^https?:\/\//i.test(String(social).trim()) ? String(social).trim() : undefined}
+              value={socialStr}
+              href={socialHref}
               valueClassName="text-sm font-medium text-ink break-all"
             />
           </div>
