@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
+import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { supabase } from '../../lib/supabaseClient';
-import { categoryLabel } from '../../lib/contactCategories';
+import { categoryLabel, normalizeCategoryForSave } from '../../lib/contactCategories';
+import { normalizeStatusForSave } from '../../lib/contactStatuses';
 import { Button, Card, EmptyState, Modal, Textarea } from '../../components/ui';
+import {
+  PartnerInlineEditPanel,
+  PARTNER_INLINE_STATUS_OPTIONS,
+  partnerToDraft,
+  serializeDraft,
+} from './PartnerInlineEditPanel';
 
 const COMM_TYPE_LABEL = {
   call: 'Call',
@@ -19,6 +26,8 @@ const COMM_TYPE_LABEL = {
 const QUICK_LOG_TYPES = ['call', 'text', 'email', 'meeting', 'note'];
 
 const PAGE_SIZE = 1000;
+
+const PARTNER_STATUS_VALUE_SET = new Set(PARTNER_INLINE_STATUS_OPTIONS.map((o) => o.value));
 
 /** Days since last contact; never contacted → large sentinel. */
 function daysSince(isoOrNull) {
@@ -97,11 +106,27 @@ function lastContactBadgeMeta(lastIso) {
   return { label: d <= 1 ? (d === 0 ? 'Today' : '1 day') : `${d} days`, className: 'text-emerald-700 font-medium' };
 }
 
+function ExpandPanelShell({ open, children }) {
+  return (
+    <div
+      className={`grid overflow-hidden transition-[grid-template-rows] duration-300 ease-out ${
+        open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+      }`}
+    >
+      <div className="min-h-0">{children}</div>
+    </div>
+  );
+}
+
 export default function MissionaryPartners() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { contacts } = useSupabaseContacts(user?.id, { authLoading });
-  const [selectedId, setSelectedId] = useState(null);
+  const { contacts, refetch, schemaPartial } = useSupabaseContacts(user?.id, { authLoading });
+  const [expandedPartnerId, setExpandedPartnerId] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [draftSnapshot, setDraftSnapshot] = useState(null);
+  const expandedDraftInitRef = useRef(null);
+
   const [tab, setTab] = useState('Message');
   const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -119,6 +144,11 @@ export default function MissionaryPartners() {
   const [quickSaving, setQuickSaving] = useState(false);
   const [quickError, setQuickError] = useState('');
 
+  const [inlineSaveError, setInlineSaveError] = useState('');
+  const [inlineSaving, setInlineSaving] = useState(false);
+  const [savedNoticeId, setSavedNoticeId] = useState(null);
+  const savedNoticeTimerRef = useRef(null);
+
   const partners = useMemo(() => {
     return contacts.filter(
       (c) =>
@@ -128,7 +158,61 @@ export default function MissionaryPartners() {
     );
   }, [contacts]);
 
-  const selected = partners.find((p) => p.id === selectedId) || null;
+  const expandedPartner = useMemo(
+    () => (expandedPartnerId ? partners.find((p) => p.id === expandedPartnerId) ?? null : null),
+    [partners, expandedPartnerId],
+  );
+
+  const isDraftDirty = Boolean(draft && draftSnapshot != null && serializeDraft(draft) !== draftSnapshot);
+
+  const confirmDiscardIfNeeded = useCallback(() => {
+    if (!isDraftDirty) return true;
+    return window.confirm('Discard changes?');
+  }, [isDraftDirty]);
+
+  const collapseExpanded = useCallback(() => {
+    setExpandedPartnerId(null);
+  }, []);
+
+  const handleToggleExpandRow = useCallback(
+    (p) => {
+      if (expandedPartnerId === p.id) {
+        if (!confirmDiscardIfNeeded()) return;
+        collapseExpanded();
+        return;
+      }
+      setExpandedPartnerId(p.id);
+    },
+    [expandedPartnerId, confirmDiscardIfNeeded, collapseExpanded],
+  );
+
+  const handleInlineCancel = useCallback(() => {
+    if (!confirmDiscardIfNeeded()) return;
+    collapseExpanded();
+  }, [confirmDiscardIfNeeded, collapseExpanded]);
+
+  useEffect(() => {
+    if (!expandedPartnerId) {
+      expandedDraftInitRef.current = null;
+      setDraft(null);
+      setDraftSnapshot(null);
+      setInlineSaveError('');
+      return;
+    }
+    if (expandedDraftInitRef.current === expandedPartnerId) {
+      return;
+    }
+    const p = partners.find((x) => x.id === expandedPartnerId);
+    if (!p) return;
+    expandedDraftInitRef.current = expandedPartnerId;
+    const base = partnerToDraft({
+      ...p,
+      status: PARTNER_STATUS_VALUE_SET.has(p.status) ? p.status : 'partner',
+    });
+    setDraft(base);
+    setDraftSnapshot(serializeDraft(base));
+    setInlineSaveError('');
+  }, [expandedPartnerId, partners]);
 
   const loadLastContacts = useCallback(async () => {
     if (!supabase || !user?.id || partners.length === 0) {
@@ -182,6 +266,8 @@ export default function MissionaryPartners() {
 
   const touchpointCount = needsTouchpoint.length;
 
+  const needsTouchpointIdSet = useMemo(() => new Set(needsTouchpoint.map((p) => p.id)), [needsTouchpoint]);
+
   const sortedPartners = useMemo(() => {
     return [...partners].sort((a, b) => {
       const da = daysSince(lastContactById[a.id] ?? null);
@@ -191,7 +277,7 @@ export default function MissionaryPartners() {
   }, [partners, lastContactById]);
 
   const loadLogs = useCallback(async () => {
-    if (!supabase || !selected?.id) {
+    if (!supabase || !expandedPartner?.id) {
       setLogs([]);
       return;
     }
@@ -199,7 +285,7 @@ export default function MissionaryPartners() {
     const { data, error } = await supabase
       .from('communication_logs')
       .select('*')
-      .eq('contact_id', selected.id)
+      .eq('contact_id', expandedPartner.id)
       .order('created_at', { ascending: false })
       .limit(20);
     setLogsLoading(false);
@@ -208,7 +294,7 @@ export default function MissionaryPartners() {
       return;
     }
     setLogs(data || []);
-  }, [selected?.id]);
+  }, [expandedPartner?.id]);
 
   useEffect(() => {
     void loadLogs();
@@ -226,14 +312,84 @@ export default function MissionaryPartners() {
     });
   }, []);
 
+  const flashSavedNotice = useCallback((id) => {
+    if (savedNoticeTimerRef.current) {
+      clearTimeout(savedNoticeTimerRef.current);
+    }
+    setSavedNoticeId(id);
+    savedNoticeTimerRef.current = setTimeout(() => {
+      setSavedNoticeId(null);
+      savedNoticeTimerRef.current = null;
+    }, 2500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (savedNoticeTimerRef.current) {
+        clearTimeout(savedNoticeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const submitInlineSave = async () => {
+    if (!supabase || !user?.id || !expandedPartner?.id || !draft) return;
+    setInlineSaveError('');
+    setInlineSaving(true);
+    const monthlyNum = Number(String(draft.monthlyAmount).replace(/,/g, ''));
+    const monthly_amount = Number.isFinite(monthlyNum) ? monthlyNum : 0;
+    const isDonor = Boolean(draft.isOneTimeDonor);
+    const oneAmtRaw = Number(String(draft.oneTimeDonationAmount).replace(/,/g, ''));
+    const one_time_donation_amount = isDonor && Number.isFinite(oneAmtRaw) ? oneAmtRaw : 0;
+    const one_time_donation_date =
+      isDonor && draft.oneTimeDonationDate && String(draft.oneTimeDonationDate).trim() !== ''
+        ? String(draft.oneTimeDonationDate).slice(0, 10)
+        : null;
+
+    let row = {
+      full_name: String(draft.fullName ?? '').trim(),
+      phone: String(draft.phone ?? '').trim(),
+      email: String(draft.email ?? '').trim(),
+      monthly_amount,
+      category: normalizeCategoryForSave(draft.category),
+      status: normalizeStatusForSave(draft.status),
+      notes: String(draft.notes ?? '').trim(),
+      address: String(draft.address ?? '').trim(),
+      is_one_time_donor: isDonor,
+      one_time_donation_amount,
+      one_time_donation_date,
+    };
+    row = stripOptionalContactColumnsFromRow(row, schemaPartial);
+
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .update(row)
+        .eq('id', expandedPartner.id)
+        .eq('missionary_id', user.id);
+      if (error) {
+        setInlineSaveError(error.message || 'Could not save.');
+        setInlineSaving(false);
+        return;
+      }
+      expandedDraftInitRef.current = null;
+      setExpandedPartnerId(null);
+      await refetch();
+      flashSavedNotice(expandedPartner.id);
+    } catch (e) {
+      setInlineSaveError(e?.message || 'Could not save.');
+    } finally {
+      setInlineSaving(false);
+    }
+  };
+
   const submitCommLog = async () => {
-    if (!supabase || !user?.id || !selected?.id || !commModal) return;
+    if (!supabase || !user?.id || !expandedPartner?.id || !commModal) return;
     setCommError('');
     setCommSaving(true);
     const notes = commNotes.trim();
     const row = {
       missionary_id: user.id,
-      contact_id: selected.id,
+      contact_id: expandedPartner.id,
       comm_type: commModal,
       notes,
       created_at: new Date().toISOString(),
@@ -246,7 +402,7 @@ export default function MissionaryPartners() {
         return;
       }
       if (data?.created_at) {
-        mergeLastContact(selected.id, data.created_at);
+        mergeLastContact(expandedPartner.id, data.created_at);
       }
       if (data) {
         setLogs((prev) => {
@@ -287,7 +443,7 @@ export default function MissionaryPartners() {
       }
       const at = data?.created_at ?? createdAt;
       mergeLastContact(quickLog.id, at);
-      if (selected?.id === quickLog.id && data) {
+      if (expandedPartner?.id === quickLog.id && data) {
         setLogs((prev) => {
           const next = [data, ...prev.filter((x) => x.id !== data.id)];
           return next.slice(0, 20);
@@ -313,6 +469,74 @@ export default function MissionaryPartners() {
     setQuickNotes('');
     setQuickType('call');
     setQuickLog(partner);
+  };
+
+  const renderActivitySection = () => {
+    if (!expandedPartner) return null;
+    return (
+      <>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-t border-mission-line px-4 pb-2 pt-4 sm:px-5">
+        <div>
+          <p className="text-lg font-semibold text-ink">{expandedPartner.fullName || 'Unnamed partner'}</p>
+          <p className="mt-1 text-sm text-neutral-600">{categoryLabel(expandedPartner.category)}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={() => openLogModal('call')}>
+            Log call
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => openLogModal('text')}>
+            Log text
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => openLogModal('update')}>
+            Log update
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => openLogModal('prayer')}>
+            Log prayer
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => openLogModal('note')}>
+            Log note
+          </Button>
+        </div>
+      </div>
+
+      <div className="border-t border-mission-line px-4 py-3 sm:px-5">
+        <Tabs tab={tab} setTab={setTab} />
+      </div>
+
+      <div className="px-4 pb-5 sm:px-5">
+        {logsLoading ? (
+          <p className="text-sm text-neutral-500">Loading activity…</p>
+        ) : filteredLogs.length === 0 ? (
+          <EmptyState
+            icon="clipboard"
+            title="No activity in this tab"
+            subtitle="Log calls, texts, updates, prayers, or notes — they’ll show up here."
+          />
+        ) : (
+          <ul className="space-y-3">
+            {filteredLogs.map((log) => (
+              <li key={log.id} className="rounded-btn border border-neutral-200 px-4 py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-mission-blue">
+                    {COMM_TYPE_LABEL[log.comm_type] || log.comm_type}
+                  </span>
+                  <span className="text-xs text-neutral-500">
+                    {log.created_at
+                      ? new Date(log.created_at).toLocaleString(undefined, {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })
+                      : ''}
+                  </span>
+                </div>
+                {log.notes ? <p className="mt-2 whitespace-pre-wrap text-neutral-800">{log.notes}</p> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
+    );
   };
 
   return (
@@ -354,18 +578,45 @@ export default function MissionaryPartners() {
                 {needsTouchpoint.map((p) => {
                   const last = lastContactById[p.id] ?? null;
                   const d = daysSince(last);
-                  const borderLeft =
-                    d >= 30 ? '3px solid #A32D2D' : '3px solid #854F0B';
+                  const borderLeft = d >= 30 ? '3px solid #A32D2D' : '3px solid #854F0B';
+                  const isExpanded = expandedPartnerId === p.id;
                   return (
-                    <Card key={p.id} className="overflow-hidden p-4" style={{ borderLeft }}>
-                      <p className="font-bold text-ink">{p.fullName || 'Unnamed partner'}</p>
-                      <p className="mt-1 text-sm text-neutral-500">
-                        {last ? `No contact in ${d} days` : 'No contact yet'}
-                      </p>
-                      <p className="mt-2 text-sm text-neutral-700">{formatMonthly(p.monthlyAmount)}</p>
-                      <Button type="button" className="mt-3 w-full sm:w-auto" onClick={() => openQuickLog(p)}>
-                        Reach out
-                      </Button>
+                    <Card key={p.id} className="overflow-hidden p-0" style={{ borderLeft }}>
+                      <button
+                        type="button"
+                        className="flex w-full flex-col gap-1 p-4 text-left transition-colors hover:bg-neutral-50/60"
+                        onClick={() => handleToggleExpandRow(p)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-bold text-ink">{p.fullName || 'Unnamed partner'}</p>
+                          {savedNoticeId === p.id ? (
+                            <span className="shrink-0 text-xs font-semibold text-emerald-700">Saved</span>
+                          ) : null}
+                        </div>
+                        <p className="text-sm text-neutral-500">{last ? `No contact in ${d} days` : 'No contact yet'}</p>
+                        <p className="text-sm text-neutral-700">{formatMonthly(p.monthlyAmount)}</p>
+                      </button>
+                      <div className="border-t border-mission-line px-4 pb-4" onClick={(e) => e.stopPropagation()}>
+                        <Button type="button" className="w-full sm:w-auto" onClick={() => openQuickLog(p)}>
+                          Reach out
+                        </Button>
+                      </div>
+                      <ExpandPanelShell open={isExpanded}>
+                        {isExpanded && draft ? (
+                          <div className="border-t border-mission-line bg-[color:var(--color-bg)] transition-all duration-300 ease-out">
+                            <PartnerInlineEditPanel
+                              draft={draft}
+                              onChange={setDraft}
+                              saveError={inlineSaveError}
+                              saving={inlineSaving}
+                              onSave={() => void submitInlineSave()}
+                              onCancel={handleInlineCancel}
+                              schemaPartial={schemaPartial}
+                            />
+                            {renderActivitySection()}
+                          </div>
+                        ) : null}
+                      </ExpandPanelShell>
                     </Card>
                   );
                 })}
@@ -373,120 +624,58 @@ export default function MissionaryPartners() {
             </div>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-3 md:col-span-1">
-              <h2 className="text-sm font-semibold text-ink">All partners</h2>
-              {lastContactLoading ? (
-                <p className="text-xs text-neutral-500">Loading touchpoints…</p>
-              ) : null}
-              <ul className="space-y-2">
-                {sortedPartners.map((p) => {
-                  const last = lastContactById[p.id] ?? null;
-                  const badge = lastContactBadgeMeta(last);
-                  const active = p.id === selectedId;
-                  return (
-                    <li key={p.id}>
-                      <Card
-                        className={`p-3 transition-colors ${
-                          active ? 'ring-2 ring-mission-blue/30' : 'hover:bg-neutral-50'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-3 text-left"
-                          onClick={() => setSelectedId(p.id)}
-                        >
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-sm font-semibold text-mission-blue">
-                            {partnerInitials(p.fullName)}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
-                            <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
-                          </span>
-                          <span className={`shrink-0 text-xs ${badge.className}`}>{badge.label}</span>
-                        </button>
-                      </Card>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-
-            <div className="md:col-span-2">
-              {selected ? (
-                <Card className="p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold">{selected.fullName || 'Unnamed partner'}</p>
-                      <p className="mt-1 text-sm text-neutral-600">{categoryLabel(selected.category)}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="secondary" onClick={() => openLogModal('call')}>
-                        Log call
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={() => openLogModal('text')}>
-                        Log text
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={() => openLogModal('update')}>
-                        Log update
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={() => openLogModal('prayer')}>
-                        Log prayer
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={() => openLogModal('note')}>
-                        Log note
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                    <Tabs tab={tab} setTab={setTab} />
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-ink">All partners</h2>
+            {lastContactLoading ? <p className="text-xs text-neutral-500">Loading touchpoints…</p> : null}
+            <ul className="space-y-2">
+              {sortedPartners.map((p) => {
+                const last = lastContactById[p.id] ?? null;
+                const badge = lastContactBadgeMeta(last);
+                const isExpanded = p.id === expandedPartnerId;
+                const showExpandHere = isExpanded && !needsTouchpointIdSet.has(p.id);
+                return (
+                  <li key={p.id} className="overflow-hidden rounded-card border border-mission-line bg-surface transition-shadow duration-200">
                     <button
                       type="button"
-                      className="text-xs font-semibold text-mission-blue hover:underline"
-                      onClick={() => navigate(`/missionary/contacts?contact=${encodeURIComponent(selected.id)}`)}
+                      className={`flex w-full items-center gap-3 p-3 text-left transition-colors ${
+                        isExpanded ? 'bg-mission-blue/[0.06]' : 'hover:bg-neutral-50'
+                      }`}
+                      onClick={() => handleToggleExpandRow(p)}
                     >
-                      Edit contact
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-sm font-semibold text-mission-blue">
+                        {partnerInitials(p.fullName)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
+                          {savedNoticeId === p.id ? (
+                            <span className="text-xs font-semibold text-emerald-700">Saved</span>
+                          ) : null}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
+                      </span>
+                      <span className={`shrink-0 text-xs ${badge.className}`}>{badge.label}</span>
                     </button>
-                  </div>
-
-                  <div className="mt-4">
-                    {logsLoading ? (
-                      <p className="text-sm text-neutral-500">Loading activity…</p>
-                    ) : filteredLogs.length === 0 ? (
-                      <EmptyState
-                        icon="clipboard"
-                        title="No activity in this tab"
-                        subtitle="Log calls, texts, updates, prayers, or notes — they’ll show up here."
-                      />
-                    ) : (
-                      <ul className="space-y-3">
-                        {filteredLogs.map((log) => (
-                          <li key={log.id} className="rounded-btn border border-neutral-200 px-4 py-3 text-sm">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="font-semibold text-mission-blue">
-                                {COMM_TYPE_LABEL[log.comm_type] || log.comm_type}
-                              </span>
-                              <span className="text-xs text-neutral-500">
-                                {log.created_at
-                                  ? new Date(log.created_at).toLocaleString(undefined, {
-                                      dateStyle: 'medium',
-                                      timeStyle: 'short',
-                                    })
-                                  : ''}
-                              </span>
-                            </div>
-                            {log.notes ? <p className="mt-2 whitespace-pre-wrap text-neutral-800">{log.notes}</p> : null}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </Card>
-              ) : (
-                <EmptyState icon="compass" title="Select a partner" subtitle="Choose someone from the list to see details and log touchpoints." />
-              )}
-            </div>
+                    <ExpandPanelShell open={showExpandHere}>
+                      {showExpandHere && draft ? (
+                        <div className="border-t border-mission-line bg-[color:var(--color-bg)] transition-all duration-300 ease-out">
+                          <PartnerInlineEditPanel
+                            draft={draft}
+                            onChange={setDraft}
+                            saveError={inlineSaveError}
+                            saving={inlineSaving}
+                            onSave={() => void submitInlineSave()}
+                            onCancel={handleInlineCancel}
+                            schemaPartial={schemaPartial}
+                          />
+                          {renderActivitySection()}
+                        </div>
+                      ) : null}
+                    </ExpandPanelShell>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </>
       )}
