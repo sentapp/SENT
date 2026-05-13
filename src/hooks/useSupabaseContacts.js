@@ -173,6 +173,8 @@ export function useSupabaseContacts(authUserId, options = {}) {
   const lastGoodSnapshotRef = useRef([]);
   /** Once true, a later unexplained empty fetch triggers a warning instead of wiping the UI. */
   const hadContactsLoadedBeforeRef = useRef(false);
+  /** One-time partner rows → category supporter repair per signed-in missionary session (avoids refetch loops). */
+  const partnerCategoryFixDoneRef = useRef(false);
 
   const refetch = useCallback(async (options = {}) => {
     const { trustEmpty = false } = options;
@@ -233,6 +235,28 @@ export function useSupabaseContacts(authUserId, options = {}) {
 
       const mapped = rows.map(mapRow);
 
+      if (!partnerCategoryFixDoneRef.current && missionaryId) {
+        partnerCategoryFixDoneRef.current = true;
+        const needsFix = mapped.filter(
+          (c) =>
+            normalizeStatusFromDb(c.status) === 'partner' && normalizeCategoryFromDb(c.category) !== 'supporter',
+        );
+        if (needsFix.length > 0) {
+          const { error: fixErr } = await supabase
+            .from('contacts')
+            .update({ category: 'supporter' })
+            .in(
+              'id',
+              needsFix.map((c) => c.id),
+            )
+            .eq('missionary_id', missionaryId);
+          if (!fixErr) {
+            await refetch();
+            return;
+          }
+        }
+      }
+
       if (
         rows.length === 0 &&
         !trustEmpty &&
@@ -278,10 +302,12 @@ export function useSupabaseContacts(authUserId, options = {}) {
       setUnexpectedEmptyWarning(false);
       lastGoodSnapshotRef.current = [];
       hadContactsLoadedBeforeRef.current = false;
+      partnerCategoryFixDoneRef.current = false;
       return;
     }
     lastGoodSnapshotRef.current = [];
     hadContactsLoadedBeforeRef.current = false;
+    partnerCategoryFixDoneRef.current = false;
     setUnexpectedEmptyWarning(false);
     refetch();
   }, [refetch, authUserId, authLoading]);

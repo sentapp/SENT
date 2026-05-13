@@ -13,10 +13,10 @@ export const CONTACT_CATEGORY_VALUES = ['supporter', 'church', 'former'];
 
 /** Filter tabs above the contacts list. "All" shows everyone (including uncategorized). */
 export const CONTACT_CATEGORY_FILTER_TABS = [
-  { id: 'all', label: 'All' },
-  { id: 'supporter', label: 'Partners' },
-  { id: 'church', label: 'Churches / Orgs' },
-  { id: 'former', label: 'Previous Partners' },
+  { label: 'All', value: 'all' },
+  { label: 'Partners', value: 'supporter' },
+  { label: 'Churches / Orgs', value: 'church' },
+  { label: 'Previous Partners', value: 'former' },
 ];
 
 /**

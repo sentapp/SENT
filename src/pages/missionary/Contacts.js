@@ -57,7 +57,27 @@ const STRIP_STAGE_LABEL = {
 };
 
 const FILTERS = CONTACT_CATEGORY_FILTER_TABS;
-const VALID_CONTACT_FILTER_IDS = new Set(FILTERS.map((f) => f.id));
+const VALID_CONTACT_FILTER_VALUES = new Set(FILTERS.map((f) => f.value));
+
+function filterContacts(contacts, activeFilter) {
+  switch (activeFilter) {
+    case 'all':
+      return contacts;
+    case 'supporter':
+      return contacts.filter(
+        (c) =>
+          normalizeCategory(c.category) === 'supporter' ||
+          normalizeStatusFromDb(c.status) === 'partner' ||
+          (c.monthlyAmount != null && Number(c.monthlyAmount) > 0),
+      );
+    case 'church':
+      return contacts.filter((c) => normalizeCategory(c.category) === 'church');
+    case 'former':
+      return contacts.filter((c) => normalizeCategory(c.category) === 'former');
+    default:
+      return contacts;
+  }
+}
 const emptyForm = {
   fullName: '',
   phone: '',
@@ -227,7 +247,7 @@ export default function MissionaryContacts() {
 
   const [activeFilter, setActiveFilter] = useState('all');
   useEffect(() => {
-    if (!VALID_CONTACT_FILTER_IDS.has(activeFilter)) setActiveFilter('all');
+    if (!VALID_CONTACT_FILTER_VALUES.has(activeFilter)) setActiveFilter('all');
   }, [activeFilter]);
   const [query, setQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -832,11 +852,10 @@ export default function MissionaryContacts() {
 
   const filteredSorted = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return contacts
+    return filterContacts(contacts, activeFilter)
       .filter((c) => {
         if (oneTimeDonorFilter && !c.isOneTimeDonor) return false;
-        if (activeFilter === 'all') return true;
-        return normalizeCategory(c.category) === activeFilter;
+        return true;
       })
       .filter((c) => {
         if (!q) return true;
@@ -1255,14 +1274,14 @@ export default function MissionaryContacts() {
           aria-label="Filter contacts by category"
         >
           {FILTERS.map((t) => {
-            const active = activeFilter === t.id;
+            const active = activeFilter === t.value;
             return (
               <button
-                key={t.id}
+                key={t.value}
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => setActiveFilter(t.id)}
+                onClick={() => setActiveFilter(t.value)}
                 className={`min-h-[44px] rounded-md px-1 py-2 text-center text-xs font-semibold leading-tight transition sm:px-2 sm:text-sm ${
                   active
                     ? 'border-b-2 border-[#185FA5] bg-white text-[#185FA5] shadow-sm'
