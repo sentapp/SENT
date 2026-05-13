@@ -106,7 +106,7 @@ export function QuickTagPopover({ open, onClose, items, onPick, children }) {
 }
 
 const PILL_CLASS =
-  'inline-flex max-w-full cursor-pointer items-center truncate rounded-full border px-2.5 py-0.5 text-left text-[11px] font-semibold transition hover:opacity-90';
+  'inline-flex max-w-full cursor-pointer items-center truncate rounded-full border px-2.5 py-0.5 text-left text-[11px] font-semibold transition';
 
 const ADD_TAG_DETAIL_STYLE = {
   fontSize: 11,
