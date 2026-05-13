@@ -1413,6 +1413,7 @@ export default function MissionaryContacts() {
             prev && String(prev.id) === String(next.id) ? { ...prev, ...next } : prev,
           )
         }
+        onAfterQuickTagSave={() => void refetch()}
       />
 
       <ContactQuickLogPopup

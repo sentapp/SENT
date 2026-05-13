@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { categoryLabel, normalizeCategory } from '../../lib/contactCategories';
 import { formatPhone } from '../../lib/phoneFormat';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { Textarea } from '../../components/ui';
@@ -51,7 +52,10 @@ function formatMonthly(amount) {
 }
 
 function subtitle(contact) {
-  return formatMonthly(contact?.monthlyAmount);
+  const monthly = formatMonthly(contact?.monthlyAmount);
+  const cat = normalizeCategory(contact?.category);
+  const lab = cat ? categoryLabel(contact.category) : '';
+  return lab ? `${monthly} · ${lab}` : monthly;
 }
 
 /**

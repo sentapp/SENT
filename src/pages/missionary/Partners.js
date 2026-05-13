@@ -2,18 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
-import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../hooks/useSupabaseContacts';
-import { supabase } from '../../lib/supabaseClient';
-import { normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
-import { normalizeStatusForSave, normalizeStatusFromDb } from '../../lib/contactStatuses';
-import { formatPhone } from '../../lib/phoneFormat';
-import { Button, EmptyState, Modal, Textarea } from '../../components/ui';
 import {
-  PartnerInlineEditPanel,
-  PARTNER_INLINE_STATUS_OPTIONS,
-  partnerToDraft,
-  serializeDraft,
-} from './PartnerInlineEditPanel';
+  ContactQuickLogPopup,
+  ContactQuickViewPopup,
+  lastContactBadgeFromIso,
+} from '../../components/contacts/ContactQuickViewPopup';
+import { Button, EmptyState, Modal } from '../../components/ui';
+import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
+import { findEmailConflict, findPhoneConflict } from '../../lib/contactDuplicates';
+import { normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
+import { mergeNotesWithSocial, notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
+import { normalizeRelationshipForSave } from '../../lib/contactRelationships';
+import { normalizeStatusForSave, normalizeStatusFromDb } from '../../lib/contactStatuses';
+import { phoneDigits } from '../../lib/phoneFormat';
+import { supabase } from '../../lib/supabaseClient';
+import ContactEditFormLayout from './ContactEditFormLayout';
 
 const partnerFilters = [
   { label: 'All', value: 'all' },
@@ -21,22 +24,7 @@ const partnerFilters = [
   { label: 'Churches', value: 'church' },
 ];
 
-const COMM_TYPE_LABEL = {
-  call: 'Call',
-  text: 'Text',
-  update: 'Update',
-  prayer: 'Prayer',
-  note: 'Note',
-  email: 'Email',
-  meeting: 'Meeting',
-};
-
-/** Quick log from "Reach out" — Call, Text, Meeting, Note (matches `communication_type` enum). */
-const QUICK_LOG_TYPES = ['call', 'text', 'meeting', 'note'];
-
 const PAGE_SIZE = 1000;
-
-const PARTNER_STATUS_VALUE_SET = new Set(PARTNER_INLINE_STATUS_OPTIONS.map((o) => o.value));
 
 /** Days since last contact; never contacted → large sentinel. */
 function daysSince(isoOrNull) {
@@ -45,38 +33,6 @@ function daysSince(isoOrNull) {
   if (Number.isNaN(d.getTime())) return 999;
   const diffMs = Date.now() - d.getTime();
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
-}
-
-function Tabs({ tab, setTab }) {
-  const tabs = ['Message', 'Prayer', 'Notes'];
-  return (
-    <div className="flex gap-2">
-      {tabs.map((t) => (
-        <button
-          key={t}
-          type="button"
-          onClick={() => setTab(t)}
-          className={`rounded-btn px-3 py-2 text-sm font-medium ${
-            tab === t ? 'bg-mission-blue/10 text-mission-blue ring-1 ring-mission-blue/20' : 'text-mission-muted hover:bg-neutral-100'
-          }`}
-        >
-          {t}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function logMatchesTab(log, tab) {
-  if (tab === 'Prayer') return log.comm_type === 'prayer';
-  if (tab === 'Notes') return log.comm_type === 'note';
-  return (
-    log.comm_type === 'call' ||
-    log.comm_type === 'text' ||
-    log.comm_type === 'update' ||
-    log.comm_type === 'email' ||
-    log.comm_type === 'meeting'
-  );
 }
 
 function partnerInitials(fullName) {
@@ -103,69 +59,94 @@ function daysSinceContactLabel(lastIso) {
   return `${d} days since contact`;
 }
 
-/** Badge for "All good" rows — `Xd ago` style with urgency colors (last contact within 30 days). */
-function lastContactedBadgeFromIso(lastIso) {
-  if (!lastIso) {
-    return { label: 'Never', className: 'text-[#A32D2D] font-semibold' };
-  }
-  const ms = Date.now() - new Date(lastIso).getTime();
-  if (ms >= 0 && ms < 60 * 60 * 1000) {
-    return { label: 'Just now', className: 'text-emerald-700 font-semibold' };
-  }
-  const d = daysSince(lastIso);
-  const dayLabel = d === 0 ? 'Today' : d === 1 ? '1d ago' : `${d}d ago`;
-  if (d >= 30) {
-    return { label: dayLabel, className: 'text-[#A32D2D] font-medium' };
-  }
-  if (d >= 14) {
-    return { label: dayLabel, className: 'text-[#854F0B] font-medium' };
-  }
-  if (d >= 7) {
-    return { label: dayLabel, className: 'text-neutral-500 font-medium' };
-  }
-  return { label: dayLabel, className: 'text-emerald-700 font-medium' };
+function cleanDisplayNotes(notes) {
+  const body = notesWithoutSocialBlock(notes);
+  if (!body) return '';
+  const trimmed = body.toString().trim();
+  if (/^\d+$/.test(trimmed)) return '';
+  return trimmed;
 }
 
-function ExpandPanelShell({ open, children }) {
-  return (
-    <div
-      className={`grid overflow-hidden transition-[grid-template-rows] duration-300 ease-out ${
-        open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
-      }`}
-    >
-      <div className="min-h-0">{children}</div>
-    </div>
-  );
+const emptyForm = {
+  fullName: '',
+  phone: '',
+  email: '',
+  address: '',
+  social: '',
+  category: null,
+  status: 'prospect',
+  relationship: '',
+  monthlyAmount: '',
+  isOneTimeDonor: false,
+  oneTimeDonationAmount: '',
+  oneTimeDonationDate: '',
+  notes: '',
+};
+
+function contactFormSnapshot(f) {
+  return JSON.stringify({
+    fullName: f.fullName ?? '',
+    phone: f.phone ?? '',
+    email: f.email ?? '',
+    address: f.address ?? '',
+    social: f.social ?? '',
+    category: f.category ?? '',
+    status: f.status ?? '',
+    relationship: f.relationship ?? '',
+    monthlyAmount: f.monthlyAmount ?? '',
+    isOneTimeDonor: Boolean(f.isOneTimeDonor),
+    oneTimeDonationAmount: f.oneTimeDonationAmount ?? '',
+    oneTimeDonationDate: f.oneTimeDonationDate ?? '',
+    notes: f.notes ?? '',
+  });
+}
+
+function contactRowToForm(c) {
+  const { social, bodyNotes } = splitSocialFromNotes(c.notes);
+  return {
+    fullName: c.fullName,
+    phone: c.phone,
+    email: c.email,
+    address: c.address || '',
+    social,
+    notes: cleanDisplayNotes(bodyNotes),
+    category: normalizeCategoryForSave(c.category),
+    status: normalizeStatusFromDb(c.status),
+    relationship: c.relationship != null && String(c.relationship).trim() !== '' ? String(c.relationship).trim() : '',
+    monthlyAmount: c.monthlyAmount ? String(c.monthlyAmount) : '',
+    isOneTimeDonor: Boolean(c.isOneTimeDonor),
+    oneTimeDonationAmount:
+      c.oneTimeDonationAmount != null && Number(c.oneTimeDonationAmount) > 0
+        ? String(c.oneTimeDonationAmount)
+        : '',
+    oneTimeDonationDate: c.oneTimeDonationDate || '',
+  };
 }
 
 export default function MissionaryPartners() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { contacts, refetch, schemaPartial, updateContact } = useSupabaseContacts(user?.id, { authLoading });
-  const [expandedPartnerId, setExpandedPartnerId] = useState(null);
-  const [draft, setDraft] = useState(null);
-  const [draftSnapshot, setDraftSnapshot] = useState(null);
-  const expandedDraftInitRef = useRef(null);
+  const { contacts, refetch, updateContact } = useSupabaseContacts(user?.id, { authLoading });
 
-  const [tab, setTab] = useState('Message');
-  const [logs, setLogs] = useState([]);
-  const [logsLoading, setLogsLoading] = useState(false);
-  const [commModal, setCommModal] = useState(null);
-  const [commNotes, setCommNotes] = useState('');
-  const [commSaving, setCommSaving] = useState(false);
-  const [commError, setCommError] = useState('');
-
-  const [lastContactMap, setLastContactMap] = useState({});
-  const [lastContactLoading, setLastContactLoading] = useState(false);
-
+  const [popupPartner, setPopupPartner] = useState(null);
   const [quickLog, setQuickLog] = useState(null);
   const [quickType, setQuickType] = useState('call');
   const [quickNotes, setQuickNotes] = useState('');
   const [quickSaving, setQuickSaving] = useState(false);
   const [quickError, setQuickError] = useState('');
 
-  const [inlineSaveError, setInlineSaveError] = useState('');
-  const [inlineSaving, setInlineSaving] = useState(false);
+  const [commActionError, setCommActionError] = useState('');
+
+  const [fullProfileOpen, setFullProfileOpen] = useState(false);
+  const [fullProfileId, setFullProfileId] = useState(null);
+  const [fullProfileForm, setFullProfileForm] = useState(emptyForm);
+  const [fullProfileSaveError, setFullProfileSaveError] = useState('');
+  const [fullProfileDiscardOpen, setFullProfileDiscardOpen] = useState(false);
+  const fullProfileSnapshotRef = useRef('');
+
+  const [lastContactMap, setLastContactMap] = useState({});
+  const [lastContactLoading, setLastContactLoading] = useState(false);
+
   const [savedNoticeId, setSavedNoticeId] = useState(null);
   const savedNoticeTimerRef = useRef(null);
 
@@ -193,68 +174,6 @@ export default function MissionaryPartners() {
     }
     return allPartners;
   }, [allPartners, partnerViewFilter]);
-
-  useEffect(() => {
-    if (expandedPartnerId && !partners.some((p) => p.id === expandedPartnerId)) {
-      setExpandedPartnerId(null);
-    }
-  }, [expandedPartnerId, partners]);
-
-  const expandedPartner = useMemo(
-    () => (expandedPartnerId ? partners.find((p) => p.id === expandedPartnerId) ?? null : null),
-    [partners, expandedPartnerId],
-  );
-
-  const isDraftDirty = Boolean(draft && draftSnapshot != null && serializeDraft(draft) !== draftSnapshot);
-
-  const confirmDiscardIfNeeded = useCallback(() => {
-    if (!isDraftDirty) return true;
-    return window.confirm('Discard changes?');
-  }, [isDraftDirty]);
-
-  const collapseExpanded = useCallback(() => {
-    setExpandedPartnerId(null);
-  }, []);
-
-  const handleToggleExpandRow = useCallback(
-    (p) => {
-      if (expandedPartnerId === p.id) {
-        if (!confirmDiscardIfNeeded()) return;
-        collapseExpanded();
-        return;
-      }
-      setExpandedPartnerId(p.id);
-    },
-    [expandedPartnerId, confirmDiscardIfNeeded, collapseExpanded],
-  );
-
-  const handleInlineCancel = useCallback(() => {
-    if (!confirmDiscardIfNeeded()) return;
-    collapseExpanded();
-  }, [confirmDiscardIfNeeded, collapseExpanded]);
-
-  useEffect(() => {
-    if (!expandedPartnerId) {
-      expandedDraftInitRef.current = null;
-      setDraft(null);
-      setDraftSnapshot(null);
-      setInlineSaveError('');
-      return;
-    }
-    if (expandedDraftInitRef.current === expandedPartnerId) {
-      return;
-    }
-    const p = partners.find((x) => x.id === expandedPartnerId);
-    if (!p) return;
-    expandedDraftInitRef.current = expandedPartnerId;
-    const base = partnerToDraft({
-      ...p,
-      status: PARTNER_STATUS_VALUE_SET.has(p.status) ? p.status : 'partner',
-    });
-    setDraft(base);
-    setDraftSnapshot(serializeDraft(base));
-    setInlineSaveError('');
-  }, [expandedPartnerId, partners]);
 
   const loadLastContacts = useCallback(async () => {
     if (!supabase || !user?.id) {
@@ -295,61 +214,6 @@ export default function MissionaryPartners() {
     void loadLastContacts();
   }, [loadLastContacts]);
 
-  const totalMonthly = useMemo(() => {
-    return partners.reduce((sum, p) => {
-      const n = Number(p.monthlyAmount);
-      return sum + (Number.isFinite(n) && n > 0 ? n : 0);
-    }, 0);
-  }, [partners]);
-
-  const needsContact = useMemo(() => {
-    return partners.filter((p) => daysSince(lastContactMap[p.id]) >= 30);
-  }, [partners, lastContactMap]);
-
-  const allGood = useMemo(() => {
-    return partners.filter((p) => daysSince(lastContactMap[p.id]) < 30);
-  }, [partners, lastContactMap]);
-
-  const needsContactSorted = useMemo(() => {
-    return [...needsContact].sort(
-      (a, b) => daysSince(lastContactMap[b.id] ?? null) - daysSince(lastContactMap[a.id] ?? null),
-    );
-  }, [needsContact, lastContactMap]);
-
-  const allGoodSorted = useMemo(() => {
-    return [...allGood].sort((a, b) => {
-      const da = daysSince(lastContactMap[a.id] ?? null);
-      const db = daysSince(lastContactMap[b.id] ?? null);
-      return db - da;
-    });
-  }, [allGood, lastContactMap]);
-
-  const loadLogs = useCallback(async () => {
-    if (!supabase || !expandedPartner?.id) {
-      setLogs([]);
-      return;
-    }
-    setLogsLoading(true);
-    const { data, error } = await supabase
-      .from('communication_logs')
-      .select('*')
-      .eq('contact_id', expandedPartner.id)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    setLogsLoading(false);
-    if (error) {
-      setLogs([]);
-      return;
-    }
-    setLogs(data || []);
-  }, [expandedPartner?.id]);
-
-  useEffect(() => {
-    void loadLogs();
-  }, [loadLogs]);
-
-  const filteredLogs = useMemo(() => logs.filter((l) => logMatchesTab(l, tab)), [logs, tab]);
-
   const mergeLastContact = useCallback((contactId, createdAt) => {
     setLastContactMap((prev) => {
       const prevAt = prev[contactId];
@@ -379,94 +243,40 @@ export default function MissionaryPartners() {
     };
   }, []);
 
-  const submitInlineSave = async () => {
-    if (!supabase || !user?.id || !expandedPartner?.id || !draft) return;
-    setInlineSaveError('');
-    setInlineSaving(true);
-    const monthlyNum = Number(String(draft.monthlyAmount).replace(/,/g, ''));
-    const monthly_amount = Number.isFinite(monthlyNum) ? monthlyNum : 0;
-    const isDonor = Boolean(draft.isOneTimeDonor);
-    const oneAmtRaw = Number(String(draft.oneTimeDonationAmount).replace(/,/g, ''));
-    const one_time_donation_amount = isDonor && Number.isFinite(oneAmtRaw) ? oneAmtRaw : 0;
-    const one_time_donation_date =
-      isDonor && draft.oneTimeDonationDate && String(draft.oneTimeDonationDate).trim() !== ''
-        ? String(draft.oneTimeDonationDate).slice(0, 10)
-        : null;
+  const totalMonthly = useMemo(() => {
+    return partners.reduce((sum, p) => {
+      const n = Number(p.monthlyAmount);
+      return sum + (Number.isFinite(n) && n > 0 ? n : 0);
+    }, 0);
+  }, [partners]);
 
-    let row = {
-      full_name: String(draft.fullName ?? '').trim(),
-      phone: String(draft.phone ?? '').trim(),
-      email: String(draft.email ?? '').trim(),
-      monthly_amount,
-      category: normalizeCategoryForSave(draft.category),
-      status: normalizeStatusForSave(draft.status),
-      notes: String(draft.notes ?? '').trim(),
-      address: String(draft.address ?? '').trim(),
-      is_one_time_donor: isDonor,
-      one_time_donation_amount,
-      one_time_donation_date,
-    };
-    row = stripOptionalContactColumnsFromRow(row, schemaPartial);
+  const needsContact = useMemo(() => {
+    return partners.filter((p) => daysSince(lastContactMap[p.id]) >= 30);
+  }, [partners, lastContactMap]);
 
-    try {
-      const { error } = await supabase
-        .from('contacts')
-        .update(row)
-        .eq('id', expandedPartner.id)
-        .eq('missionary_id', user.id);
-      if (error) {
-        setInlineSaveError(error.message || 'Could not save.');
-        setInlineSaving(false);
-        return;
-      }
-      expandedDraftInitRef.current = null;
-      setExpandedPartnerId(null);
-      await refetch();
-      flashSavedNotice(expandedPartner.id);
-    } catch (e) {
-      setInlineSaveError(e?.message || 'Could not save.');
-    } finally {
-      setInlineSaving(false);
-    }
-  };
+  const allGood = useMemo(() => {
+    return partners.filter((p) => daysSince(lastContactMap[p.id]) < 30);
+  }, [partners, lastContactMap]);
 
-  const submitCommLog = async () => {
-    if (!supabase || !user?.id || !expandedPartner?.id || !commModal) return;
-    setCommError('');
-    setCommSaving(true);
-    const notes = commNotes.trim();
-    const row = {
-      missionary_id: user.id,
-      contact_id: expandedPartner.id,
-      comm_type: commModal,
-      notes,
-      created_at: new Date().toISOString(),
-    };
-    try {
-      const { data, error } = await supabase.from('communication_logs').insert(row).select('*').single();
-      if (error) {
-        setCommError(error.message || 'Could not save log.');
-        setCommSaving(false);
-        return;
-      }
-      if (data?.created_at) {
-        mergeLastContact(expandedPartner.id, data.created_at);
-      }
-      if (data) {
-        setLogs((prev) => {
-          const next = [data, ...prev.filter((x) => x.id !== data.id)];
-          return next.slice(0, 20);
-        });
-      } else {
-        await loadLogs();
-      }
-      setCommModal(null);
-      setCommNotes('');
-    } catch (e) {
-      setCommError(e?.message || 'Could not save log.');
-    } finally {
-      setCommSaving(false);
-    }
+  const needsContactSorted = useMemo(() => {
+    return [...needsContact].sort(
+      (a, b) => daysSince(lastContactMap[b.id] ?? null) - daysSince(lastContactMap[a.id] ?? null),
+    );
+  }, [needsContact, lastContactMap]);
+
+  const allGoodSorted = useMemo(() => {
+    return [...allGood].sort((a, b) => {
+      const da = daysSince(lastContactMap[a.id] ?? null);
+      const db = daysSince(lastContactMap[b.id] ?? null);
+      return db - da;
+    });
+  }, [allGood, lastContactMap]);
+
+  const openQuickLog = (partner) => {
+    setQuickError('');
+    setQuickNotes('');
+    setQuickType('call');
+    setQuickLog(partner);
   };
 
   const submitQuickLog = async () => {
@@ -491,12 +301,6 @@ export default function MissionaryPartners() {
       }
       const at = data?.created_at ?? createdAt;
       mergeLastContact(quickLog.id, at);
-      if (expandedPartner?.id === quickLog.id && data) {
-        setLogs((prev) => {
-          const next = [data, ...prev.filter((x) => x.id !== data.id)];
-          return next.slice(0, 20);
-        });
-      }
       setQuickLog(null);
       setQuickNotes('');
       await Promise.all([refetch(), loadLastContacts()]);
@@ -507,100 +311,165 @@ export default function MissionaryPartners() {
     }
   };
 
-  const openLogModal = (type) => {
-    setCommError('');
-    setCommNotes('');
-    setCommModal(type);
-  };
+  const logCommunication = useCallback(
+    async (contactId, type, notes = '') => {
+      if (!supabase || !user?.id || !contactId) {
+        return { ok: false, error: 'Missing contact.' };
+      }
+      const created_at = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('communication_logs')
+        .insert({
+          missionary_id: user.id,
+          contact_id: contactId,
+          comm_type: type,
+          notes: notes ?? '',
+          created_at,
+        })
+        .select('*')
+        .single();
+      if (error) return { ok: false, error: error.message || 'Could not save log.' };
+      const at = data?.created_at ?? created_at;
+      mergeLastContact(contactId, at);
+      await refetch();
+      await loadLastContacts();
+      return { ok: true, created_at: at };
+    },
+    [user?.id, mergeLastContact, refetch, loadLastContacts],
+  );
 
-  const openQuickLog = (partner) => {
-    setQuickError('');
-    setQuickNotes('');
-    setQuickType('call');
-    setQuickLog(partner);
-  };
+  const handlePopupCall = useCallback(() => {
+    const p = popupPartner;
+    if (!p) return;
+    const phone = p.phone;
+    if (!phone) {
+      alert('No phone number on file');
+      return;
+    }
+    const digits = phoneDigits(phone);
+    if (!digits) {
+      alert('No phone number on file');
+      return;
+    }
+    setCommActionError('');
+    window.open(`tel:${digits}`, '_self');
+    void (async () => {
+      const res = await logCommunication(p.id, 'call', '');
+      if (!res.ok) setCommActionError(res.error || 'Could not log call.');
+    })();
+  }, [popupPartner, logCommunication]);
 
-  const invalidateExpandedDraft = useCallback(() => {
-    expandedDraftInitRef.current = null;
+  const handlePopupText = useCallback(() => {
+    const p = popupPartner;
+    if (!p) return;
+    const phone = p.phone;
+    if (!phone) {
+      alert('No phone number on file');
+      return;
+    }
+    const digits = phoneDigits(phone);
+    if (!digits) {
+      alert('No phone number on file');
+      return;
+    }
+    setCommActionError('');
+    window.open(`sms:${digits}`, '_self');
+    void (async () => {
+      const res = await logCommunication(p.id, 'text', '');
+      if (!res.ok) setCommActionError(res.error || 'Could not log text.');
+    })();
+  }, [popupPartner, logCommunication]);
+
+  const handlePopupLog = useCallback(() => {
+    if (!popupPartner) return;
+    openQuickLog(popupPartner);
+  }, [popupPartner]);
+
+  const openFullProfileFromPopup = useCallback(() => {
+    if (!popupPartner) return;
+    const p = popupPartner;
+    setPopupPartner(null);
+    setCommActionError('');
+    setFullProfileId(p.id);
+    const next = contactRowToForm(p);
+    fullProfileSnapshotRef.current = contactFormSnapshot(next);
+    setFullProfileForm(next);
+    setFullProfileSaveError('');
+    setFullProfileDiscardOpen(false);
+    setFullProfileOpen(true);
+  }, [popupPartner]);
+
+  const phoneDupWarn = useMemo(
+    () => findPhoneConflict(fullProfileForm.phone, contacts, { excludeId: fullProfileId }),
+    [fullProfileForm.phone, contacts, fullProfileId],
+  );
+  const emailDupWarn = useMemo(
+    () => findEmailConflict(fullProfileForm.email, contacts, { excludeId: fullProfileId }),
+    [fullProfileForm.email, contacts, fullProfileId],
+  );
+
+  const hasUnsavedFullProfile = useMemo(() => {
+    if (!fullProfileOpen) return false;
+    return contactFormSnapshot(fullProfileForm) !== fullProfileSnapshotRef.current;
+  }, [fullProfileOpen, fullProfileForm]);
+
+  const requestCloseFullProfile = useCallback(() => {
+    if (hasUnsavedFullProfile) {
+      setFullProfileDiscardOpen(true);
+      return;
+    }
+    setFullProfileOpen(false);
+    setFullProfileSaveError('');
+    setFullProfileId(null);
+  }, [hasUnsavedFullProfile]);
+
+  const confirmDiscardFullProfile = useCallback(() => {
+    setFullProfileDiscardOpen(false);
+    setFullProfileOpen(false);
+    setFullProfileSaveError('');
+    setFullProfileId(null);
   }, []);
 
-  const renderActivitySection = () => {
-    if (!expandedPartner) return null;
-    return (
-      <>
-      <div className="flex flex-wrap items-start justify-between gap-3 border-t border-mission-line px-4 pb-2 pt-4 sm:px-5">
-        <div>
-          <p className="text-lg font-semibold text-ink">{expandedPartner.fullName || 'Unnamed partner'}</p>
-          <ContactThreeQuickTagRows
-            contact={expandedPartner}
-            updateContact={updateContact}
-            onAfterSave={invalidateExpandedDraft}
-            className="mt-1 flex flex-col gap-1"
-          />
-          {expandedPartner.phone ? (
-            <p className="mt-2 text-sm font-medium text-neutral-800">{formatPhone(expandedPartner.phone)}</p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" onClick={() => openLogModal('call')}>
-            Log call
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => openLogModal('text')}>
-            Log text
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => openLogModal('update')}>
-            Log update
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => openLogModal('prayer')}>
-            Log prayer
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => openLogModal('note')}>
-            Log note
-          </Button>
-        </div>
-      </div>
+  const saveFullProfile = async () => {
+    setFullProfileSaveError('');
+    if (!fullProfileForm.fullName.trim()) {
+      setFullProfileSaveError('Name is required.');
+      return;
+    }
+    if (!fullProfileId) return;
 
-      <div className="border-t border-mission-line px-4 py-3 sm:px-5">
-        <Tabs tab={tab} setTab={setTab} />
-      </div>
+    const oneTimeAmt = Number.parseFloat(String(fullProfileForm.oneTimeDonationAmount ?? '').replace(/,/g, ''));
+    const isOneTimeDonorEffective =
+      Boolean(fullProfileForm.isOneTimeDonor) || (Number.isFinite(oneTimeAmt) && oneTimeAmt > 0);
 
-      <div className="px-4 pb-5 sm:px-5">
-        {logsLoading ? (
-          <p className="text-sm text-neutral-500">Loading activity…</p>
-        ) : filteredLogs.length === 0 ? (
-          <EmptyState
-            icon="clipboard"
-            title="No activity in this tab"
-            subtitle="Log calls, texts, updates, prayers, or notes — they’ll show up here."
-          />
-        ) : (
-          <ul className="space-y-3">
-            {filteredLogs.map((log) => (
-              <li key={log.id} className="rounded-btn border border-neutral-200 px-4 py-3 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-mission-blue">
-                    {COMM_TYPE_LABEL[log.comm_type] || log.comm_type}
-                  </span>
-                  <span className="text-xs text-neutral-500">
-                    {log.created_at
-                      ? new Date(log.created_at).toLocaleString(undefined, {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        })
-                      : ''}
-                  </span>
-                </div>
-                {log.notes ? <p className="mt-2 whitespace-pre-wrap text-neutral-800">{log.notes}</p> : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </>
-    );
+    const payload = {
+      fullName: fullProfileForm.fullName.trim(),
+      phone: fullProfileForm.phone,
+      email: fullProfileForm.email,
+      address: fullProfileForm.address,
+      category: normalizeCategoryForSave(fullProfileForm.category),
+      status: normalizeStatusForSave(fullProfileForm.status),
+      relationship: normalizeRelationshipForSave(fullProfileForm.relationship) ?? '',
+      monthlyAmount: fullProfileForm.monthlyAmount,
+      isOneTimeDonor: isOneTimeDonorEffective,
+      oneTimeDonationAmount: fullProfileForm.oneTimeDonationAmount,
+      oneTimeDonationDate: fullProfileForm.oneTimeDonationDate,
+      notes: mergeNotesWithSocial(fullProfileForm.notes, fullProfileForm.social),
+    };
+    const res = await updateContact(fullProfileId, payload);
+    if (!res.ok) {
+      setFullProfileSaveError(res.error || 'Could not save.');
+      return;
+    }
+    const savedId = fullProfileId;
+    setFullProfileOpen(false);
+    setFullProfileId(null);
+    flashSavedNotice(savedId);
   };
 
   const partnerCountLabel = partners.length === 1 ? '1 partner' : `${partners.length} partners`;
+
+  const scrollToContact = useCallback(() => {}, []);
 
   return (
     <div className="space-y-6">
@@ -678,24 +547,25 @@ export default function MissionaryPartners() {
               <ul className="space-y-2">
                 {needsContactSorted.map((p) => {
                   const last = lastContactMap[p.id] ?? null;
-                  const isExpanded = expandedPartnerId === p.id;
                   return (
                     <li
                       key={p.id}
-                      className="overflow-hidden rounded-card border border-mission-line border-l-[3px] border-l-[#A32D2D] bg-surface transition-shadow duration-200"
+                      className="group overflow-hidden rounded-card border border-mission-line border-l-[3px] border-l-[#A32D2D] bg-surface transition-shadow duration-200"
                     >
                       <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-4">
                         <div
                           role="button"
                           tabIndex={0}
-                          className={`flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-mission-blue/30 ${
-                            isExpanded ? 'rounded-btn bg-mission-blue/[0.06] sm:bg-transparent' : ''
-                          }`}
-                          onClick={() => handleToggleExpandRow(p)}
+                          className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-mission-blue/30"
+                          onClick={() => {
+                            setCommActionError('');
+                            setPopupPartner(p);
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
-                              handleToggleExpandRow(p);
+                              setCommActionError('');
+                              setPopupPartner(p);
                             }
                           }}
                         >
@@ -715,7 +585,12 @@ export default function MissionaryPartners() {
                               <ContactThreeQuickTagRows
                                 contact={p}
                                 updateContact={updateContact}
-                                onAfterSave={invalidateExpandedDraft}
+                                onAfterSave={() => void refetch()}
+                                onPatchContact={(next) =>
+                                  setPopupPartner((cur) =>
+                                    cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur,
+                                  )
+                                }
                                 variant="compact"
                                 className="flex flex-col gap-1"
                               />
@@ -723,27 +598,19 @@ export default function MissionaryPartners() {
                           </div>
                         </div>
                         <div className="flex shrink-0 items-start sm:items-center">
-                          <Button type="button" variant="danger" className="w-full min-w-[7.5rem] sm:w-auto" onClick={() => openQuickLog(p)}>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            className="w-full min-w-[7.5rem] sm:w-auto"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openQuickLog(p);
+                            }}
+                          >
                             Reach out
                           </Button>
                         </div>
                       </div>
-                      <ExpandPanelShell open={isExpanded}>
-                        {isExpanded && draft ? (
-                          <div className="border-t border-mission-line bg-[color:var(--color-bg)] transition-all duration-300 ease-out">
-                            <PartnerInlineEditPanel
-                              draft={draft}
-                              onChange={setDraft}
-                              saveError={inlineSaveError}
-                              saving={inlineSaving}
-                              onSave={() => void submitInlineSave()}
-                              onCancel={handleInlineCancel}
-                              schemaPartial={schemaPartial}
-                            />
-                            {renderActivitySection()}
-                          </div>
-                        ) : null}
-                      </ExpandPanelShell>
                     </li>
                   );
                 })}
@@ -773,21 +640,25 @@ export default function MissionaryPartners() {
               <ul className="space-y-2">
                 {allGoodSorted.map((p) => {
                   const last = lastContactMap[p.id] ?? null;
-                  const badge = lastContactedBadgeFromIso(last);
-                  const isExpanded = p.id === expandedPartnerId;
+                  const badge = lastContactBadgeFromIso(last);
                   return (
-                    <li key={p.id} className="overflow-hidden rounded-card border border-mission-line bg-surface transition-shadow duration-200">
+                    <li
+                      key={p.id}
+                      className="overflow-hidden rounded-card border border-mission-line bg-surface transition-shadow duration-200"
+                    >
                       <div
                         role="button"
                         tabIndex={0}
-                        className={`flex w-full cursor-pointer flex-col gap-1.5 p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-mission-blue/30 ${
-                          isExpanded ? 'bg-mission-blue/[0.06]' : 'hover:bg-neutral-50'
-                        }`}
-                        onClick={() => handleToggleExpandRow(p)}
+                        className="flex w-full cursor-pointer flex-col gap-1.5 p-3 text-left outline-none transition-colors hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-mission-blue/30"
+                        onClick={() => {
+                          setCommActionError('');
+                          setPopupPartner(p);
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            handleToggleExpandRow(p);
+                            setCommActionError('');
+                            setPopupPartner(p);
                           }
                         }}
                       >
@@ -795,7 +666,12 @@ export default function MissionaryPartners() {
                           <ContactThreeQuickTagRows
                             contact={p}
                             updateContact={updateContact}
-                            onAfterSave={invalidateExpandedDraft}
+                            onAfterSave={() => void refetch()}
+                            onPatchContact={(next) =>
+                              setPopupPartner((cur) =>
+                                cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur,
+                              )
+                            }
                             variant="compact"
                             className="mb-1 flex flex-col gap-1"
                           />
@@ -816,22 +692,6 @@ export default function MissionaryPartners() {
                           <span className={`shrink-0 text-xs ${badge.className}`}>{badge.label}</span>
                         </div>
                       </div>
-                      <ExpandPanelShell open={isExpanded}>
-                        {isExpanded && draft ? (
-                          <div className="border-t border-mission-line bg-[color:var(--color-bg)] transition-all duration-300 ease-out">
-                            <PartnerInlineEditPanel
-                              draft={draft}
-                              onChange={setDraft}
-                              saveError={inlineSaveError}
-                              saving={inlineSaving}
-                              onSave={() => void submitInlineSave()}
-                              onCancel={handleInlineCancel}
-                              schemaPartial={schemaPartial}
-                            />
-                            {renderActivitySection()}
-                          </div>
-                        ) : null}
-                      </ExpandPanelShell>
                     </li>
                   );
                 })}
@@ -841,71 +701,84 @@ export default function MissionaryPartners() {
         </>
       )}
 
+      <ContactQuickViewPopup
+        open={Boolean(popupPartner)}
+        contact={popupPartner}
+        lastContactIso={popupPartner ? lastContactMap[popupPartner.id] ?? null : null}
+        onClose={() => {
+          setPopupPartner(null);
+          setCommActionError('');
+        }}
+        onCall={handlePopupCall}
+        onText={handlePopupText}
+        onLog={handlePopupLog}
+        onViewFullProfile={openFullProfileFromPopup}
+        suppressEscape={Boolean(quickLog)}
+        actionError={commActionError}
+        updateContact={updateContact}
+        onPatchContact={(next) =>
+          setPopupPartner((cur) => (cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur))
+        }
+        onAfterQuickTagSave={() => void refetch()}
+      />
+
+      <ContactQuickLogPopup
+        open={Boolean(quickLog)}
+        title={quickLog ? `Quick log — ${quickLog.fullName || 'Partner'}` : ''}
+        selectedType={quickType}
+        onSelectType={setQuickType}
+        notes={quickNotes}
+        onNotesChange={setQuickNotes}
+        error={quickError}
+        saving={quickSaving}
+        onSave={() => void submitQuickLog()}
+        onClose={() => !quickSaving && setQuickLog(null)}
+      />
+
       <Modal
-        open={Boolean(commModal)}
-        title={commModal ? `Log ${COMM_TYPE_LABEL[commModal] || commModal}` : ''}
-        onClose={() => !commSaving && setCommModal(null)}
-        backdropClose={!commSaving}
+        open={fullProfileOpen}
+        title="Edit contact"
+        backdropClose={false}
+        closeButtonLabel="✕"
+        onClose={requestCloseFullProfile}
+        panelClassName="max-w-xl"
         footer={
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="secondary" disabled={commSaving} onClick={() => setCommModal(null)}>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" type="button" onClick={requestCloseFullProfile}>
               Cancel
             </Button>
-            <Button type="button" disabled={commSaving} onClick={() => void submitCommLog()}>
-              {commSaving ? 'Saving…' : 'Save log'}
+            <Button type="button" onClick={() => void saveFullProfile()}>
+              Save
             </Button>
           </div>
         }
       >
-        {commError ? <p className="mb-3 text-sm text-red-700">{commError}</p> : null}
-        <Textarea
-          value={commNotes}
-          onChange={(e) => setCommNotes(e.target.value)}
-          placeholder="Notes (optional)…"
-          rows={5}
+        {fullProfileSaveError ? <p className="mb-3 text-sm text-red-600">{fullProfileSaveError}</p> : null}
+        <ContactEditFormLayout
+          form={fullProfileForm}
+          setForm={setFullProfileForm}
+          phoneDupWarn={phoneDupWarn}
+          emailDupWarn={emailDupWarn}
+          scrollToContact={scrollToContact}
         />
       </Modal>
 
       <Modal
-        open={Boolean(quickLog)}
-        title={quickLog ? `Log touchpoint — ${quickLog.fullName || 'Partner'}` : ''}
-        onClose={() => !quickSaving && setQuickLog(null)}
-        backdropClose={!quickSaving}
+        open={fullProfileDiscardOpen}
+        title="Unsaved changes"
+        onClose={() => setFullProfileDiscardOpen(false)}
         footer={
           <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="secondary" disabled={quickSaving} onClick={() => setQuickLog(null)}>
-              Cancel
+            <Button variant="secondary" type="button" onClick={() => setFullProfileDiscardOpen(false)}>
+              Keep editing
             </Button>
-            <Button type="button" disabled={quickSaving} onClick={() => void submitQuickLog()}>
-              {quickSaving ? 'Saving…' : 'Save'}
+            <Button type="button" variant="danger" onClick={confirmDiscardFullProfile}>
+              Discard
             </Button>
           </div>
         }
       >
-        {quickError ? <p className="mb-3 text-sm text-red-700">{quickError}</p> : null}
-        <p className="mb-2 text-xs font-medium text-neutral-600">Type</p>
-        <div className="mb-4 flex flex-wrap gap-2">
-          {QUICK_LOG_TYPES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setQuickType(t)}
-              className={`rounded-btn border px-3 py-1.5 text-sm font-medium ${
-                quickType === t
-                  ? 'border-mission-blue bg-mission-blue/10 text-mission-blue'
-                  : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
-              }`}
-            >
-              {COMM_TYPE_LABEL[t]}
-            </button>
-          ))}
-        </div>
-        <Textarea
-          value={quickNotes}
-          onChange={(e) => setQuickNotes(e.target.value)}
-          placeholder="Notes (optional)…"
-          rows={4}
-        />
+        <p className="text-sm text-neutral-700">You have unsaved changes — discard them?</p>
       </Modal>
     </div>
   );
