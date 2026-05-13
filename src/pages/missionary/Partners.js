@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../../lib/contactStatuses';
 import { formatPhone } from '../../lib/phoneFormat';
-import { Button, Card, EmptyState, Modal, Textarea } from '../../components/ui';
+import { Button, EmptyState, Modal, Textarea } from '../../components/ui';
 import {
   PartnerInlineEditPanel,
   PARTNER_INLINE_STATUS_OPTIONS,
@@ -25,7 +25,8 @@ const COMM_TYPE_LABEL = {
   meeting: 'Meeting',
 };
 
-const QUICK_LOG_TYPES = ['call', 'text', 'email', 'meeting', 'note'];
+/** Quick log from "Reach out" — Call, Text, Meeting, Note (matches `communication_type` enum). */
+const QUICK_LOG_TYPES = ['call', 'text', 'meeting', 'note'];
 
 const PAGE_SIZE = 1000;
 
@@ -87,8 +88,17 @@ function formatMonthly(amount) {
   return Number.isFinite(n) && n > 0 ? `$${n.toFixed(0)}/mo` : '$0/mo';
 }
 
-function lastContactBadgeMeta(lastIso) {
-  const d = lastIso ? daysSince(lastIso) : 999;
+/** Label for urgent rows — days since last `communication_logs` entry. */
+function daysSinceContactLabel(lastIso) {
+  if (!lastIso) return 'Never contacted';
+  const d = daysSince(lastIso);
+  if (d === 0) return 'Today';
+  if (d === 1) return '1 day since contact';
+  return `${d} days since contact`;
+}
+
+/** Badge for "All good" rows — `Xd ago` style with urgency colors (last contact within 30 days). */
+function lastContactedBadgeFromIso(lastIso) {
   if (!lastIso) {
     return { label: 'Never', className: 'text-[#A32D2D] font-semibold' };
   }
@@ -96,16 +106,18 @@ function lastContactBadgeMeta(lastIso) {
   if (ms >= 0 && ms < 60 * 60 * 1000) {
     return { label: 'Just now', className: 'text-emerald-700 font-semibold' };
   }
+  const d = daysSince(lastIso);
+  const dayLabel = d === 0 ? 'Today' : d === 1 ? '1d ago' : `${d}d ago`;
   if (d >= 30) {
-    return { label: `${d} days`, className: 'text-[#A32D2D] font-medium' };
+    return { label: dayLabel, className: 'text-[#A32D2D] font-medium' };
   }
   if (d >= 14) {
-    return { label: `${d} days`, className: 'text-[#854F0B] font-medium' };
+    return { label: dayLabel, className: 'text-[#854F0B] font-medium' };
   }
   if (d >= 7) {
-    return { label: `${d} days`, className: 'text-neutral-500 font-medium' };
+    return { label: dayLabel, className: 'text-neutral-500 font-medium' };
   }
-  return { label: d <= 1 ? (d === 0 ? 'Today' : '1 day') : `${d} days`, className: 'text-emerald-700 font-medium' };
+  return { label: dayLabel, className: 'text-emerald-700 font-medium' };
 }
 
 function ExpandPanelShell({ open, children }) {
@@ -137,7 +149,7 @@ export default function MissionaryPartners() {
   const [commSaving, setCommSaving] = useState(false);
   const [commError, setCommError] = useState('');
 
-  const [lastContactById, setLastContactById] = useState({});
+  const [lastContactMap, setLastContactMap] = useState({});
   const [lastContactLoading, setLastContactLoading] = useState(false);
 
   const [quickLog, setQuickLog] = useState(null);
@@ -217,8 +229,8 @@ export default function MissionaryPartners() {
   }, [expandedPartnerId, partners]);
 
   const loadLastContacts = useCallback(async () => {
-    if (!supabase || !user?.id || partners.length === 0) {
-      setLastContactById({});
+    if (!supabase || !user?.id) {
+      setLastContactMap({});
       return;
     }
     setLastContactLoading(true);
@@ -245,38 +257,44 @@ export default function MissionaryPartners() {
         from += PAGE_SIZE;
         if (data.length < PAGE_SIZE) break;
       }
-      setLastContactById(map);
+      setLastContactMap(map);
     } finally {
       setLastContactLoading(false);
     }
-  }, [user?.id, partners.length]);
+  }, [user?.id]);
 
   useEffect(() => {
     void loadLastContacts();
   }, [loadLastContacts]);
 
-  const needsTouchpoint = useMemo(() => {
-    const withDays = partners.map((p) => {
-      const last = lastContactById[p.id] ?? null;
-      return { partner: p, days: daysSince(last), last };
-    });
-    return withDays
-      .filter((x) => x.days >= 14)
-      .sort((a, b) => b.days - a.days)
-      .map((x) => x.partner);
-  }, [partners, lastContactById]);
+  const totalMonthly = useMemo(() => {
+    return partners.reduce((sum, p) => {
+      const n = Number(p.monthlyAmount);
+      return sum + (Number.isFinite(n) && n > 0 ? n : 0);
+    }, 0);
+  }, [partners]);
 
-  const touchpointCount = needsTouchpoint.length;
+  const needsContact = useMemo(() => {
+    return partners.filter((p) => daysSince(lastContactMap[p.id]) >= 30);
+  }, [partners, lastContactMap]);
 
-  const needsTouchpointIdSet = useMemo(() => new Set(needsTouchpoint.map((p) => p.id)), [needsTouchpoint]);
+  const allGood = useMemo(() => {
+    return partners.filter((p) => daysSince(lastContactMap[p.id]) < 30);
+  }, [partners, lastContactMap]);
 
-  const sortedPartners = useMemo(() => {
-    return [...partners].sort((a, b) => {
-      const da = daysSince(lastContactById[a.id] ?? null);
-      const db = daysSince(lastContactById[b.id] ?? null);
+  const needsContactSorted = useMemo(() => {
+    return [...needsContact].sort(
+      (a, b) => daysSince(lastContactMap[b.id] ?? null) - daysSince(lastContactMap[a.id] ?? null),
+    );
+  }, [needsContact, lastContactMap]);
+
+  const allGoodSorted = useMemo(() => {
+    return [...allGood].sort((a, b) => {
+      const da = daysSince(lastContactMap[a.id] ?? null);
+      const db = daysSince(lastContactMap[b.id] ?? null);
       return db - da;
     });
-  }, [partners, lastContactById]);
+  }, [allGood, lastContactMap]);
 
   const loadLogs = useCallback(async () => {
     if (!supabase || !expandedPartner?.id) {
@@ -305,7 +323,7 @@ export default function MissionaryPartners() {
   const filteredLogs = useMemo(() => logs.filter((l) => logMatchesTab(l, tab)), [logs, tab]);
 
   const mergeLastContact = useCallback((contactId, createdAt) => {
-    setLastContactById((prev) => {
+    setLastContactMap((prev) => {
       const prevAt = prev[contactId];
       if (!prevAt || new Date(createdAt) > new Date(prevAt)) {
         return { ...prev, [contactId]: createdAt };
@@ -453,6 +471,7 @@ export default function MissionaryPartners() {
       }
       setQuickLog(null);
       setQuickNotes('');
+      await Promise.all([refetch(), loadLastContacts()]);
     } catch (e) {
       setQuickError(e?.message || 'Could not save log.');
     } finally {
@@ -554,17 +573,30 @@ export default function MissionaryPartners() {
     );
   };
 
+  const partnerCountLabel = partners.length === 1 ? '1 partner' : `${partners.length} partners`;
+
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="sent-page-title">Partners</h1>
-        <p className="sent-body text-mission-muted">Monthly partners are derived from your contacts. Starts empty.</p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <h1 className="sent-page-title">Partners</h1>
+          <p className="sent-body text-mission-muted">
+            {partners.length === 0
+              ? 'Monthly partners are derived from your contacts.'
+              : `${formatMonthly(totalMonthly)} · ${partnerCountLabel}`}
+          </p>
+        </div>
+        {needsContact.length > 0 ? (
+          <span className="shrink-0 rounded-full bg-[#A32D2D]/12 px-3 py-1 text-xs font-semibold text-[#A32D2D] ring-1 ring-[#A32D2D]/25">
+            {needsContact.length} overdue
+          </span>
+        ) : null}
       </header>
 
       {partners.length === 0 ? (
         <EmptyState
           icon="heart"
-          title="No partners yet — start asking"
+          title="No partners yet"
           subtitle="Add contacts on the Contacts tab and mark monthly amounts or partner status — they’ll roll up here."
           action={
             <Button type="button" onClick={() => navigate('/missionary/contacts')}>
@@ -574,62 +606,64 @@ export default function MissionaryPartners() {
         />
       ) : (
         <>
-          <p
-            className={`text-sm font-semibold ${
-              touchpointCount > 0 ? 'text-[#854F0B]' : 'text-emerald-700'
-            }`}
-          >
-            {touchpointCount > 0
-              ? touchpointCount === 1
-                ? '1 partner needs a touchpoint'
-                : `${touchpointCount} partners need a touchpoint`
-              : 'All partners up to date'}
-          </p>
-
-          {needsTouchpoint.length > 0 ? (
-            <div className="space-y-3">
-              <h2 className="text-sm font-semibold text-ink">Needs a touchpoint</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {needsTouchpoint.map((p) => {
-                  const last = lastContactById[p.id] ?? null;
-                  const d = daysSince(last);
-                  const borderLeft = d >= 30 ? '3px solid #A32D2D' : '3px solid #854F0B';
+          {needsContact.length > 0 ? (
+            <section className="space-y-3" aria-labelledby="reach-out-heading">
+              <h2 id="reach-out-heading" className="text-base font-semibold text-ink">
+                Reach out now{' '}
+                <span className="font-normal text-mission-muted">({needsContact.length})</span>
+              </h2>
+              <ul className="space-y-2">
+                {needsContactSorted.map((p) => {
+                  const last = lastContactMap[p.id] ?? null;
                   const isExpanded = expandedPartnerId === p.id;
                   return (
-                    <Card key={p.id} className="group overflow-hidden p-0" style={{ borderLeft }}>
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        className="flex w-full cursor-pointer flex-col gap-1 p-4 text-left outline-none transition-colors hover:bg-neutral-50/60 focus-visible:ring-2 focus-visible:ring-mission-blue/30"
-                        onClick={() => handleToggleExpandRow(p)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleToggleExpandRow(p);
-                          }
-                        }}
-                      >
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <ContactQuickTagsRow
-                            contact={p}
-                            updateContact={updateContact}
-                            onAfterSave={invalidateExpandedDraft}
-                            showPotentialAddTag
-                          />
+                    <li
+                      key={p.id}
+                      className="group overflow-hidden rounded-card border border-mission-line border-l-[3px] border-l-[#A32D2D] bg-surface transition-shadow duration-200"
+                    >
+                      <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-4">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className={`flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-mission-blue/30 ${
+                            isExpanded ? 'rounded-btn bg-mission-blue/[0.06] sm:bg-transparent' : ''
+                          }`}
+                          onClick={() => handleToggleExpandRow(p)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleToggleExpandRow(p);
+                            }
+                          }}
+                        >
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-sm font-semibold text-mission-blue">
+                            {partnerInitials(p.fullName)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
+                              {savedNoticeId === p.id ? (
+                                <span className="text-xs font-semibold text-emerald-700">Saved</span>
+                              ) : null}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
+                            <span className="mt-0.5 block text-xs font-medium text-[#A32D2D]">{daysSinceContactLabel(last)}</span>
+                            <div onClick={(e) => e.stopPropagation()} className="mt-2">
+                              <ContactQuickTagsRow
+                                contact={p}
+                                updateContact={updateContact}
+                                onAfterSave={invalidateExpandedDraft}
+                                showPotentialAddTag
+                                className="flex flex-wrap items-center gap-1.5"
+                              />
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-bold text-ink">{p.fullName || 'Unnamed partner'}</p>
-                          {savedNoticeId === p.id ? (
-                            <span className="shrink-0 text-xs font-semibold text-emerald-700">Saved</span>
-                          ) : null}
+                        <div className="flex shrink-0 items-start sm:items-center">
+                          <Button type="button" variant="danger" className="w-full min-w-[7.5rem] sm:w-auto" onClick={() => openQuickLog(p)}>
+                            Reach out
+                          </Button>
                         </div>
-                        <p className="text-sm text-neutral-500">{last ? `No contact in ${d} days` : 'No contact yet'}</p>
-                        <p className="text-sm text-neutral-700">{formatMonthly(p.monthlyAmount)}</p>
-                      </div>
-                      <div className="border-t border-mission-line px-4 pb-4" onClick={(e) => e.stopPropagation()}>
-                        <Button type="button" className="w-full sm:w-auto" onClick={() => openQuickLog(p)}>
-                          Reach out
-                        </Button>
                       </div>
                       <ExpandPanelShell open={isExpanded}>
                         {isExpanded && draft ? (
@@ -647,83 +681,99 @@ export default function MissionaryPartners() {
                           </div>
                         ) : null}
                       </ExpandPanelShell>
-                    </Card>
+                    </li>
                   );
                 })}
-              </div>
-            </div>
+              </ul>
+            </section>
           ) : null}
 
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-ink">All partners</h2>
+          <section className="space-y-3" aria-labelledby="all-good-heading">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 id="all-good-heading" className="text-base font-semibold text-ink">
+                All good{' '}
+                <span className="font-normal text-mission-muted">({allGood.length})</span>
+              </h2>
+              {needsContact.length === 0 ? (
+                <p className="text-sm text-emerald-700">Everyone is on track.</p>
+              ) : null}
+            </div>
             {lastContactLoading ? <p className="text-xs text-neutral-500">Loading touchpoints…</p> : null}
-            <ul className="space-y-2">
-              {sortedPartners.map((p) => {
-                const last = lastContactById[p.id] ?? null;
-                const badge = lastContactBadgeMeta(last);
-                const isExpanded = p.id === expandedPartnerId;
-                const showExpandHere = isExpanded && !needsTouchpointIdSet.has(p.id);
-                return (
-                  <li key={p.id} className="group overflow-hidden rounded-card border border-mission-line bg-surface transition-shadow duration-200">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className={`flex w-full cursor-pointer flex-col gap-1.5 p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-mission-blue/30 ${
-                        isExpanded ? 'bg-mission-blue/[0.06]' : 'hover:bg-neutral-50'
-                      }`}
-                      onClick={() => handleToggleExpandRow(p)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleToggleExpandRow(p);
-                        }
-                      }}
-                    >
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <ContactQuickTagsRow
-                          contact={p}
-                          updateContact={updateContact}
-                          onAfterSave={invalidateExpandedDraft}
-                          showPotentialAddTag
-                        />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-sm font-semibold text-mission-blue">
-                          {partnerInitials(p.fullName)}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex flex-wrap items-center gap-2">
-                            <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
-                            {savedNoticeId === p.id ? (
-                              <span className="text-xs font-semibold text-emerald-700">Saved</span>
-                            ) : null}
-                          </span>
-                          <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
-                        </span>
-                        <span className={`shrink-0 text-xs ${badge.className}`}>{badge.label}</span>
-                      </div>
-                    </div>
-                    <ExpandPanelShell open={showExpandHere}>
-                      {showExpandHere && draft ? (
-                        <div className="border-t border-mission-line bg-[color:var(--color-bg)] transition-all duration-300 ease-out">
-                          <PartnerInlineEditPanel
-                            draft={draft}
-                            onChange={setDraft}
-                            saveError={inlineSaveError}
-                            saving={inlineSaving}
-                            onSave={() => void submitInlineSave()}
-                            onCancel={handleInlineCancel}
-                            schemaPartial={schemaPartial}
+            {allGood.length === 0 && needsContact.length > 0 ? (
+              <div className="rounded-btn border border-dashed border-mission-line bg-[color:var(--color-bg)] px-4 py-6 text-center">
+                <p className="text-sm font-semibold text-ink">All partners are up to date</p>
+                <p className="mt-2 text-sm text-mission-muted">
+                  In this section — after you log a touchpoint within the last 30 days, that partner moves here.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {allGoodSorted.map((p) => {
+                  const last = lastContactMap[p.id] ?? null;
+                  const badge = lastContactedBadgeFromIso(last);
+                  const isExpanded = p.id === expandedPartnerId;
+                  return (
+                    <li key={p.id} className="group overflow-hidden rounded-card border border-mission-line bg-surface transition-shadow duration-200">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className={`flex w-full cursor-pointer flex-col gap-1.5 p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-mission-blue/30 ${
+                          isExpanded ? 'bg-mission-blue/[0.06]' : 'hover:bg-neutral-50'
+                        }`}
+                        onClick={() => handleToggleExpandRow(p)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleToggleExpandRow(p);
+                          }
+                        }}
+                      >
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <ContactQuickTagsRow
+                            contact={p}
+                            updateContact={updateContact}
+                            onAfterSave={invalidateExpandedDraft}
+                            showPotentialAddTag
                           />
-                          {renderActivitySection()}
                         </div>
-                      ) : null}
-                    </ExpandPanelShell>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-sm font-semibold text-mission-blue">
+                            {partnerInitials(p.fullName)}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
+                              {savedNoticeId === p.id ? (
+                                <span className="text-xs font-semibold text-emerald-700">Saved</span>
+                              ) : null}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
+                          </span>
+                          <span className={`shrink-0 text-xs ${badge.className}`}>{badge.label}</span>
+                        </div>
+                      </div>
+                      <ExpandPanelShell open={isExpanded}>
+                        {isExpanded && draft ? (
+                          <div className="border-t border-mission-line bg-[color:var(--color-bg)] transition-all duration-300 ease-out">
+                            <PartnerInlineEditPanel
+                              draft={draft}
+                              onChange={setDraft}
+                              saveError={inlineSaveError}
+                              saving={inlineSaving}
+                              onSave={() => void submitInlineSave()}
+                              onCancel={handleInlineCancel}
+                              schemaPartial={schemaPartial}
+                            />
+                            {renderActivitySection()}
+                          </div>
+                        ) : null}
+                      </ExpandPanelShell>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </>
       )}
 
