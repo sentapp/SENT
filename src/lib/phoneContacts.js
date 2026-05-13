@@ -35,7 +35,7 @@ export function contactPickerEntryToDraft(c, index) {
     full_name: name,
     phone: tel,
     email,
-    category: 'potential',
+    category: null,
     status: 'prospect',
     monthly_amount: 0,
     notes: '',

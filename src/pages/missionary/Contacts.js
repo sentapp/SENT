@@ -27,13 +27,12 @@ import {
 import { supabase } from '../../lib/supabaseClient';
 import {
   CONTACT_CATEGORY_FILTER_TABS,
-  categoryLabel,
-  getCategoryTagColors,
   normalizeCategory,
   normalizeCategoryForSave,
 } from '../../lib/contactCategories';
 import { mergeNotesWithSocial, notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
-import { STATUS_TAG_COLORS, normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
+import { normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
+import { ContactQuickTagsRow } from '../../components/contacts/QuickTagPopover';
 import { Button, Card, EmptyState, Input, LoadingSpinner, Modal, Textarea } from '../../components/ui';
 import ContactEditFormLayout from './ContactEditFormLayout';
 
@@ -63,7 +62,7 @@ const emptyForm = {
   email: '',
   address: '',
   social: '',
-  category: 'potential',
+  category: null,
   status: 'prospect',
   monthlyAmount: '',
   isOneTimeDonor: false,
@@ -141,11 +140,6 @@ function IconPencil({ className }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
   );
-}
-
-function contactStatusTagStyle(status) {
-  const id = normalizeStatusFromDb(status);
-  return STATUS_TAG_COLORS[id] || STATUS_TAG_COLORS.prospect;
 }
 
 function ImportBlockingOverlay({ open, progress, onCancel }) {
@@ -1341,7 +1335,7 @@ export default function MissionaryContacts() {
                   if (selectMode) toggleContactSelected(c.id);
                   else handleOpenContact(c);
                 }}
-                className="scroll-mt-4 cursor-pointer border-mission-line p-4 text-left shadow-none"
+                className="group scroll-mt-4 cursor-pointer border-mission-line p-4 text-left shadow-none"
               >
                 <div className="flex flex-row flex-nowrap items-start gap-3">
                   {selectMode ? (
@@ -1362,58 +1356,11 @@ export default function MissionaryContacts() {
                       <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      {(() => {
-                        const st = normalizeStatusFromDb(c.status);
-                        if (st === 'partner') {
-                          const stSt = contactStatusTagStyle('partner');
-                          return (
-                            <span
-                              className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                              style={{
-                                backgroundColor: stSt.bg,
-                                color: stSt.text,
-                                borderColor: stSt.border,
-                              }}
-                            >
-                              {statusLabel('partner')}
-                            </span>
-                          );
-                        }
-                        const catSt = getCategoryTagColors(c.category);
-                        return (
-                          <>
-                            {catSt ? (
-                              <span
-                                className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                                style={{
-                                  backgroundColor: catSt.bg,
-                                  color: catSt.text,
-                                  borderColor: catSt.border,
-                                }}
-                              >
-                                {categoryLabel(c.category)}
-                              </span>
-                            ) : null}
-                            {c.status && st !== 'prospect' ? (
-                              (() => {
-                                const stSt = contactStatusTagStyle(c.status);
-                                return (
-                                  <span
-                                    className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                                    style={{
-                                      backgroundColor: stSt.bg,
-                                      color: stSt.text,
-                                      borderColor: stSt.border,
-                                    }}
-                                  >
-                                    {statusLabel(c.status)}
-                                  </span>
-                                );
-                              })()
-                            ) : null}
-                          </>
-                        );
-                      })()}
+                      <ContactQuickTagsRow
+                        contact={c}
+                        updateContact={updateContact}
+                        showPotentialAddTag
+                      />
                     </div>
                     {Number(c.monthlyAmount) > 0 ? (
                       <p className="text-xs text-neutral-500">${Number(c.monthlyAmount).toFixed(0)}/mo</p>
@@ -1481,54 +1428,12 @@ export default function MissionaryContacts() {
         {detailContact ? (
           <div className="space-y-4 text-sm">
             <p className="text-2xl font-bold tracking-tight text-ink">{detailContact.fullName || 'Unnamed contact'}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {(() => {
-                const st = normalizeStatusFromDb(detailContact.status);
-                if (st === 'partner') {
-                  const stSt = STATUS_TAG_COLORS.partner;
-                  return (
-                    <span
-                      className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                      style={{
-                        backgroundColor: stSt.bg,
-                        color: stSt.text,
-                        borderColor: stSt.border,
-                      }}
-                    >
-                      {statusLabel('partner')}
-                    </span>
-                  );
-                }
-                const catSt = getCategoryTagColors(detailContact.category);
-                return (
-                  <>
-                    {catSt ? (
-                      <span
-                        className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                        style={{
-                          backgroundColor: catSt.bg,
-                          color: catSt.text,
-                          borderColor: catSt.border,
-                        }}
-                      >
-                        {categoryLabel(detailContact.category)}
-                      </span>
-                    ) : null}
-                    {st !== 'prospect' ? (
-                      <span
-                        className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                        style={{
-                          backgroundColor: (STATUS_TAG_COLORS[st] || STATUS_TAG_COLORS.prospect).bg,
-                          color: (STATUS_TAG_COLORS[st] || STATUS_TAG_COLORS.prospect).text,
-                          borderColor: (STATUS_TAG_COLORS[st] || STATUS_TAG_COLORS.prospect).border,
-                        }}
-                      >
-                        {statusLabel(detailContact.status)}
-                      </span>
-                    ) : null}
-                  </>
-                );
-              })()}
+            <div className="group flex flex-wrap gap-1.5">
+              <ContactQuickTagsRow
+                contact={detailContact}
+                updateContact={updateContact}
+                showPotentialAddTag
+              />
             </div>
             {detailContact.phone ? (
               <div>

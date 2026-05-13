@@ -1,7 +1,17 @@
-/** Canonical DB enum values for `public.contact_category` (includes `potential` = uncategorized in UI). */
-export const CONTACT_CATEGORY_VALUES = ['supporter', 'church', 'former', 'potential'];
+/**
+ * Canonical category values stored in `public.contacts.category` (3 optional values + NULL).
+ *
+ * Most contacts have NO category — saved as `null` in the database and rendered with no pill in
+ * lists, detail headers, or tag rows. The Postgres enum `public.contact_category` still carries
+ * the legacy `potential` / `warm` / `potential_partner` labels because enum values cannot be
+ * removed in place; the app simply stops writing them and `normalizeCategoryFromDb` maps any
+ * surviving legacy rows to `null` so the UI is consistent.
+ *
+ * See `supabase/migrations/20260623100000_contact_category_optional_null.sql`.
+ */
+export const CONTACT_CATEGORY_VALUES = ['supporter', 'church', 'former'];
 
-/** List filters: first tab is All; `potential` has no tab (only appears under All). */
+/** Filter tabs above the contacts list. "All" shows everyone (including uncategorized). */
 export const CONTACT_CATEGORY_FILTER_TABS = [
   { id: 'all', label: 'All' },
   { id: 'supporter', label: 'Partners' },
@@ -9,35 +19,42 @@ export const CONTACT_CATEGORY_FILTER_TABS = [
   { id: 'former', label: 'Previous Partners' },
 ];
 
-/** "Who are they?" pills — None saves `potential` in DB. */
+/**
+ * "Who are they?" pills on the add/edit form. The `none` option clears the category back to `null`.
+ */
 export const CONTACT_CATEGORY_FORM_OPTIONS = [
   { id: 'supporter', label: 'Partner' },
   { id: 'church', label: 'Church / Org' },
   { id: 'former', label: 'Previous Partner' },
-  { id: 'potential', label: 'None' },
+  { id: 'none', label: 'None' },
 ];
 
-/** Labels for selects and saves; `potential` is shown as "None", never as a category tag in lists. */
-const CATEGORY_FORM_LABELS = CONTACT_CATEGORY_FORM_OPTIONS.reduce((acc, { id, label }) => {
-  acc[id] = label;
-  return acc;
-}, {});
+/** Display labels for the three real categories. Uncategorized contacts render no label. */
+export const CATEGORY_LABELS = {
+  supporter: 'Partner',
+  church: 'Church / Org',
+  former: 'Previous Partner',
+};
 
-/** Tailwind-friendly pill styles — only for categories that show a tag in list/detail. */
+/** Tailwind-friendly pill styles — uncategorized contacts have no entry on purpose. */
 export const CATEGORY_TAG_COLORS = {
-  supporter: { bg: '#E8F4FC', text: '#185FA5', border: 'rgba(24, 95, 165, 0.35)' },
-  church: { bg: '#FFFBEB', text: '#854F0B', border: 'rgba(133, 79, 11, 0.25)' },
-  former: { bg: '#F4F4F5', text: '#52525B', border: 'rgba(82, 82, 91, 0.35)' },
+  supporter: { bg: '#ECFDF5', text: '#0F6E56', border: 'rgba(15, 110, 86, 0.3)' },
+  church: { bg: '#F5F3FF', text: '#7C3AED', border: 'rgba(124, 58, 237, 0.3)' },
+  former: { bg: '#FEF2F2', text: '#A32D2D', border: 'rgba(163, 45, 45, 0.25)' },
 };
 
 const ALLOWED = new Set(CONTACT_CATEGORY_VALUES);
 
-/** Map DB / legacy rows to a canonical category for UI and filters. */
+/**
+ * Map a row's DB value to a canonical UI category.
+ * Legacy enum labels (`warm`, `potential_partner`, `potential`) and any unknown value become `null`
+ * (uncategorized — no pill).
+ */
 export function normalizeCategoryFromDb(value) {
+  if (value == null) return null;
   if (value === 'supporters') return 'supporter';
-  if (value === 'warm' || value === 'potential_partner') return 'potential';
   if (ALLOWED.has(value)) return value;
-  return 'potential';
+  return null;
 }
 
 /** Same as {@link normalizeCategoryFromDb} — use for list filters and pill matching. */
@@ -45,28 +62,37 @@ export function normalizeCategory(cat) {
   return normalizeCategoryFromDb(cat);
 }
 
-/** Coerce UI / import payloads to a valid DB enum before save. */
+/**
+ * Coerce UI / import payloads to a valid DB value before save.
+ * `null`, `'none'`, or any unknown / legacy value collapses to `null` so the column drops to its
+ * NULL default and uncategorized contacts truly have no category.
+ */
 export function normalizeCategoryForSave(value) {
+  if (value == null) return null;
+  if (value === 'none') return null;
   if (value === 'supporters') return 'supporter';
   if (ALLOWED.has(value)) return value;
-  if (value === 'warm' || value === 'potential_partner') return 'potential';
-  return 'potential';
+  return null;
 }
 
-/** True when a category tag should appear in list rows, detail header, pipeline, etc. */
+/** True when a contact has a real category that should render as a pill. */
 export function shouldShowCategoryTag(value) {
-  const id = normalizeCategoryFromDb(value);
-  return id === 'supporter' || id === 'church' || id === 'former';
+  return normalizeCategoryFromDb(value) != null;
 }
 
-/** Style object for a visible category tag, or null when uncategorized (`potential`). */
+/**
+ * Resolve pill color styles for a contact category, or `null` when uncategorized so callers can
+ * skip the WHO pill entirely instead of rendering a placeholder style.
+ */
 export function getCategoryTagColors(value) {
   const id = normalizeCategoryFromDb(value);
-  return CATEGORY_TAG_COLORS[id] ?? null;
+  if (!id) return null;
+  return CATEGORY_TAG_COLORS[id] || null;
 }
 
-/** Form / select label (includes "None" for `potential`). */
+/** Display label for a category value. `null` / unknown returns empty string so callers can hide pills. */
 export function categoryLabel(value) {
   const id = normalizeCategoryFromDb(value);
-  return CATEGORY_FORM_LABELS[id] ?? '';
+  if (!id) return '';
+  return CATEGORY_LABELS[id] || '';
 }

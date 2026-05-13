@@ -175,7 +175,10 @@ export default function ContactEditFormLayout({ form, setForm, phoneDupWarn, ema
         <h3 className="text-xs font-semibold uppercase tracking-wide text-mission-muted">Who are they?</h3>
         <div className="flex flex-wrap gap-2">
           {CONTACT_CATEGORY_FORM_OPTIONS.map(({ id, label }) => {
-            const selected = form.category === id;
+            // "None" pill (id === 'none') stands for `category: null`, so highlight it whenever the
+            // form value is null/undefined or the literal 'none' placeholder.
+            const selected =
+              id === 'none' ? form.category == null || form.category === 'none' : form.category === id;
             return (
               <button
                 key={id}
@@ -183,7 +186,7 @@ export default function ContactEditFormLayout({ form, setForm, phoneDupWarn, ema
                 onClick={() => {
                   setForm((f) => ({
                     ...f,
-                    category: id,
+                    category: id === 'none' ? null : id,
                     ...(id === 'supporter' ? { status: 'partner' } : {}),
                   }));
                 }}

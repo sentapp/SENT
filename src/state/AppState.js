@@ -72,12 +72,9 @@ export function AppStateProvider({ children }) {
           fullName: contact.fullName?.trim() ?? '',
           phone: contact.phone?.trim() ?? '',
           email: contact.email?.trim() ?? '',
-          category:
-            contact.category === 'warm' || contact.category === 'potential_partner'
-              ? 'potential'
-              : ['supporter', 'church', 'former', 'potential'].includes(contact.category)
-                ? contact.category
-                : 'potential',
+          category: ['supporter', 'church', 'former'].includes(contact.category)
+            ? contact.category
+            : null,
           status: contact.status ?? 'prospect',
           monthlyAmount: Number.isFinite(Number(contact.monthlyAmount)) ? Number(contact.monthlyAmount) : 0,
           notes: contact.notes?.trim() ?? '',

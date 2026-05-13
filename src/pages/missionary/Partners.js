@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
+import { ContactQuickTagsRow } from '../../components/contacts/QuickTagPopover';
 import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { supabase } from '../../lib/supabaseClient';
-import { categoryLabel, normalizeCategory, normalizeCategoryForSave, shouldShowCategoryTag } from '../../lib/contactCategories';
+import { normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../../lib/contactStatuses';
 import { formatPhone } from '../../lib/phoneFormat';
 import { Button, Card, EmptyState, Modal, Textarea } from '../../components/ui';
@@ -122,7 +123,7 @@ function ExpandPanelShell({ open, children }) {
 export default function MissionaryPartners() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { contacts, refetch, schemaPartial } = useSupabaseContacts(user?.id, { authLoading });
+  const { contacts, refetch, schemaPartial, updateContact } = useSupabaseContacts(user?.id, { authLoading });
   const [expandedPartnerId, setExpandedPartnerId] = useState(null);
   const [draft, setDraft] = useState(null);
   const [draftSnapshot, setDraftSnapshot] = useState(null);
@@ -472,6 +473,10 @@ export default function MissionaryPartners() {
     setQuickLog(partner);
   };
 
+  const invalidateExpandedDraft = useCallback(() => {
+    expandedDraftInitRef.current = null;
+  }, []);
+
   const renderActivitySection = () => {
     if (!expandedPartner) return null;
     return (
@@ -479,9 +484,13 @@ export default function MissionaryPartners() {
       <div className="flex flex-wrap items-start justify-between gap-3 border-t border-mission-line px-4 pb-2 pt-4 sm:px-5">
         <div>
           <p className="text-lg font-semibold text-ink">{expandedPartner.fullName || 'Unnamed partner'}</p>
-          {shouldShowCategoryTag(expandedPartner.category) ? (
-            <p className="mt-1 text-sm text-neutral-600">{categoryLabel(expandedPartner.category)}</p>
-          ) : null}
+          <ContactQuickTagsRow
+            contact={expandedPartner}
+            updateContact={updateContact}
+            onAfterSave={invalidateExpandedDraft}
+            showPotentialAddTag
+            className="mt-1 flex flex-wrap items-center gap-1.5"
+          />
           {expandedPartner.phone ? (
             <p className="mt-2 text-sm font-medium text-neutral-800">{formatPhone(expandedPartner.phone)}</p>
           ) : null}
@@ -587,12 +596,27 @@ export default function MissionaryPartners() {
                   const borderLeft = d >= 30 ? '3px solid #A32D2D' : '3px solid #854F0B';
                   const isExpanded = expandedPartnerId === p.id;
                   return (
-                    <Card key={p.id} className="overflow-hidden p-0" style={{ borderLeft }}>
-                      <button
-                        type="button"
-                        className="flex w-full flex-col gap-1 p-4 text-left transition-colors hover:bg-neutral-50/60"
+                    <Card key={p.id} className="group overflow-hidden p-0" style={{ borderLeft }}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="flex w-full cursor-pointer flex-col gap-1 p-4 text-left outline-none transition-colors hover:bg-neutral-50/60 focus-visible:ring-2 focus-visible:ring-mission-blue/30"
                         onClick={() => handleToggleExpandRow(p)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleToggleExpandRow(p);
+                          }
+                        }}
                       >
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <ContactQuickTagsRow
+                            contact={p}
+                            updateContact={updateContact}
+                            onAfterSave={invalidateExpandedDraft}
+                            showPotentialAddTag
+                          />
+                        </div>
                         <div className="flex items-start justify-between gap-2">
                           <p className="font-bold text-ink">{p.fullName || 'Unnamed partner'}</p>
                           {savedNoticeId === p.id ? (
@@ -601,7 +625,7 @@ export default function MissionaryPartners() {
                         </div>
                         <p className="text-sm text-neutral-500">{last ? `No contact in ${d} days` : 'No contact yet'}</p>
                         <p className="text-sm text-neutral-700">{formatMonthly(p.monthlyAmount)}</p>
-                      </button>
+                      </div>
                       <div className="border-t border-mission-line px-4 pb-4" onClick={(e) => e.stopPropagation()}>
                         <Button type="button" className="w-full sm:w-auto" onClick={() => openQuickLog(p)}>
                           Reach out
@@ -640,28 +664,45 @@ export default function MissionaryPartners() {
                 const isExpanded = p.id === expandedPartnerId;
                 const showExpandHere = isExpanded && !needsTouchpointIdSet.has(p.id);
                 return (
-                  <li key={p.id} className="overflow-hidden rounded-card border border-mission-line bg-surface transition-shadow duration-200">
-                    <button
-                      type="button"
-                      className={`flex w-full items-center gap-3 p-3 text-left transition-colors ${
+                  <li key={p.id} className="group overflow-hidden rounded-card border border-mission-line bg-surface transition-shadow duration-200">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className={`flex w-full cursor-pointer flex-col gap-1.5 p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-mission-blue/30 ${
                         isExpanded ? 'bg-mission-blue/[0.06]' : 'hover:bg-neutral-50'
                       }`}
                       onClick={() => handleToggleExpandRow(p)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleToggleExpandRow(p);
+                        }
+                      }}
                     >
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-sm font-semibold text-mission-blue">
-                        {partnerInitials(p.fullName)}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
-                          {savedNoticeId === p.id ? (
-                            <span className="text-xs font-semibold text-emerald-700">Saved</span>
-                          ) : null}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <ContactQuickTagsRow
+                          contact={p}
+                          updateContact={updateContact}
+                          onAfterSave={invalidateExpandedDraft}
+                          showPotentialAddTag
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-sm font-semibold text-mission-blue">
+                          {partnerInitials(p.fullName)}
                         </span>
-                        <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
-                      </span>
-                      <span className={`shrink-0 text-xs ${badge.className}`}>{badge.label}</span>
-                    </button>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
+                            {savedNoticeId === p.id ? (
+                              <span className="text-xs font-semibold text-emerald-700">Saved</span>
+                            ) : null}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
+                        </span>
+                        <span className={`shrink-0 text-xs ${badge.className}`}>{badge.label}</span>
+                      </div>
+                    </div>
                     <ExpandPanelShell open={showExpandHere}>
                       {showExpandHere && draft ? (
                         <div className="border-t border-mission-line bg-[color:var(--color-bg)] transition-all duration-300 ease-out">

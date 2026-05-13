@@ -1,4 +1,4 @@
-import { CONTACT_CATEGORY_FORM_OPTIONS, categoryLabel } from '../../lib/contactCategories';
+import { CONTACT_CATEGORY_FORM_OPTIONS } from '../../lib/contactCategories';
 import { Button, Input, Label, Textarea } from '../../components/ui';
 
 /** Partners page — subset of `contact_status` (DB-aligned labels per product copy). */
@@ -31,7 +31,9 @@ export function partnerToDraft(p) {
     email: p.email ?? '',
     monthlyAmount:
       p.monthlyAmount != null && Number.isFinite(Number(p.monthlyAmount)) ? String(p.monthlyAmount) : '',
-    category: p.category ?? 'supporter',
+    // Uncategorized contacts surface as `null` from the DB; PartnerInlineEditPanel uses the literal
+    // string 'none' so the <select> can show a stable option (saves coerce back to null).
+    category: p.category ?? 'none',
     status: p.status ?? 'partner',
     notes: p.notes ?? '',
     address: p.address ?? '',
@@ -108,12 +110,12 @@ export function PartnerInlineEditPanel({
         <Label title="Category">
           <select
             className={selectClass}
-            value={draft.category}
+            value={draft.category ?? 'none'}
             onChange={(e) => set({ category: e.target.value })}
           >
-            {CONTACT_CATEGORY_FORM_OPTIONS.map(({ id }) => (
+            {CONTACT_CATEGORY_FORM_OPTIONS.map(({ id, label }) => (
               <option key={id} value={id}>
-                {categoryLabel(id)}
+                {label}
               </option>
             ))}
           </select>

@@ -141,7 +141,7 @@ export function buildContactDrafts(rows, mapping) {
       full_name: name || email || phone || 'Imported contact',
       phone,
       email,
-      category: 'potential',
+      category: null,
       status: 'prospect',
       monthly_amount: 0,
       notes: '',
