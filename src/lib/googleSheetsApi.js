@@ -31,7 +31,16 @@ function mapGoogleSheetsApiError(status, message) {
 }
 
 async function fetchJson(url) {
-  const res = await fetch(url);
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (e) {
+    const msg = String(e?.message || '').toLowerCase();
+    if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('load failed') || msg.includes('cors')) {
+      throw new Error(SHEET_NOT_PUBLIC_MSG);
+    }
+    throw e;
+  }
   let json = {};
   try {
     json = await res.json();
@@ -131,6 +140,30 @@ export async function fetchGoogleSheetMatrixViaCsvExport(sheetUrl, { onProgress,
   return { headers, rows };
 }
 
+/**
+ * Human-readable message after Google Sheet import fails (network/CORS → sharing hint).
+ * @param {unknown} err
+ */
+export function userMessageForGoogleSheetImportFailure(err) {
+  const m = String(err?.message || err || '');
+  const lower = m.toLowerCase();
+  if (
+    lower.includes('failed to fetch') ||
+    lower.includes('networkerror') ||
+    lower.includes('network error') ||
+    lower.includes('network request failed') ||
+    lower.includes('load failed') ||
+    lower.includes('cors')
+  ) {
+    return SHEET_NOT_PUBLIC_MSG;
+  }
+  return m || 'Could not load the sheet.';
+}
+
+/**
+ * Loads sheet rows: uses Google Sheets API v4 when `REACT_APP_GOOGLE_SHEETS_API_KEY` is set (CSV export fallback on failure).
+ * When the API key is unset, uses the public CSV export URL path only (same as manual CSV import).
+ */
 export async function fetchGoogleSheetMatrix(sheetUrl, { onProgress, signal } = {}) {
   const id = extractGoogleSheetId(sheetUrl);
   if (!id) {

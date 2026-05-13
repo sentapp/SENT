@@ -2,6 +2,18 @@ import { supabase } from './supabaseClient';
 
 const ALLOWED_EXT = new Set(['jpg', 'jpeg', 'png', 'gif']);
 
+/** True when the `avatars` bucket is missing or storage returns 404 — bucket must exist and be public in Supabase. */
+export function isAvatarStorageUnavailableError(err) {
+  if (!err) return false;
+  const status = err.statusCode ?? err.status;
+  if (status === 404) return true;
+  const msg = `${err.message ?? ''} ${err.error ?? ''}`.toLowerCase();
+  if (msg.includes('bucket not found')) return true;
+  if (msg.includes('not found') && (msg.includes('bucket') || msg.includes('object') || msg.includes('resource'))) return true;
+  if (msg.includes('does not exist') && msg.includes('bucket')) return true;
+  return false;
+}
+
 function extFromFile(file) {
   const fromName = file?.name?.split('.').pop()?.toLowerCase() || '';
   if (ALLOWED_EXT.has(fromName)) return fromName === 'jpeg' ? 'jpg' : fromName;
@@ -14,6 +26,7 @@ function extFromFile(file) {
 
 /**
  * Upload avatar to public `avatars` bucket as `{userId}.{ext}`, then save `profiles.photo_url`.
+ * The `avatars` bucket must exist and be public in Supabase Storage for uploads to succeed.
  */
 export async function uploadAvatar(file, userId) {
   if (!supabase) throw new Error('Supabase is not configured.');

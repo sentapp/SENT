@@ -1,15 +1,5 @@
 import { supabase } from './supabaseClient';
 
-/** Where Supabase redirects after "Reset password" email (must match Dashboard → Auth → URL Configuration). */
-export function getPasswordResetRedirectTo() {
-  const fromEnv = (process.env.REACT_APP_PASSWORD_RESET_REDIRECT || '').trim();
-  if (fromEnv) return fromEnv;
-  if (typeof window !== 'undefined' && window.location?.origin && /^https?:\/\//i.test(window.location.origin)) {
-    return `${window.location.origin}/reset-password`;
-  }
-  return 'https://sent-kohl.vercel.app/reset-password';
-}
-
 /**
  * @param {{ email: string; password: string; fullName: string; role: 'missionary' | 'supporter'; inviteCode?: string }} params
  */
@@ -45,8 +35,9 @@ export async function requestPasswordReset(email) {
   if (!supabase) {
     return { error: new Error('Supabase is not configured.') };
   }
+  // Supabase Dashboard → Auth → URL Configuration must list this exact URL under Redirect URLs.
   return supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: getPasswordResetRedirectTo(),
+    redirectTo: 'https://sent-kohl.vercel.app/reset-password',
   });
 }
 

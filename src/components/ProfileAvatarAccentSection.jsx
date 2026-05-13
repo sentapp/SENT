@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { uploadAvatar } from '../lib/uploadAvatar';
+import { isAvatarStorageUnavailableError, uploadAvatar } from '../lib/uploadAvatar';
 import { ACCENT_PRESETS, initialsFromDisplayName } from '../lib/profileAppearance';
 
 /**
@@ -36,7 +36,11 @@ export function ProfileAvatarAccentSection({
       const url = await uploadAvatar(file, userId);
       onPhotoUrlChange(url);
     } catch (er) {
-      setErr(er?.message || 'Could not upload photo.');
+      if (isAvatarStorageUnavailableError(er)) {
+        setErr('Photo upload coming soon');
+      } else {
+        setErr(er?.message || 'Could not upload photo.');
+      }
     } finally {
       setBusy(false);
     }
@@ -105,7 +109,9 @@ export function ProfileAvatarAccentSection({
         </div>
       </div>
 
-      {err ? <p className="text-sm text-red-600">{err}</p> : null}
+      {err ? (
+        <p className={`text-sm ${err === 'Photo upload coming soon' ? 'text-neutral-600' : 'text-red-600'}`}>{err}</p>
+      ) : null}
     </div>
   );
 }

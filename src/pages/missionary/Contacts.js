@@ -9,7 +9,7 @@ import {
   parsePdfFile,
   parseSpreadsheetFlexible,
 } from '../../lib/contactImport';
-import { fetchGoogleSheetMatrix } from '../../lib/googleSheetsApi';
+import { fetchGoogleSheetMatrix, userMessageForGoogleSheetImportFailure } from '../../lib/googleSheetsApi';
 import { cleanEmail, extrasFromRejectedContactFields, mergeImportNotes } from '../../lib/contactImportClean';
 import { cleanNotes, cleanPhone } from '../../lib/importCleaners';
 import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
@@ -521,7 +521,7 @@ export default function MissionaryContacts() {
     } catch (e) {
       if (sessionId !== sessionRef.current) return;
       console.error('[import] Google Sheets import fetch failed', e);
-      const msg = e?.message || String(e);
+      const msg = userMessageForGoogleSheetImportFailure(e);
       setImportMsg(msg || 'Could not load the sheet.');
     } finally {
       setImportBusy(false);
@@ -1943,6 +1943,9 @@ export default function MissionaryContacts() {
 
           {importTab === 'pdf' ? (
             <div className="space-y-3">
+              <p className="rounded-card border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs text-[#854F0B]">
+                PDF import works best in Chrome or Firefox. If it fails try exporting your contacts as a CSV instead.
+              </p>
               <p className="text-sm text-neutral-600">
                 PDFs are scanned for contact info (e.g. names, phones, emails). All detected contacts are imported together.
               </p>

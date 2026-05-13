@@ -57,6 +57,7 @@ export default function MissionPushSection({ missionaryId }) {
       return;
     }
     setLoading(true);
+    setMutedNote('');
     const { data, error: e } = await fetchMissionPushesForMissionary(missionaryId);
     if (e) {
       if (isMissingMissionPushesTableError(e)) {

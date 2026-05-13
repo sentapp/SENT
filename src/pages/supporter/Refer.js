@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPublicProfile } from '../../hooks/useMissionaryPublicProfile';
-import { Button, Card, Input, Label } from '../../components/ui';
+import { Button, Card } from '../../components/ui';
 
 function slugify(s) {
   return (s || '')
@@ -26,8 +26,22 @@ export default function SupporterRefer() {
     return `https://example.com/?ref=${encodeURIComponent(slug)}`;
   }, [missionaryName]);
 
-  const [friendName, setFriendName] = useState('');
-  const [friendContact, setFriendContact] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  useEffect(() => {
+    if (!linkCopied) return undefined;
+    const t = window.setTimeout(() => setLinkCopied(false), 2500);
+    return () => window.clearTimeout(t);
+  }, [linkCopied]);
+
+  const copyInviteLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setLinkCopied(true);
+    } catch {
+      setLinkCopied(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -38,75 +52,46 @@ export default function SupporterRefer() {
       </header>
 
       <Card className="p-5">
-        <p className="text-sm font-semibold">Share link</p>
+        <p className="text-sm font-semibold">Invite link</p>
         <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <p className="break-all rounded-btn border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-semibold text-ink">
             {shareLink}
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="primary" onClick={() => void copyInviteLink()}>
+              Copy invite link
+            </Button>
             <Button
               type="button"
               variant="secondary"
               onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(shareLink);
-                } catch {
-                  // ignore
-                }
-              }}
-            >
-              Copy link
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={async () => {
                 if (navigator.share) {
                   try {
-                    await navigator.share({ title: 'SENT', text: 'Check out SENT — for missionaries and the people who send them.', url: shareLink });
+                    await navigator.share({
+                      title: 'SENT',
+                      text: 'Check out SENT — for missionaries and the people who send them.',
+                      url: shareLink,
+                    });
                     return;
                   } catch {
-                    // ignore
+                    // user cancelled or share failed
                   }
                 }
-                try {
-                  await navigator.clipboard.writeText(shareLink);
-                } catch {
-                  // ignore
-                }
+                await copyInviteLink();
               }}
             >
               Share
             </Button>
           </div>
         </div>
+        {linkCopied ? (
+          <p className="mt-3 rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900">
+            Link copied!
+          </p>
+        ) : null}
         <p className="mt-3 text-xs text-neutral-500">
           Friends who join as supporters will still need your missionary&apos;s SENT invite code to connect.
         </p>
-      </Card>
-
-      <Card className="p-5">
-        <p className="text-sm font-semibold">Send directly</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Label title="Friend’s name">
-            <Input value={friendName} onChange={(e) => setFriendName(e.target.value)} placeholder="Name" />
-          </Label>
-          <Label title="Phone or email">
-            <Input value={friendContact} onChange={(e) => setFriendContact(e.target.value)} placeholder="Phone or email" />
-          </Label>
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button
-            type="button"
-            disabled={!friendName.trim() || !friendContact.trim()}
-            onClick={() => {
-              setFriendName('');
-              setFriendContact('');
-            }}
-          >
-            Send
-          </Button>
-        </div>
       </Card>
     </div>
   );

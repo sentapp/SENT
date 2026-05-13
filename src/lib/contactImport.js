@@ -1012,8 +1012,7 @@ export function buildGoogleSheetCsvExportUrls(sheetId) {
 }
 
 export const INVALID_GOOGLE_SHEET_LINK_MSG = 'Please paste a valid Google Sheets link';
-export const SHEET_NOT_PUBLIC_MSG =
-  'This sheet is not publicly accessible. Please change sharing settings to Anyone with the link';
+export const SHEET_NOT_PUBLIC_MSG = 'Make sure your sheet is set to Anyone with the link can view.';
 export const NO_CONTACTS_IN_SHEET_MSG =
   'No contacts found in this sheet — make sure there is a column with each contact’s name (phone and email are optional)';
 

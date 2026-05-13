@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { relinkSupporterToMissionary, linkSupporterToMissionary } from '../../lib/supporterConnection';
 import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
 import { DEFAULT_PROFILE_ACCENT, normalizeProfileAccent } from '../../lib/profileAppearance';
-import { ACCENT_COLUMN_SKIP_MSG, isProfilesAccentColumnUnavailable } from '../../lib/profileAccentPersistence';
+import { isProfilesAccentColumnUnavailable } from '../../lib/profileAccentPersistence';
 import { ProfileAvatarAccentSection } from '../../components/ProfileAvatarAccentSection';
 import { Button, Card, Input, Label } from '../../components/ui';
 import FeedbackSection from '../../components/FeedbackSection';
@@ -166,7 +166,6 @@ export default function SupporterProfile() {
       const { error } = await supabase.from('profiles').update({ accent_color: h }).eq('id', user.id);
       if (error) {
         if (isProfilesAccentColumnUnavailable(error)) {
-          setDetailsMsg(ACCENT_COLUMN_SKIP_MSG);
           return;
         }
         setLoadError(error.message);
@@ -176,7 +175,6 @@ export default function SupporterProfile() {
       setDetailsMsg('Color saved.');
     } catch (e) {
       if (isProfilesAccentColumnUnavailable(e)) {
-        setDetailsMsg(ACCENT_COLUMN_SKIP_MSG);
         return;
       }
       setLoadError(e?.message || 'Could not save color.');
@@ -217,9 +215,7 @@ export default function SupporterProfile() {
 
       let { error } = await supabase.from('profiles').update(payload).eq('id', user.id);
 
-      let accentSaveSkipped = false;
       if (error && isProfilesAccentColumnUnavailable(error)) {
-        accentSaveSkipped = true;
         const { accent_color: _a, ...withoutAccent } = payload;
         ({ error } = await supabase.from('profiles').update(withoutAccent).eq('id', user.id));
       }
@@ -240,10 +236,10 @@ export default function SupporterProfile() {
         prayer: notifyPrayer,
       });
       await refreshProfile();
-      setDetailsMsg(accentSaveSkipped ? ACCENT_COLUMN_SKIP_MSG : 'Saved.');
+      setDetailsMsg('Saved.');
     } catch (e) {
       if (isProfilesAccentColumnUnavailable(e)) {
-        setDetailsMsg(ACCENT_COLUMN_SKIP_MSG);
+        setDetailsMsg('Saved.');
       } else {
         setLoadError(e?.message || 'Could not save.');
       }
@@ -397,15 +393,7 @@ export default function SupporterProfile() {
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 555‑5555" />
               </Label>
             </div>
-            {detailsMsg ? (
-              <p
-                className={`mt-3 text-sm ${
-                  detailsMsg === ACCENT_COLUMN_SKIP_MSG ? 'rounded-[10px] border border-mission-line bg-mission-canvas px-3 py-2 text-mission-muted' : 'text-emerald-800'
-                }`}
-              >
-                {detailsMsg}
-              </p>
-            ) : null}
+            {detailsMsg ? <p className="mt-3 rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{detailsMsg}</p> : null}
             <div className="mt-4 flex justify-end">
               <Button
                 type="button"

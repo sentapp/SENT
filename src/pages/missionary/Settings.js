@@ -6,7 +6,7 @@ import { geocodePlaceName } from '../../lib/geocoding';
 import { supabase } from '../../lib/supabaseClient';
 import { ensureMissionarySupporterCode } from '../../lib/supporterConnection';
 import { DEFAULT_PROFILE_ACCENT, normalizeProfileAccent } from '../../lib/profileAppearance';
-import { ACCENT_COLUMN_SKIP_MSG, isProfilesAccentColumnUnavailable } from '../../lib/profileAccentPersistence';
+import { isProfilesAccentColumnUnavailable } from '../../lib/profileAccentPersistence';
 import { ProfileAvatarAccentSection } from '../../components/ProfileAvatarAccentSection';
 import { Button, Card, Input, Label, Textarea } from '../../components/ui';
 import FeedbackSection from '../../components/FeedbackSection';
@@ -40,11 +40,12 @@ function applyRowToForm(row, setters) {
  */
 export default function MissionarySettings() {
   const navigate = useNavigate();
-  const { signOut, refreshProfile } = useAuth();
+  const { user, signOut, refreshProfile } = useAuth();
   const { actions } = useAppState();
 
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  /** True until the first profiles fetch finishes (form stays visible; optional subtle dimming). */
+  const [profileHydrating, setProfileHydrating] = useState(true);
   const [loadError, setLoadError] = useState('');
 
   const [fullName, setFullName] = useState('');
@@ -80,7 +81,7 @@ export default function MissionarySettings() {
       if (!supabase) {
         if (mounted) {
           setLoadError('Supabase is not configured.');
-          setLoading(false);
+          setProfileHydrating(false);
         }
         return;
       }
@@ -94,7 +95,7 @@ export default function MissionarySettings() {
 
       if (userErr || !user?.id) {
         setLoadError('Not signed in.');
-        setLoading(false);
+        setProfileHydrating(false);
         return;
       }
 
@@ -104,13 +105,13 @@ export default function MissionarySettings() {
 
       if (error) {
         setLoadError(error.message || 'Could not load profile.');
-        setLoading(false);
+        setProfileHydrating(false);
         return;
       }
 
       if (!data) {
         setLoadError('No profile row found.');
-        setLoading(false);
+        setProfileHydrating(false);
         return;
       }
 
@@ -125,7 +126,7 @@ export default function MissionarySettings() {
       setProfile(row);
       applyRowToForm(row, formSetters);
       setAccentColor(normalizeProfileAccent(row.accent_color));
-      setLoading(false);
+      setProfileHydrating(false);
     }
 
     loadProfile();
@@ -215,9 +216,7 @@ export default function MissionarySettings() {
 
       let { data: updated, error } = await supabase.from('profiles').update(payload).eq('id', user.id).select('*').maybeSingle();
 
-      let accentSaveSkipped = false;
       if (error && isProfilesAccentColumnUnavailable(error)) {
-        accentSaveSkipped = true;
         const { accent_color: _a, ...withoutAccent } = payload;
         ({ data: updated, error } = await supabase
           .from('profiles')
@@ -240,7 +239,7 @@ export default function MissionarySettings() {
         applyRowToForm(latest, formSetters);
       }
 
-      setProfileMsg(accentSaveSkipped ? ACCENT_COLUMN_SKIP_MSG : 'Profile saved.');
+      setProfileMsg('Profile saved.');
     } catch (e) {
       setProfileErr(e?.message || 'Could not save.');
     } finally {
@@ -258,7 +257,6 @@ export default function MissionarySettings() {
       const { error } = await supabase.from('profiles').update({ accent_color: h }).eq('id', profile.id);
       if (error) {
         if (isProfilesAccentColumnUnavailable(error)) {
-          setProfileMsg(ACCENT_COLUMN_SKIP_MSG);
           return;
         }
         setProfileErr(error.message);
@@ -269,7 +267,6 @@ export default function MissionarySettings() {
       await refreshProfile();
     } catch (e) {
       if (isProfilesAccentColumnUnavailable(e)) {
-        setProfileMsg(ACCENT_COLUMN_SKIP_MSG);
         return;
       }
       setProfileErr(e?.message || 'Could not save color.');
@@ -285,23 +282,6 @@ export default function MissionarySettings() {
 
   const supporterCodeDisplay = String(profile?.supporter_code ?? '').trim() || '—';
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center px-6">
-        <p className="text-sm font-medium text-neutral-600">Loading...</p>
-      </div>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>
-      </div>
-    );
-  }
-
   return (
     <div
       className="space-y-6"
@@ -312,118 +292,116 @@ export default function MissionarySettings() {
         <p className="text-sm text-neutral-600">Profile, goals, security, and your SENT supporter invite code.</p>
       </header>
 
-      <Card className="p-5 md:p-6">
-        <ProfileAvatarAccentSection
-          userId={profile?.id}
-          fullName={fullName || profile?.full_name}
-          photoUrl={profile?.photo_url || ''}
-          accentColor={accentColor}
-          onPhotoUrlChange={(url) => void onAvatarUploaded(url)}
-          onAccentChange={(hex) => void persistAccent(hex)}
-          disabled={profileSaving}
-        />
-      </Card>
+      {loadError ? (
+        <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>
+      ) : null}
 
-      <Card className="border-2 border-[color:color-mix(in_srgb,var(--profile-accent)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--profile-accent)_10%,white)] p-5 md:p-6">
-        <p className="text-xs font-semibold uppercase tracking-wide profile-accent-text">Your missionary / supporter code</p>
-        <p className="mt-3 break-all font-mono text-2xl font-bold tracking-wide text-ink md:text-3xl">
-          {supporterCodeDisplay}
-        </p>
-        <p className="mt-3 text-sm text-neutral-700">
-          Share this code so supporters can link their SENT account to you. It’s unique to your ministry — keep it handy on
-          mobile from this Profile tab.
-        </p>
-      </Card>
+      <div className={`space-y-6 ${profileHydrating ? 'opacity-60 transition-opacity' : ''}`}>
+        <Card className="p-5 md:p-6">
+          <ProfileAvatarAccentSection
+            userId={profile?.id || user?.id}
+            fullName={fullName || profile?.full_name}
+            photoUrl={profile?.photo_url || ''}
+            accentColor={accentColor}
+            onPhotoUrlChange={(url) => void onAvatarUploaded(url)}
+            onAccentChange={(hex) => void persistAccent(hex)}
+            disabled={profileSaving}
+          />
+        </Card>
+
+        <Card className="border-2 border-[color:color-mix(in_srgb,var(--profile-accent)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--profile-accent)_10%,white)] p-5 md:p-6">
+          <p className="text-xs font-semibold uppercase tracking-wide profile-accent-text">Your missionary / supporter code</p>
+          <p className="mt-3 break-all font-mono text-2xl font-bold tracking-wide text-ink md:text-3xl">
+            {supporterCodeDisplay}
+          </p>
+          <p className="mt-3 text-sm text-neutral-700">
+            Share this code so supporters can link their SENT account to you. It’s unique to your ministry — keep it handy on
+            mobile from this Profile tab.
+          </p>
+        </Card>
+
+        <Card className="p-5">
+          <p className="text-sm font-semibold">Edit profile</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Label title="Name">
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" />
+            </Label>
+            <Label title="Organization">
+              <Input value={organization} onChange={(e) => setOrganization(e.target.value)} placeholder="Organization" />
+            </Label>
+            <div className="md:col-span-2">
+              <Label title="Mission statement">
+                <Textarea
+                  value={missionStatement}
+                  onChange={(e) => setMissionStatement(e.target.value)}
+                  placeholder="Why you’re on mission…"
+                  rows={4}
+                />
+              </Label>
+            </div>
+            <Label title="Home location (plain text)">
+              <Input
+                value={locationName}
+                onChange={(e) => setLocationName(e.target.value)}
+                onBlur={(e) => saveHomeLocationFromText(e.target.value)}
+                placeholder="e.g. Dublin, Ireland"
+              />
+              <p className="mt-2 text-xs text-neutral-500">
+                {locSaving ? 'Finding your location on the map…' : 'We look up the map position automatically — coordinates are never shown.'}
+              </p>
+            </Label>
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Button
+              type="button"
+              className="profile-accent-btn-primary"
+              disabled={profileSaving || !fullName.trim()}
+              onClick={saveProfile}
+            >
+              {profileSaving ? 'Saving…' : 'Save profile'}
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <p className="text-sm font-semibold">Giving links</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Label title="Tax-deductible URL">
+              <Input value={taxUrl} onChange={(e) => setTaxUrl(e.target.value)} placeholder="https://…" />
+            </Label>
+            <Label title="Non-tax-deductible URL">
+              <Input value={nonTaxUrl} onChange={(e) => setNonTaxUrl(e.target.value)} placeholder="https://…" />
+            </Label>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
+              Save links
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <p className="text-sm font-semibold">Goals</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Label title="Monthly goal">
+              <Input inputMode="numeric" value={monthlyGoal} onChange={(e) => setMonthlyGoal(Number(e.target.value || 0))} placeholder="0" />
+            </Label>
+            <Label title="Partner goal">
+              <Input inputMode="numeric" value={partnerGoal} onChange={(e) => setPartnerGoal(Number(e.target.value || 0))} placeholder="0" />
+            </Label>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
+              Save goals
+            </Button>
+          </div>
+        </Card>
+      </div>
 
       {profileErr ? <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{profileErr}</p> : null}
       {profileMsg ? (
-        <p
-          className={`rounded-[10px] border px-4 py-3 text-sm ${
-            profileMsg === ACCENT_COLUMN_SKIP_MSG
-              ? 'border-mission-line bg-mission-canvas text-mission-muted'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-900'
-          }`}
-        >
-          {profileMsg}
-        </p>
+        <p className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{profileMsg}</p>
       ) : null}
-
-      <Card className="p-5">
-        <p className="text-sm font-semibold">Edit profile</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Label title="Name">
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" />
-          </Label>
-          <Label title="Organization">
-            <Input value={organization} onChange={(e) => setOrganization(e.target.value)} placeholder="Organization" />
-          </Label>
-          <div className="md:col-span-2">
-            <Label title="Mission statement">
-              <Textarea
-                value={missionStatement}
-                onChange={(e) => setMissionStatement(e.target.value)}
-                placeholder="Why you’re on mission…"
-                rows={4}
-              />
-            </Label>
-          </div>
-          <Label title="Home location (plain text)">
-            <Input
-              value={locationName}
-              onChange={(e) => setLocationName(e.target.value)}
-              onBlur={(e) => saveHomeLocationFromText(e.target.value)}
-              placeholder="e.g. Dublin, Ireland"
-            />
-            <p className="mt-2 text-xs text-neutral-500">
-              {locSaving ? 'Finding your location on the map…' : 'We look up the map position automatically — coordinates are never shown.'}
-            </p>
-          </Label>
-        </div>
-        <div className="mt-6 flex justify-end">
-          <Button
-            type="button"
-            className="profile-accent-btn-primary"
-            disabled={profileSaving || !fullName.trim()}
-            onClick={saveProfile}
-          >
-            {profileSaving ? 'Saving…' : 'Save profile'}
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="p-5">
-        <p className="text-sm font-semibold">Giving links</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Label title="Tax-deductible URL">
-            <Input value={taxUrl} onChange={(e) => setTaxUrl(e.target.value)} placeholder="https://…" />
-          </Label>
-          <Label title="Non-tax-deductible URL">
-            <Input value={nonTaxUrl} onChange={(e) => setNonTaxUrl(e.target.value)} placeholder="https://…" />
-          </Label>
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
-            Save links
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="p-5">
-        <p className="text-sm font-semibold">Goals</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Label title="Monthly goal">
-            <Input inputMode="numeric" value={monthlyGoal} onChange={(e) => setMonthlyGoal(Number(e.target.value || 0))} placeholder="0" />
-          </Label>
-          <Label title="Partner goal">
-            <Input inputMode="numeric" value={partnerGoal} onChange={(e) => setPartnerGoal(Number(e.target.value || 0))} placeholder="0" />
-          </Label>
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
-            Save goals
-          </Button>
-        </div>
-      </Card>
 
       <FeedbackSection />
 
