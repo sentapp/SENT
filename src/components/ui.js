@@ -139,7 +139,16 @@ export function EmptyState({ title, subtitle, action, icon }) {
   );
 }
 
-export function Modal({ open, title, children, onClose, footer, backdropClose = true, closeButtonLabel = 'Close' }) {
+export function Modal({
+  open,
+  title,
+  children,
+  onClose,
+  footer,
+  backdropClose = true,
+  closeButtonLabel = 'Close',
+  panelClassName = '',
+}) {
   if (!open) return null;
   const closeBtnIsIcon = closeButtonLabel === '×' || closeButtonLabel === '✕';
   return (
@@ -151,7 +160,7 @@ export function Modal({ open, title, children, onClose, footer, backdropClose = 
       }}
     >
       <div
-        className="w-full max-w-lg rounded-card border border-mission-line bg-surface shadow-lg"
+        className={`w-full max-w-lg rounded-card border border-mission-line bg-surface shadow-lg ${panelClassName}`}
         role="presentation"
         onClick={(e) => e.stopPropagation()}
       >

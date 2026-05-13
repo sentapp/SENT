@@ -12,12 +12,12 @@ const ALLOWED = new Set(CONTACT_STATUS_VALUES);
 
 /** Add / Edit contact form — order matches product copy. */
 export const CONTACT_STATUS_FORM_OPTIONS = [
-  { value: 'prospect', label: 'Prospect' },
+  { value: 'prospect', label: 'Not contacted prospect' },
   { value: 'contacted', label: 'Contacted' },
-  { value: 'meeting_scheduled', label: 'Meeting Scheduled' },
+  { value: 'meeting_scheduled', label: 'Meeting scheduled' },
   { value: 'committed', label: 'Committed' },
   { value: 'partner', label: 'Partner' },
-  { value: 'declined', label: 'Not Interested' },
+  { value: 'declined', label: 'Not interested' },
 ];
 
 const LABEL_BY_VALUE = CONTACT_STATUS_FORM_OPTIONS.reduce((acc, { value, label }) => {

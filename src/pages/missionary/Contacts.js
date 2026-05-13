@@ -28,19 +28,14 @@ import { supabase } from '../../lib/supabaseClient';
 import {
   CATEGORY_TAG_COLORS,
   CONTACT_CATEGORY_FILTER_TABS,
-  CONTACT_CATEGORY_FORM_OPTIONS,
   categoryLabel,
   normalizeCategory,
   normalizeCategoryForSave,
 } from '../../lib/contactCategories';
-import {
-  CONTACT_STATUS_FORM_OPTIONS,
-  STATUS_TAG_COLORS,
-  normalizeStatusForSave,
-  normalizeStatusFromDb,
-  statusLabel,
-} from '../../lib/contactStatuses';
-import { Button, Card, EmptyState, Input, Label, LoadingSpinner, Modal, Textarea } from '../../components/ui';
+import { mergeNotesWithSocial, notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
+import { STATUS_TAG_COLORS, normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
+import { Button, Card, EmptyState, Input, LoadingSpinner, Modal, Textarea } from '../../components/ui';
+import ContactEditFormLayout from './ContactEditFormLayout';
 
 /** Pipeline strip: active outreach stages, excluding monthly supporters (shown under Partners). */
 const PIPELINE_STRIP_VISIBLE_STATUSES = ['contacted', 'meeting_scheduled', 'committed'];
@@ -62,13 +57,12 @@ const STRIP_STAGE_LABEL = {
 
 const FILTERS = CONTACT_CATEGORY_FILTER_TABS;
 const VALID_CONTACT_FILTER_IDS = new Set(FILTERS.map((f) => f.id));
-const CATEGORY_OPTIONS = CONTACT_CATEGORY_FORM_OPTIONS.map(({ id, label }) => ({ value: id, label }));
-
 const emptyForm = {
   fullName: '',
   phone: '',
   email: '',
   address: '',
+  social: '',
   category: 'potential',
   status: 'prospect',
   monthlyAmount: '',
@@ -79,8 +73,9 @@ const emptyForm = {
 };
 
 function cleanDisplayNotes(notes) {
-  if (!notes) return '';
-  const trimmed = notes.toString().trim();
+  const body = notesWithoutSocialBlock(notes);
+  if (!body) return '';
+  const trimmed = body.toString().trim();
   if (/^\d+$/.test(trimmed)) return '';
   return trimmed;
 }
@@ -91,6 +86,7 @@ function contactFormSnapshot(f) {
     phone: f.phone ?? '',
     email: f.email ?? '',
     address: f.address ?? '',
+    social: f.social ?? '',
     category: f.category ?? '',
     status: f.status ?? '',
     monthlyAmount: f.monthlyAmount ?? '',
@@ -675,6 +671,10 @@ export default function MissionaryContacts() {
       phone: c.phone,
       email: c.email,
       address: c.address || '',
+      ...(() => {
+        const { social, bodyNotes } = splitSocialFromNotes(c.notes);
+        return { social, notes: cleanDisplayNotes(bodyNotes) };
+      })(),
       // Map legacy categories into the current enum set for the form.
       category: normalizeCategoryForSave(c.category),
       status: normalizeStatusFromDb(c.status),
@@ -685,7 +685,6 @@ export default function MissionaryContacts() {
           ? String(c.oneTimeDonationAmount)
           : '',
       oneTimeDonationDate: c.oneTimeDonationDate || '',
-      notes: cleanDisplayNotes(c.notes),
     };
     originalFormSnapshotRef.current = contactFormSnapshot(nextForm);
     setForm(nextForm);
@@ -773,6 +772,10 @@ export default function MissionaryContacts() {
       return;
     }
 
+    const oneTimeAmt = Number.parseFloat(String(form.oneTimeDonationAmount ?? '').replace(/,/g, ''));
+    const isOneTimeDonorEffective =
+      Boolean(form.isOneTimeDonor) || (Number.isFinite(oneTimeAmt) && oneTimeAmt > 0);
+
     if (editingId) {
       const payload = {
         fullName: form.fullName.trim(),
@@ -782,10 +785,10 @@ export default function MissionaryContacts() {
         category: normalizeCategoryForSave(form.category),
         status: normalizeStatusForSave(form.status),
         monthlyAmount: form.monthlyAmount,
-        isOneTimeDonor: form.isOneTimeDonor,
+        isOneTimeDonor: isOneTimeDonorEffective,
         oneTimeDonationAmount: form.oneTimeDonationAmount,
         oneTimeDonationDate: form.oneTimeDonationDate,
-        notes: form.notes,
+        notes: mergeNotesWithSocial(form.notes, form.social),
       };
       const res = await updateContact(editingId, payload);
       if (!res.ok) {
@@ -810,10 +813,10 @@ export default function MissionaryContacts() {
       category: categorySaved,
       status: statusSaved,
       monthlyAmount: form.monthlyAmount,
-      isOneTimeDonor: form.isOneTimeDonor,
+      isOneTimeDonor: isOneTimeDonorEffective,
       oneTimeDonationAmount: form.oneTimeDonationAmount,
       oneTimeDonationDate: form.oneTimeDonationDate,
-      notes: form.notes,
+      notes: mergeNotesWithSocial(form.notes, form.social),
     });
     if (!res.ok) {
       setSaveError(res.error || 'Could not save contact.');
@@ -1365,23 +1368,9 @@ export default function MissionaryContacts() {
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {(() => {
-                        const catSt = contactCategoryTagStyle(c.category);
-                        return (
-                          <span
-                            className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                            style={{
-                              backgroundColor: catSt.bg,
-                              color: catSt.text,
-                              borderColor: catSt.border,
-                            }}
-                          >
-                            {categoryLabel(c.category)}
-                          </span>
-                        );
-                      })()}
-                      {c.status && normalizeStatusFromDb(c.status) !== 'prospect' ? (
-                        (() => {
-                          const stSt = contactStatusTagStyle(c.status);
+                        const st = normalizeStatusFromDb(c.status);
+                        if (st === 'partner') {
+                          const stSt = contactStatusTagStyle('partner');
                           return (
                             <span
                               className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
@@ -1391,11 +1380,43 @@ export default function MissionaryContacts() {
                                 borderColor: stSt.border,
                               }}
                             >
-                              {statusLabel(c.status)}
+                              {statusLabel('partner')}
                             </span>
                           );
-                        })()
-                      ) : null}
+                        }
+                        const catSt = contactCategoryTagStyle(c.category);
+                        return (
+                          <>
+                            <span
+                              className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                              style={{
+                                backgroundColor: catSt.bg,
+                                color: catSt.text,
+                                borderColor: catSt.border,
+                              }}
+                            >
+                              {categoryLabel(c.category)}
+                            </span>
+                            {c.status && st !== 'prospect' ? (
+                              (() => {
+                                const stSt = contactStatusTagStyle(c.status);
+                                return (
+                                  <span
+                                    className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                                    style={{
+                                      backgroundColor: stSt.bg,
+                                      color: stSt.text,
+                                      borderColor: stSt.border,
+                                    }}
+                                  >
+                                    {statusLabel(c.status)}
+                                  </span>
+                                );
+                              })()
+                            ) : null}
+                          </>
+                        );
+                      })()}
                     </div>
                     {Number(c.monthlyAmount) > 0 ? (
                       <p className="text-xs text-neutral-500">${Number(c.monthlyAmount).toFixed(0)}/mo</p>
@@ -1463,13 +1484,53 @@ export default function MissionaryContacts() {
         {detailContact ? (
           <div className="space-y-4 text-sm">
             <p className="text-2xl font-bold tracking-tight text-ink">{detailContact.fullName || 'Unnamed contact'}</p>
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full border border-mission-line bg-[color:var(--color-bg)] px-3 py-1 text-xs font-semibold text-ink">
-                {categoryLabel(detailContact.category)}
-              </span>
-              <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
-                {statusLabel(detailContact.status)}
-              </span>
+            <div className="flex flex-wrap gap-1.5">
+              {(() => {
+                const st = normalizeStatusFromDb(detailContact.status);
+                if (st === 'partner') {
+                  const stSt = STATUS_TAG_COLORS.partner;
+                  return (
+                    <span
+                      className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                      style={{
+                        backgroundColor: stSt.bg,
+                        color: stSt.text,
+                        borderColor: stSt.border,
+                      }}
+                    >
+                      {statusLabel('partner')}
+                    </span>
+                  );
+                }
+                const catId = normalizeCategory(detailContact.category);
+                const catSt = CATEGORY_TAG_COLORS[catId] || CATEGORY_TAG_COLORS.potential;
+                return (
+                  <>
+                    <span
+                      className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                      style={{
+                        backgroundColor: catSt.bg,
+                        color: catSt.text,
+                        borderColor: catSt.border,
+                      }}
+                    >
+                      {categoryLabel(detailContact.category)}
+                    </span>
+                    {st !== 'prospect' ? (
+                      <span
+                        className="inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                        style={{
+                          backgroundColor: (STATUS_TAG_COLORS[st] || STATUS_TAG_COLORS.prospect).bg,
+                          color: (STATUS_TAG_COLORS[st] || STATUS_TAG_COLORS.prospect).text,
+                          borderColor: (STATUS_TAG_COLORS[st] || STATUS_TAG_COLORS.prospect).border,
+                        }}
+                      >
+                        {statusLabel(detailContact.status)}
+                      </span>
+                    ) : null}
+                  </>
+                );
+              })()}
             </div>
             {detailContact.phone ? (
               <div>
@@ -1611,6 +1672,7 @@ export default function MissionaryContacts() {
         backdropClose={false}
         closeButtonLabel="✕"
         onClose={requestCloseAddEditModal}
+        panelClassName="max-w-xl"
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" type="button" onClick={requestCloseAddEditModal}>
@@ -1623,149 +1685,13 @@ export default function MissionaryContacts() {
         }
       >
         {saveError ? <p className="mb-3 text-sm text-red-600">{saveError}</p> : null}
-        <div className="space-y-4">
-          <Label title="Full name">
-            <Input value={form.fullName} onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))} placeholder="Full name" />
-          </Label>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <Label title="Phone">
-                <Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="(555) 555‑5555" />
-              </Label>
-              {phoneDupWarn ? (
-                <p className="mt-2 text-xs leading-snug text-amber-800">
-                  A contact with this phone number already exists — {phoneDupWarn.fullName || 'Unnamed'}{' '}
-                  <button
-                    type="button"
-                    className="font-semibold text-mission-blue underline"
-                    onClick={() => scrollToContact(phoneDupWarn.id)}
-                  >
-                    View contact
-                  </button>
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <Label title="Email">
-                <Input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="name@example.com" />
-              </Label>
-              {emailDupWarn ? (
-                <p className="mt-2 text-xs leading-snug text-amber-800">
-                  A contact with this email already exists — {emailDupWarn.fullName || 'Unnamed'}{' '}
-                  <button
-                    type="button"
-                    className="font-semibold text-mission-blue underline"
-                    onClick={() => scrollToContact(emailDupWarn.id)}
-                  >
-                    View contact
-                  </button>
-                </p>
-              ) : null}
-            </div>
-          </div>
-          <Label title="Address">
-            <Input
-              value={form.address}
-              onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-              placeholder="Street, city, state, ZIP"
-            />
-          </Label>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Label title="Category">
-              <select
-                value={form.category}
-                onChange={(e) => {
-                  const nextCat = e.target.value;
-                  setForm((f) => ({
-                    ...f,
-                    category: nextCat,
-                    ...(nextCat === 'supporter' ? { status: 'partner' } : {}),
-                  }));
-                }}
-                className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[16px] outline-none focus:border-mission-blue"
-              >
-                {CATEGORY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {categoryLabel(opt.value)}
-                  </option>
-                ))}
-              </select>
-            </Label>
-            <Label title="Status">
-              <select
-                value={form.status}
-                onChange={(e) => {
-                  const nextStatus = e.target.value;
-                  setForm((f) => ({
-                    ...f,
-                    status: nextStatus,
-                    ...(nextStatus === 'partner' ? { category: 'supporter' } : {}),
-                  }));
-                }}
-                className="w-full rounded-btn border border-neutral-200 px-4 py-[14px] text-[16px] outline-none focus:border-mission-blue"
-              >
-                {CONTACT_STATUS_FORM_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </Label>
-          </div>
-          <Label title="Monthly support amount ($)">
-            <Input
-              inputMode="decimal"
-              value={form.monthlyAmount}
-              onChange={(e) => setForm((f) => ({ ...f, monthlyAmount: e.target.value }))}
-              placeholder="0"
-            />
-          </Label>
-
-          <label className="flex cursor-pointer items-center gap-3 rounded-card border border-neutral-200 bg-white px-4 py-3">
-            <input
-              type="checkbox"
-              className="h-5 w-5 shrink-0 accent-[#185FA5]"
-              checked={form.isOneTimeDonor}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  isOneTimeDonor: e.target.checked,
-                  ...(!e.target.checked ? { oneTimeDonationAmount: '', oneTimeDonationDate: '' } : {}),
-                }))
-              }
-            />
-            <span className="text-sm font-semibold text-ink">One-time donor</span>
-          </label>
-          {form.isOneTimeDonor ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <Label title="Donation amount ($)">
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500">
-                    $
-                  </span>
-                  <Input
-                    inputMode="decimal"
-                    value={form.oneTimeDonationAmount}
-                    onChange={(e) => setForm((f) => ({ ...f, oneTimeDonationAmount: e.target.value }))}
-                    placeholder="0"
-                    className="pl-8"
-                  />
-                </div>
-              </Label>
-              <Label title="Donation date">
-                <Input
-                  type="date"
-                  value={form.oneTimeDonationDate}
-                  onChange={(e) => setForm((f) => ({ ...f, oneTimeDonationDate: e.target.value }))}
-                />
-              </Label>
-            </div>
-          ) : null}
-
-          <Label title="Notes">
-            <Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Notes…" rows={4} />
-          </Label>
-        </div>
+        <ContactEditFormLayout
+          form={form}
+          setForm={setForm}
+          phoneDupWarn={phoneDupWarn}
+          emailDupWarn={emailDupWarn}
+          scrollToContact={scrollToContact}
+        />
       </Modal>
 
       <Modal
