@@ -41,5 +41,13 @@ export function useMissionaryTasks(missionaryId) {
     [missionaryId, patchTask, refetch],
   );
 
-  return { tasks, loading, refetch, patchTask, toggleTaskComplete };
+  /** Completes an incomplete task (same persistence as checkbox complete). */
+  const completeTaskFn = useCallback(
+    async (task) => {
+      if (!task?.isComplete) await toggleTaskComplete(task);
+    },
+    [toggleTaskComplete],
+  );
+
+  return { tasks, loading, refetch, patchTask, toggleTaskComplete, completeTask: completeTaskFn };
 }

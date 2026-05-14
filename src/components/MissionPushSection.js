@@ -6,7 +6,10 @@ import {
   updateMissionPush,
 } from '../lib/missionPushesRepository';
 import { isMissingMissionPushesTableError } from '../lib/supabaseRelationErrors';
-import { Button, Card, EmptyState, Input, Label, Modal, Textarea } from './ui';
+import { Button, Input, Label, Modal, Textarea } from './ui';
+
+const ghostBtnClass =
+  'rounded-btn border border-ink/20 bg-transparent px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink hover:bg-ink/[0.05]';
 
 function num(v) {
   const n = Number(String(v ?? '').replace(/,/g, ''));
@@ -43,6 +46,7 @@ export default function MissionPushSection({ missionaryId }) {
 
   const [raisedDraft, setRaisedDraft] = useState('');
   const [raisedSaving, setRaisedSaving] = useState(false);
+  const [raisedModalOpen, setRaisedModalOpen] = useState(false);
 
   const clearFeedback = () => {
     setFormError('');
@@ -167,6 +171,7 @@ export default function MissionPushSection({ missionaryId }) {
         }
       } else {
         setMsg('Amount raised updated.');
+        setRaisedModalOpen(false);
         await load();
       }
     } finally {
@@ -174,12 +179,17 @@ export default function MissionPushSection({ missionaryId }) {
     }
   };
 
-  const pct =
-    active && Number(active.goal_amount) > 0
-      ? Math.min(100, Math.round((Number(active.raised_amount || 0) / Number(active.goal_amount)) * 100))
-      : 0;
+  const goalAmt = active ? Number(active.goal_amount) || 0 : 0;
+  const raisedAmt = active ? Number(active.raised_amount) || 0 : 0;
+  const pctFunded = goalAmt > 0 ? Math.min(100, Math.round((raisedAmt / goalAmt) * 100)) : 0;
 
   const daysLine = active ? daysRemainingLabel(active.deadline) : null;
+
+  const confirmClosePush = async () => {
+    if (!active?.id) return;
+    if (!window.confirm('Close this mission push?')) return;
+    await closePush(active.id);
+  };
 
   return (
     <div className="space-y-3">
@@ -240,88 +250,99 @@ export default function MissionPushSection({ missionaryId }) {
         </div>
       </Modal>
 
-      {!showForm && active ? (
-        <Card className="p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-ink">Mission push</p>
-              <p className="mt-1 text-xs text-muted">Fundraising goal supporters see on their feed.</p>
-            </div>
-            <Button type="button" variant="secondary" onClick={openCreate}>
-              Start new push
+      <Modal
+        open={raisedModalOpen}
+        title="Update amount raised"
+        onClose={() => {
+          if (!raisedSaving) setRaisedModalOpen(false);
+        }}
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="secondary" disabled={raisedSaving} onClick={() => setRaisedModalOpen(false)}>
+              Cancel
             </Button>
+            <Button
+              type="button"
+              disabled={raisedSaving || !active}
+              onClick={() => active && void saveRaised(active.id)}
+            >
+              {raisedSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        }
+      >
+        <Label title="Amount raised ($)">
+          <Input inputMode="decimal" value={raisedDraft} onChange={(e) => setRaisedDraft(e.target.value)} />
+        </Label>
+      </Modal>
+
+      {!showForm && active ? (
+        <div className="overflow-hidden rounded-card border border-mission-line bg-surface">
+          <div className="border-b border-mission-line px-4 py-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted">Mission push</p>
+                <p className="mt-1 text-[13px] font-medium leading-snug text-ink">{active.title}</p>
+                {active.description ? (
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted">{active.description}</p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                <button type="button" className={ghostBtnClass} onClick={() => setRaisedModalOpen(true)}>
+                  Update
+                </button>
+                <button type="button" className={ghostBtnClass} onClick={() => void confirmClosePush()}>
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
 
           {!loading ? (
-            <div className="mt-4 space-y-4">
-              <div>
-                <p className="text-lg font-semibold text-ink">{active.title}</p>
-                {active.description ? (
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-ink/90">{active.description}</p>
-                ) : null}
+            <div className="space-y-2 px-4 py-4">
+              <p
+                className="text-[22px] font-normal leading-tight text-ink"
+                style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+              >
+                {goalAmt > 0 ? `${pctFunded}% funded` : '—'}
+              </p>
+              <div className="h-[2px] w-full rounded-none bg-[#E2DAD0]">
+                <div
+                  className="h-[2px] rounded-none bg-[#181208]"
+                  style={{ width: `${goalAmt > 0 ? pctFunded : 0}%` }}
+                />
               </div>
-              <div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted">
-                    ${Number(active.raised_amount || 0).toLocaleString()} raised of $
-                    {Number(active.goal_amount || 0).toLocaleString()}
-                  </span>
-                  <span className="font-semibold text-mission-ink">{pct}%</span>
-                </div>
-                <div className="mt-2 h-[2px] w-full rounded-none bg-[#E2DAD0]">
-                  <div className="h-[2px] rounded-none bg-[#181208]" style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-              {daysLine ? <p className="text-sm font-medium text-ink/90">{daysLine}</p> : null}
-              {active.deadline ? (
-                <p className="text-xs text-muted">Deadline: {new Date(`${active.deadline}T12:00:00`).toLocaleDateString()}</p>
-              ) : null}
-              <div className="flex flex-wrap items-end gap-2 border-t border-mission-line pt-4">
-                <Label title="Update amount raised ($)">
-                  <Input
-                    inputMode="decimal"
-                    value={raisedDraft}
-                    onChange={(e) => setRaisedDraft(e.target.value)}
-                    className="max-w-xs"
-                  />
-                </Label>
-                <Button type="button" disabled={raisedSaving} onClick={() => void saveRaised(active.id)}>
-                  {raisedSaving ? 'Saving…' : 'Update amount raised'}
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="danger" onClick={() => void closePush(active.id)}>
-                  Close push
-                </Button>
-              </div>
+              <p className="text-[12px] leading-snug text-muted">
+                ${raisedAmt.toLocaleString()} raised of ${goalAmt.toLocaleString()}
+                {daysLine ? ` · ${daysLine}` : ''}
+              </p>
             </div>
           ) : (
-            <p className="mt-4 text-sm text-muted">Loading…</p>
+            <div className="px-4 py-6">
+              <p className="text-sm text-muted">Loading…</p>
+            </div>
           )}
-        </Card>
+        </div>
       ) : null}
 
       {!showForm && !active ? (
-        <Card className="p-5">
-          <div className="mb-4">
-            <p className="text-sm font-semibold text-ink">Mission push</p>
-            <p className="mt-1 text-xs text-muted">Fundraising goal supporters see on their feed.</p>
+        <div className="flex items-center justify-between gap-3 rounded-card border border-mission-line bg-surface px-4 py-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <span className="shrink-0 text-[15px] leading-none text-muted" aria-hidden>
+              ⚑
+            </span>
+            {loading ? (
+              <p className="text-sm text-muted">Loading…</p>
+            ) : (
+              <p className="truncate text-sm font-medium text-ink">No active mission push</p>
+            )}
           </div>
-          {loading ? (
-            <p className="text-sm text-neutral-500">Loading…</p>
-          ) : (
-            <EmptyState
-              icon="compass"
-              title="No active mission push"
-              subtitle="Create a push to share a goal, deadline, and giving link with supporters on their feed."
-              action={
-                <Button type="button" className="min-h-[52px] px-8 text-base font-semibold shadow-sm" onClick={openCreate}>
-                  Create a push
-                </Button>
-              }
-            />
-          )}
-        </Card>
+          {!loading ? (
+            <button type="button" className={`shrink-0 ${ghostBtnClass}`} onClick={openCreate}>
+              Create push
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

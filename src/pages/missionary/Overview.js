@@ -9,6 +9,7 @@ import { useMissionaryTasks } from '../../hooks/useMissionaryTasks';
 import { useAppState } from '../../state/AppState';
 import { supabase } from '../../lib/supabaseClient';
 import { createTask } from '../../lib/tasksRepository';
+import { daysOverdue, formatDate, isDueToday, isOverdue } from '../../lib/taskDateHelpers';
 import MissionPushSection from '../../components/MissionPushSection';
 import MissionaryPipelineSection from '../../components/MissionaryPipelineSection';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
@@ -115,6 +116,24 @@ function localDateStr(d = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
+function TaskCompleteCircle({ onComplete, variant, ariaLabel }) {
+  const ring =
+    variant === 'onDark'
+      ? 'border-white/55 hover:border-white hover:bg-white/10'
+      : 'border-ink/30 hover:border-ink/50';
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        onComplete();
+      }}
+      className={`mt-0.5 h-[18px] w-[18px] shrink-0 rounded-full border-2 bg-transparent ${ring}`}
+      aria-label={ariaLabel || 'Mark complete'}
+    />
+  );
+}
+
 export default function MissionaryOverview() {
   const navigate = useNavigate();
   const { profile, user, loading: authLoading } = useAuth();
@@ -127,7 +146,7 @@ export default function MissionaryOverview() {
   );
   const { prayerRequests: prayer, loading: prayerLoading, refetch: refetchPrayer } = useMissionaryPrayerRequests(user?.id);
   const { state } = useAppState();
-  const { tasks, loading: tasksLoading, refetch: refetchTasks, toggleTaskComplete } = useMissionaryTasks(user?.id);
+  const { tasks, loading: tasksLoading, refetch: refetchTasks, completeTask } = useMissionaryTasks(user?.id);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addTaskTitle, setAddTaskTitle] = useState('');
   const [addTaskContactId, setAddTaskContactId] = useState('');
@@ -227,18 +246,21 @@ export default function MissionaryOverview() {
 
   const todayStr = localDateStr();
   const incompleteTasks = useMemo(() => tasks.filter((t) => !t.isComplete), [tasks]);
-  const overdueTasks = useMemo(
-    () =>
-      incompleteTasks
-        .filter((t) => t.dueDate && t.dueDate < todayStr)
-        .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate))),
-    [incompleteTasks, todayStr],
-  );
-  const dueTodayTasks = useMemo(() => incompleteTasks.filter((t) => t.dueDate === todayStr), [incompleteTasks, todayStr]);
+  const urgentTasks = useMemo(() => {
+    const u = incompleteTasks.filter(
+      (t) => t.dueDate && (isOverdue(t.dueDate, todayStr) || isDueToday(t.dueDate, todayStr)),
+    );
+    return [...u].sort((a, b) => {
+      const ao = isOverdue(a.dueDate, todayStr);
+      const bo = isOverdue(b.dueDate, todayStr);
+      if (ao !== bo) return ao ? -1 : 1;
+      return String(a.dueDate).localeCompare(String(b.dueDate));
+    });
+  }, [incompleteTasks, todayStr]);
   const upcomingTasks = useMemo(
     () =>
       incompleteTasks
-        .filter((t) => !t.dueDate || t.dueDate > todayStr)
+        .filter((t) => !isOverdue(t.dueDate, todayStr) && !isDueToday(t.dueDate, todayStr))
         .sort((a, b) => {
           if (!a.dueDate && !b.dueDate) return 0;
           if (!a.dueDate) return 1;
@@ -363,112 +385,117 @@ export default function MissionaryOverview() {
         </div>
       </Card>
 
-      <Card className="p-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold">Tasks</p>
-            <p className="mt-1 text-xs text-muted">Due dates, contacts, and one-tap completion.</p>
-          </div>
-          <Button type="button" variant="accent" onClick={() => setAddTaskOpen(true)}>
-            + Add task
-          </Button>
+      <div className="overflow-hidden rounded-card border border-mission-line bg-surface">
+        <div
+          className="flex items-center justify-between gap-3 px-4 py-3"
+          style={{ backgroundColor: '#F2EDE4', borderBottom: '1px solid #E2DAD0' }}
+        >
+          <p
+            className="font-semibold uppercase text-muted"
+            style={{ fontSize: 9, letterSpacing: '0.12em' }}
+          >
+            Tasks
+          </p>
+          <button
+            type="button"
+            className="rounded-btn border border-ink/20 bg-transparent px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink hover:bg-ink/[0.04]"
+            onClick={() => setAddTaskOpen(true)}
+          >
+            + Add
+          </button>
         </div>
 
-        {tasksLoading ? (
-          <p className="mt-4 text-sm text-muted">Loading tasks…</p>
-        ) : incompleteTasks.length === 0 ? (
-          <div className="mt-5">
-            <EmptyState
-              icon="clipboard"
-              title="Nothing on your list"
-              subtitle="Add tasks with optional due dates and contacts."
-              action={
-                <Button type="button" variant="accent" onClick={() => setAddTaskOpen(true)}>
-                  Add a task
-                </Button>
-              }
-            />
-          </div>
-        ) : (
-          <div className="mt-5 space-y-5">
-            {overdueTasks.length > 0 || dueTodayTasks.length > 0 ? (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Due today & overdue</p>
-                <ul className="mt-2 space-y-2">
-                  {overdueTasks.map((t) => (
-                    <li
-                      key={t.id}
-                      className="flex items-start gap-3 rounded-btn border border-red-200 bg-red-50/60 px-4 py-3"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={false}
-                        onChange={() => void toggleTaskComplete(t)}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-[#181208]"
-                        aria-label={`Complete ${t.title}`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-ink">{t.title}</p>
-                        <p className="mt-0.5 text-xs text-red-800">
-                          Overdue · {t.dueDate}
-                          {t.contactId ? ` · ${contactNameById.get(t.contactId) || 'Contact'}` : ''}
-                        </p>
+        <div className="px-4 py-4">
+          {tasksLoading ? (
+            <p className="text-sm text-muted">Loading tasks…</p>
+          ) : (
+            <>
+              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 pt-1 [scrollbar-width:thin]">
+                {urgentTasks.length === 0 ? (
+                  <div className="min-h-[72px] min-w-[120px] shrink-0 rounded-btn border border-dashed border-mission-line/80 px-3 py-2 text-[11px] text-muted">
+                    Nothing urgent
+                  </div>
+                ) : (
+                  urgentTasks.map((t) => {
+                    const overdue = isOverdue(t.dueDate, todayStr);
+                    const dOver = overdue ? daysOverdue(t.dueDate, todayStr) : 0;
+                    const sub = overdue
+                      ? `${dOver} day${dOver === 1 ? '' : 's'} overdue`
+                      : 'Due today';
+                    return (
+                      <div
+                        key={t.id}
+                        className={`w-[min(260px,78vw)] shrink-0 rounded-btn px-3 py-3 ${
+                          overdue
+                            ? 'text-surface'
+                            : 'border border-[#E2DAD0] bg-surface text-ink'
+                        }`}
+                        style={overdue ? { backgroundColor: '#181208' } : undefined}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <TaskCompleteCircle
+                            variant={overdue ? 'onDark' : 'onLight'}
+                            ariaLabel={`Complete ${t.title}`}
+                            onComplete={() => void completeTask(t)}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm font-medium leading-snug ${overdue ? 'text-surface' : 'text-ink'}`}>
+                              {t.title}
+                            </p>
+                            <p
+                              className={`mt-1 text-[11px] leading-snug ${
+                                overdue ? 'text-white/75' : 'text-muted'
+                              }`}
+                            >
+                              {sub}
+                              {t.contactId ? ` · ${contactNameById.get(t.contactId) || 'Contact'}` : ''}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </li>
-                  ))}
-                  {dueTodayTasks.map((t) => (
-                    <li
-                      key={t.id}
-                      className="flex items-start gap-3 rounded-btn border border-amber-200 bg-amber-50/70 px-4 py-3"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={false}
-                        onChange={() => void toggleTaskComplete(t)}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-[#181208]"
-                        aria-label={`Complete ${t.title}`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-ink">{t.title}</p>
-                        <p className="mt-0.5 text-xs text-amber-900">
-                          Due today
-                          {t.contactId ? ` · ${contactNameById.get(t.contactId) || 'Contact'}` : ''}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                    );
+                  })
+                )}
               </div>
-            ) : null}
 
-            {upcomingTasks.length > 0 ? (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Upcoming</p>
-                <ul className="mt-2 space-y-2">
-                  {upcomingTasks.map((t) => (
-                    <li key={t.id} className="flex items-start gap-3 rounded-btn border border-neutral-200 px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={false}
-                        onChange={() => void toggleTaskComplete(t)}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-[#181208]"
-                        aria-label={`Complete ${t.title}`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-neutral-800">{t.title}</p>
-                        <p className="mt-0.5 text-xs text-neutral-500">
-                          {t.dueDate ? `Due ${t.dueDate}` : 'No due date'}
-                          {t.contactId ? ` · ${contactNameById.get(t.contactId) || 'Contact'}` : ''}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </Card>
+              {upcomingTasks.length > 0 ? (
+                <div className="mt-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+                    Upcoming · {upcomingTasks.length}
+                  </p>
+                  <ul className="mt-2 divide-y divide-[#E2DAD0]/60">
+                    {upcomingTasks.map((t) => (
+                      <li key={t.id} className="flex items-center gap-3 py-2.5 first:pt-0">
+                        <TaskCompleteCircle
+                          variant="onLight"
+                          ariaLabel={`Complete ${t.title}`}
+                          onComplete={() => void completeTask(t)}
+                        />
+                        <p className="min-w-0 flex-1 text-[12px] leading-snug text-muted">{t.title}</p>
+                        <span className="shrink-0 text-right text-[11px] tabular-nums text-muted">
+                          {t.dueDate ? formatDate(t.dueDate) : '—'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="flex w-full items-center justify-center gap-2 px-4 py-3 text-left text-[12px] font-medium text-muted hover:bg-[#F9F7F2]"
+          style={{ borderTop: '1px solid #F0EAE0' }}
+          onClick={() => setAddTaskOpen(true)}
+        >
+          <span className="text-base leading-none text-muted" aria-hidden>
+            +
+          </span>
+          <span>Add a task</span>
+        </button>
+      </div>
 
       <Modal
         open={addTaskOpen}

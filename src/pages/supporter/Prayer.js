@@ -251,7 +251,8 @@ export default function SupporterPrayer() {
             ) : (
               <div className="space-y-3">
                 {requests.map((r) => {
-                  const isMine = user?.id && r.authorId && String(r.authorId) === String(user.id);
+                  const isMine =
+                    Boolean(user?.id) && r.authorId != null && String(r.authorId) === String(user.id);
                   return (
                     <Card key={r.id} className="p-5">
                       <div className="flex items-start justify-between gap-2">

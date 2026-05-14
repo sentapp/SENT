@@ -62,7 +62,11 @@ export function QuickTagPopover({ open, onClose, items, onPick, children }) {
   }, [open, onClose]);
 
   return (
-    <span ref={rootRef} className="relative inline-flex max-w-full items-center">
+    <span
+      ref={rootRef}
+      className="relative inline-flex max-w-full items-center"
+      onClick={(e) => e.stopPropagation()}
+    >
       {children}
       {open ? (
         <div
@@ -70,6 +74,7 @@ export function QuickTagPopover({ open, onClose, items, onPick, children }) {
           style={PANEL_STYLE}
           role="menu"
           aria-label="Choose an option"
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col gap-0.5">
             {items.map((item) => (
@@ -83,7 +88,8 @@ export function QuickTagPopover({ open, onClose, items, onPick, children }) {
                     ? { borderLeft: `3px solid ${item.accent}`, marginLeft: 0, paddingLeft: 9 }
                     : undefined
                 }
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onClose();
                   void onPick(item.value);
                 }}
@@ -325,7 +331,7 @@ export function ContactThreeQuickTagRows({
   );
 
   return (
-    <div className={className}>
+    <div className={className} onClick={(e) => e.stopPropagation()}>
       <div className="flex flex-wrap items-center gap-1.5">{whoTrigger}</div>
       <div className="flex flex-wrap items-center gap-1.5">{relTrigger}</div>
       <div className="flex flex-wrap items-center gap-1.5">{whereTrigger}</div>

@@ -478,6 +478,11 @@ export default function MissionaryPartners() {
 
   const scrollToContact = useCallback(() => {}, []);
 
+  const openPartnerDrawer = useCallback((partner) => {
+    setCommActionError('');
+    setPopupPartner(partner);
+  }, []);
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -555,68 +560,66 @@ export default function MissionaryPartners() {
                 {needsContactSorted.map((p) => {
                   const last = lastContactMap[p.id] ?? null;
                   return (
-                    <li
-                      key={p.id}
-                      className="group overflow-hidden rounded-card border border-mission-line border-l-[3px] border-l-[#A32D2D] bg-surface transition-shadow duration-200"
-                    >
-                      <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-4">
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-mission-ink/30"
-                          onClick={() => {
-                            setCommActionError('');
-                            setPopupPartner(p);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              setCommActionError('');
-                              setPopupPartner(p);
-                            }
-                          }}
-                        >
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-sm font-semibold text-mission-ink">
-                            {partnerInitials(p.fullName)}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <span className="flex flex-wrap items-center gap-2">
-                              <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
-                              {savedNoticeId === p.id ? (
-                                <span className="text-xs font-semibold text-emerald-700">Saved</span>
-                              ) : null}
+                    <li key={p.id} className="list-none">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="group cursor-pointer overflow-hidden rounded-[12px] border-[0.5px] border-[#E2DAD0] border-l-[3px] border-l-[#A32D2D] bg-white text-left outline-none transition-colors duration-200 ease-out hover:bg-[#F9F7F2] focus-visible:ring-2 focus-visible:ring-mission-ink/30"
+                        onClick={() => openPartnerDrawer(p)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openPartnerDrawer(p);
+                          }
+                        }}
+                      >
+                        <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-4">
+                          <div className="flex min-w-0 flex-1 items-start gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-sm font-semibold text-mission-ink">
+                              {partnerInitials(p.fullName)}
                             </span>
-                            <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
-                            <span className="mt-0.5 block text-xs font-medium text-[#A32D2D]">{daysSinceContactLabel(last)}</span>
-                            <div onClick={(e) => e.stopPropagation()} className="mt-2">
-                              <ContactThreeQuickTagRows
-                                contact={p}
-                                saveQuickTag={saveQuickTag}
-                                patchContactInList={patchContactInList}
-                                onAfterSave={() => void refetch()}
-                                onPatchContact={(next) =>
-                                  setPopupPartner((cur) =>
-                                    cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur,
-                                  )
-                                }
-                                variant="compact"
-                                className="flex flex-col gap-1"
-                              />
+                            <div className="min-w-0 flex-1">
+                              <span className="flex flex-wrap items-center gap-2">
+                                <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
+                                {savedNoticeId === p.id ? (
+                                  <span className="text-xs font-semibold text-emerald-700">Saved</span>
+                                ) : null}
+                              </span>
+                              <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
+                              <span className="mt-0.5 block text-xs font-medium text-[#A32D2D]">{daysSinceContactLabel(last)}</span>
+                              <div className="mt-2">
+                                <ContactThreeQuickTagRows
+                                  contact={p}
+                                  saveQuickTag={saveQuickTag}
+                                  patchContactInList={patchContactInList}
+                                  onAfterSave={() => void refetch()}
+                                  onPatchContact={(next) =>
+                                    setPopupPartner((cur) =>
+                                      cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur,
+                                    )
+                                  }
+                                  variant="compact"
+                                  className="flex flex-col gap-1"
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex shrink-0 items-start sm:items-center">
-                          <Button
-                            type="button"
-                            variant="danger"
-                            className="w-full min-w-[7.5rem] sm:w-auto"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openQuickLog(p);
-                            }}
+                          <div
+                            className="flex shrink-0 items-start sm:items-center"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            Reach out
-                          </Button>
+                            <Button
+                              type="button"
+                              variant="danger"
+                              className="w-full min-w-[7.5rem] sm:w-auto"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openQuickLog(p);
+                              }}
+                            >
+                              Reach out
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </li>

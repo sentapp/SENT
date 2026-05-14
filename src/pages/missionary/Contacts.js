@@ -39,7 +39,7 @@ import {
 } from '../../components/contacts/ContactQuickViewPopup';
 import { ContactProfilePopup1 } from '../../components/contacts/ContactProfilePopup1';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
-import { Button, Card, EmptyState, Input, LoadingSpinner, Modal } from '../../components/ui';
+import { Button, EmptyState, Input, LoadingSpinner, Modal } from '../../components/ui';
 import ContactEditFormLayout from './ContactEditFormLayout';
 
 /** Pipeline strip: active outreach stages, excluding monthly supporters (shown under Partners). */
@@ -1280,7 +1280,7 @@ export default function MissionaryContacts() {
                     key={c.id}
                     type="button"
                     onClick={() => handleOpenContact(c)}
-                    className="w-[min(200px,72vw)] shrink-0 rounded-card border border-mission-line bg-surface p-3 text-left shadow-none transition hover:border-accent/40"
+                    className="w-[min(200px,72vw)] shrink-0 cursor-pointer rounded-card border border-mission-line bg-white p-3 text-left shadow-none transition-colors hover:border-accent/40 hover:bg-[#F9F7F2]"
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -1322,16 +1322,25 @@ export default function MissionaryContacts() {
             }
           />
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col">
             {filteredSorted.map((c) => (
-              <Card
+              <div
                 key={c.id}
                 id={`contact-${c.id}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => {
                   if (selectMode) toggleContactSelected(c.id);
                   else handleOpenContact(c);
                 }}
-                className="scroll-mt-4 cursor-pointer border-mission-line p-4 text-left shadow-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (selectMode) toggleContactSelected(c.id);
+                    else handleOpenContact(c);
+                  }
+                }}
+                className="scroll-mt-4 mb-2 cursor-pointer rounded-[12px] border-[0.5px] border-[#E2DAD0] bg-white px-[14px] py-3 text-left shadow-none transition-colors duration-200 ease-out last:mb-0 hover:bg-[#F9F7F2]"
               >
                 <div className="flex flex-row flex-nowrap items-start gap-3">
                   {selectMode ? (
@@ -1351,15 +1360,13 @@ export default function MissionaryContacts() {
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
                     </div>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <ContactThreeQuickTagRows
-                        contact={c}
-                        saveQuickTag={saveQuickTag}
-                        patchContactInList={patchContactInList}
-                        variant="compact"
-                        className="flex flex-col gap-1"
-                      />
-                    </div>
+                    <ContactThreeQuickTagRows
+                      contact={c}
+                      saveQuickTag={saveQuickTag}
+                      patchContactInList={patchContactInList}
+                      variant="compact"
+                      className="flex flex-col gap-1"
+                    />
                     {Number(c.monthlyAmount) > 0 ? (
                       <p className="text-xs text-neutral-500">${Number(c.monthlyAmount).toFixed(0)}/mo</p>
                     ) : null}
@@ -1393,7 +1400,7 @@ export default function MissionaryContacts() {
                     </button>
                   </div>
                 </div>
-              </Card>
+              </div>
             ))}
           </div>
         )}
