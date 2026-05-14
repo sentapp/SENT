@@ -64,18 +64,17 @@ const metricIconBook = (
   </svg>
 );
 
-function MissionaryPrayerRequestMenu({ onDelete }) {
-  const [open, setOpen] = useState(false);
+function MissionaryPrayerRequestMenu({ open, onOpenChange, onDelete }) {
   const wrapRef = useRef(null);
 
   useEffect(() => {
     if (!open) return undefined;
     const close = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) onOpenChange(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
-  }, [open]);
+  }, [open, onOpenChange]);
 
   return (
     <div className="relative shrink-0" ref={wrapRef}>
@@ -85,7 +84,7 @@ function MissionaryPrayerRequestMenu({ onDelete }) {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Request options"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => onOpenChange(!open)}
       >
         ⋯
       </button>
@@ -99,7 +98,7 @@ function MissionaryPrayerRequestMenu({ onDelete }) {
             role="menuitem"
             className="block w-full px-4 py-2.5 text-left text-sm font-medium text-red-700 hover:bg-red-50"
             onClick={() => {
-              setOpen(false);
+              onOpenChange(false);
               onDelete();
             }}
           >
@@ -162,6 +161,7 @@ export default function MissionaryOverview() {
   const [addTaskError, setAddTaskError] = useState('');
   const [contactPickQuery, setContactPickQuery] = useState('');
   const [prayerBusyId, setPrayerBusyId] = useState(null);
+  const [openPrayerRequestMenuId, setOpenPrayerRequestMenuId] = useState(null);
 
   const deleteMissionaryPrayer = useCallback(
     async (id) => {
@@ -173,8 +173,10 @@ export default function MissionaryOverview() {
       if (error) {
         console.error(error);
         window.alert(error.message || 'Could not delete this prayer request.');
+        setOpenPrayerRequestMenuId(null);
         return;
       }
+      setOpenPrayerRequestMenuId(null);
       setPrayerRequests((prev) => prev.filter((r) => r.id !== id));
       void refetchPrayer();
     },
@@ -655,6 +657,8 @@ export default function MissionaryOverview() {
                       <p className="mt-1 text-xs text-neutral-500">{(r.prayedCount ?? 0).toString()} prayers</p>
                     </div>
                     <MissionaryPrayerRequestMenu
+                      open={openPrayerRequestMenuId === r.id}
+                      onOpenChange={(next) => setOpenPrayerRequestMenuId(next ? r.id : null)}
                       onDelete={() => {
                         if (prayerBusyId) return;
                         void deleteMissionaryPrayer(r.id);

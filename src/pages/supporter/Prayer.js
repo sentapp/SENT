@@ -11,18 +11,17 @@ import {
 } from '../../lib/prayerRequestsRepository';
 import { Button, Card, EmptyState, Label, Modal, Textarea } from '../../components/ui';
 
-function SupporterPrayerCardMenu({ onEdit, onDelete, disabled }) {
-  const [open, setOpen] = useState(false);
+function SupporterPrayerCardMenu({ open, onOpenChange, onEdit, onDelete, disabled }) {
   const wrapRef = useRef(null);
 
   useEffect(() => {
     if (!open) return undefined;
     const close = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) onOpenChange(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
-  }, [open]);
+  }, [open, onOpenChange]);
 
   return (
     <div className="relative shrink-0" ref={wrapRef}>
@@ -33,7 +32,7 @@ function SupporterPrayerCardMenu({ onEdit, onDelete, disabled }) {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Request options"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => onOpenChange(!open)}
       >
         ⋯
       </button>
@@ -47,7 +46,7 @@ function SupporterPrayerCardMenu({ onEdit, onDelete, disabled }) {
             role="menuitem"
             className="block w-full px-4 py-2.5 text-left text-sm font-medium text-ink hover:bg-neutral-50"
             onClick={() => {
-              setOpen(false);
+              onOpenChange(false);
               onEdit();
             }}
           >
@@ -58,7 +57,7 @@ function SupporterPrayerCardMenu({ onEdit, onDelete, disabled }) {
             role="menuitem"
             className="block w-full px-4 py-2.5 text-left text-sm font-medium text-red-700 hover:bg-red-50"
             onClick={() => {
-              setOpen(false);
+              onOpenChange(false);
               onDelete();
             }}
           >
@@ -86,6 +85,7 @@ export default function SupporterPrayer() {
   const [editId, setEditId] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editErr, setEditErr] = useState('');
+  const [openPrayerRequestMenuId, setOpenPrayerRequestMenuId] = useState(null);
 
   const load = useCallback(async () => {
     if (!supabase || !missionaryId) {
@@ -197,8 +197,10 @@ export default function SupporterPrayer() {
     if (error) {
       console.error(error);
       window.alert(error.message || 'Could not delete your prayer request.');
+      setOpenPrayerRequestMenuId(null);
       return;
     }
+    setOpenPrayerRequestMenuId(null);
     setRequests((prev) => prev.filter((r) => r.id !== id));
     void load();
   };
@@ -279,6 +281,8 @@ export default function SupporterPrayer() {
                         </div>
                         {isMine ? (
                           <SupporterPrayerCardMenu
+                            open={openPrayerRequestMenuId === r.id}
+                            onOpenChange={(next) => setOpenPrayerRequestMenuId(next ? r.id : null)}
                             disabled={busyId === r.id}
                             onEdit={() => openEdit(r)}
                             onDelete={() => void deleteOwn(r.id)}
