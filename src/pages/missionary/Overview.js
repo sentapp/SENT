@@ -14,7 +14,7 @@ import MissionPushSection from '../../components/MissionPushSection';
 import MissionaryPipelineSection from '../../components/MissionaryPipelineSection';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
 
-function MetricCard({ label, value, onActivate, ariaLabel, tint, Icon }) {
+function MetricCard({ label, value, onActivate, ariaLabel, tint, Icon, labelColor }) {
   return (
     <Card
       role="button"
@@ -27,10 +27,12 @@ function MetricCard({ label, value, onActivate, ariaLabel, tint, Icon }) {
           onActivate?.();
         }
       }}
-      className={`relative cursor-pointer overflow-hidden transition-colors duration-200 ease-out hover:bg-mission-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-ink/20 ${tint}`}
+      className={`relative cursor-pointer overflow-hidden transition-colors duration-200 ease-out hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/25 ${tint}`}
     >
       <div className="pointer-events-none absolute right-4 top-4 opacity-95 [&>svg]:h-6 [&>svg]:w-6">{Icon}</div>
-      <p className="sent-section-label relative max-w-[70%]">{label}</p>
+      <p className="sent-section-label relative max-w-[70%]" style={labelColor ? { color: labelColor } : undefined}>
+        {label}
+      </p>
       <p className="sent-metric relative mt-2">{value}</p>
     </Card>
   );
@@ -333,39 +335,44 @@ export default function MissionaryOverview() {
           value={`$${monthlySupport.toFixed(0)}`}
           ariaLabel="Monthly support — open partners"
           onActivate={() => navigate('/missionary/partners')}
-          tint="bg-mission-green/[0.07]"
-          Icon={<span className="text-[color:var(--color-success)]">{metricIconMonthly}</span>}
+          tint="bg-green-light"
+          labelColor="#2A9A58"
+          Icon={<span className="text-green">{metricIconMonthly}</span>}
         />
         <MetricCard
           label="One-time gifts"
           value={`$${totalOneTimeGifts.toFixed(0)}`}
           ariaLabel="One-time gifts — open details"
           onActivate={() => setOneTimeModalOpen(true)}
-          tint="bg-amber-500/[0.08]"
-          Icon={<span className="text-amber-700">{metricIconGift}</span>}
+          tint="bg-[color:var(--amber-light)]"
+          labelColor="var(--amber)"
+          Icon={<span className="text-[color:var(--amber)]">{metricIconGift}</span>}
         />
         <MetricCard
           label="Partners"
           value={`${partners.length}`}
           ariaLabel="Partners — open partners list"
           onActivate={() => navigate('/missionary/partners')}
-          tint="bg-mission-ink/[0.06]"
-          Icon={<span className="text-mission-ink">{metricIconPeople}</span>}
+          tint="bg-green-light"
+          labelColor="#2A9A58"
+          Icon={<span className="text-green">{metricIconPeople}</span>}
         />
         <MetricCard
           label="Gap to Goal"
           value={`$${gap.toFixed(0)}`}
           ariaLabel="Gap to goal — open partners"
           onActivate={() => navigate('/missionary/partners')}
-          tint="bg-rose-500/[0.07]"
-          Icon={<span className="text-rose-600">{metricIconTarget}</span>}
+          tint="bg-rose-light"
+          labelColor="var(--rose)"
+          Icon={<span className="text-[color:var(--rose)]">{metricIconTarget}</span>}
         />
         <MetricCard
           label="Total Contacts"
           value={`${contacts.length}`}
           ariaLabel="Total contacts — open contacts"
           onActivate={() => navigate('/missionary/contacts')}
-          tint="bg-neutral-500/[0.08]"
+          tint="bg-neutral-100"
+          labelColor="#888888"
           Icon={<span className="text-neutral-600">{metricIconBook}</span>}
         />
       </div>
@@ -378,24 +385,16 @@ export default function MissionaryOverview() {
               {goal > 0 ? `$${monthlySupport.toFixed(0)} of $${goal.toFixed(0)}` : 'Set your monthly goal in Settings'}
             </p>
           </div>
-          <p className="text-sm font-semibold text-mission-ink">{pct}%</p>
+          <p className="garden-progress-pct">{pct}%</p>
         </div>
-        <div className="mt-4 h-[2px] w-full rounded-none bg-[#E2DAD0]">
-          <div className="h-[2px] rounded-none bg-[#181208]" style={{ width: `${pct}%` }} />
+        <div className="garden-progress-track mt-4">
+          <div className="garden-progress-fill" style={{ width: `${pct}%` }} />
         </div>
       </Card>
 
       <div className="overflow-hidden rounded-card border border-mission-line bg-surface">
-        <div
-          className="flex items-center justify-between gap-3 px-4 py-3"
-          style={{ backgroundColor: '#F2EDE4', borderBottom: '1px solid #E2DAD0' }}
-        >
-          <p
-            className="font-semibold uppercase text-muted"
-            style={{ fontSize: 9, letterSpacing: '0.12em' }}
-          >
-            Tasks
-          </p>
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3">
+          <p className="sent-section-label">Tasks</p>
           <button
             type="button"
             className="rounded-btn border border-ink/20 bg-transparent px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink hover:bg-ink/[0.04]"
@@ -428,9 +427,9 @@ export default function MissionaryOverview() {
                         className={`w-[min(260px,78vw)] shrink-0 rounded-btn px-3 py-3 ${
                           overdue
                             ? 'text-surface'
-                            : 'border border-[#E2DAD0] bg-surface text-ink'
+                            : 'border border-border bg-surface text-ink'
                         }`}
-                        style={overdue ? { backgroundColor: '#181208' } : undefined}
+                        style={overdue ? { backgroundColor: '#111111' } : undefined}
                       >
                         <div className="flex items-start gap-2.5">
                           <TaskCompleteCircle
@@ -463,7 +462,7 @@ export default function MissionaryOverview() {
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
                     Upcoming · {upcomingTasks.length}
                   </p>
-                  <ul className="mt-2 divide-y divide-[#E2DAD0]/60">
+                  <ul className="mt-2 divide-y divide-border/60">
                     {upcomingTasks.map((t) => (
                       <li key={t.id} className="flex items-center gap-3 py-2.5 first:pt-0">
                         <TaskCompleteCircle
@@ -486,8 +485,7 @@ export default function MissionaryOverview() {
 
         <button
           type="button"
-          className="flex w-full items-center justify-center gap-2 px-4 py-3 text-left text-[12px] font-medium text-muted hover:bg-[#F9F7F2]"
-          style={{ borderTop: '1px solid #F0EAE0' }}
+          className="flex w-full items-center justify-center gap-2 border-t border-border px-4 py-3 text-left text-[12px] font-medium text-muted hover:bg-surface"
           onClick={() => setAddTaskOpen(true)}
         >
           <span className="text-base leading-none text-muted" aria-hidden>

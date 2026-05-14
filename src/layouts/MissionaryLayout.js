@@ -131,8 +131,8 @@ function FullPageLoading() {
 
 function SideNav() {
   return (
-    <aside className="hidden w-[240px] shrink-0 border-r border-mission-line bg-surface md:flex md:flex-col">
-      <div className="border-b border-mission-line px-6 py-5">
+    <aside className="hidden w-[240px] shrink-0 border-r border-border bg-surface md:flex md:flex-col">
+      <div className="border-b border-border px-6 py-5">
         <p className="sent-section-title">SENT</p>
         <p className="sent-caption mt-1">For missionaries and the people who send them.</p>
       </div>
@@ -144,10 +144,10 @@ function SideNav() {
                 to={it.to}
                 end={it.to === '/missionary'}
                 className={({ isActive }) =>
-                  `sent-body flex w-full items-center rounded-btn px-3 py-2.5 text-left font-medium transition-colors duration-200 ${
+                  `sent-body flex w-full items-center rounded-lg border-l-[3px] px-3 py-2.5 text-left font-medium transition-colors duration-200 ${
                     isActive
-                      ? 'bg-[color:var(--color-bg)] font-semibold text-mission-ink ring-1 ring-mission-line'
-                      : 'text-mission-muted hover:bg-[color:var(--color-bg)]'
+                      ? 'border-green bg-white font-semibold text-green shadow-sm'
+                      : 'border-transparent text-muted hover:bg-white'
                   }`
                 }
               >
@@ -164,7 +164,7 @@ function SideNav() {
 function BottomNav() {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t-[0.5px] border-t-[#E2DAD0] bg-[#F2EDE4] pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
       aria-label="Missionary navigation"
     >
       <ul className="mx-auto grid h-14 max-w-mobile grid-cols-6 items-stretch px-0.5">

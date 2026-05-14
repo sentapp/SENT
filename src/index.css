@@ -3,54 +3,78 @@
 @tailwind utilities;
 
 /*
- * Inter + canvas: `@tailwind base` must stay first for Tailwind’s preflight.
- * Global font uses @layer base (after @tailwind directives) so the PostCSS pipeline stays valid.
- * `*, *::before, *::after` matches the design intent (widgets/third-party inherit Inter) without a raw `*` block before @tailwind.
+ * Inter loads from public/index.html (Google Fonts) — no @import here to avoid duplicate requests.
+ * Tailwind preflight stays first via @tailwind base; avoid a global * { margin:0 } reset.
+ * Scoped box model on #root so third-party widgets outside #root are unaffected.
  */
 @layer base {
-  *,
-  *::before,
-  *::after {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  #root {
+    box-sizing: border-box;
+  }
+  #root *,
+  #root *::before,
+  #root *::after {
+    box-sizing: inherit;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 }
 
 @layer base {
   :root {
-    /* Theme 3 — Paper and Ink meets Vogue */
-    --sent-bg: #f9f7f2;
-    --sent-surface: #ffffff;
-    --sent-ink: #181208;
-    --sent-stone: #9c8c78;
-    --sent-border: #e2dad0;
-    --sent-brown: #6b5d50;
-    --sent-card: #ffffff;
-    --sent-nav-bg: #f2ede4;
-    --sent-on-ink: #f9f7f2;
+    /* Garden multicolor */
+    --bg: #ffffff;
+    --surface: #fafafa;
+    --ink: #111111;
+    --muted: #888888;
+    --border: #eeeeee;
+    --green: #2a9a58;
+    --green-light: #e8f5ed;
+    --green-border: #b8e0c8;
+    --amber: #c17a00;
+    --amber-light: #fdf6e8;
+    --amber-border: #e8d4a8;
+    --rose: #c43d5e;
+    --rose-light: #fde8ee;
+    --rose-border: #f5c4d4;
 
-    --color-bg: var(--sent-bg);
-    --color-surface: var(--sent-surface);
-    --color-border: var(--sent-border);
-    --color-text: var(--sent-ink);
-    --color-muted: var(--sent-stone);
-    --color-accent: var(--sent-ink);
-    --color-warm: #c2410c;
-    --color-success: #15803d;
-    --sent-nav-active: var(--sent-ink);
-    --sent-nav-inactive: var(--sent-stone);
-    --sent-primary: var(--sent-ink);
-    --sent-muted: var(--sent-stone);
-    --sent-success: var(--color-success);
-    --sent-danger: #181208;
-    --sent-line: var(--sent-border);
+    /* Legacy sent-* → Garden (keeps existing classnames working) */
+    --sent-bg: var(--bg);
+    --sent-surface: #ffffff;
+    --sent-ink: var(--ink);
+    --sent-stone: var(--muted);
+    --sent-border: var(--border);
+    --sent-brown: var(--muted);
+    --sent-card: #ffffff;
+    --sent-nav-bg: var(--surface);
+    --sent-on-ink: #ffffff;
+
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-border: var(--border);
+    --color-text: var(--ink);
+    --color-muted: var(--muted);
+    --color-accent: var(--green);
+    --color-warm: var(--amber);
+    --color-success: var(--green);
+    --sent-nav-active: var(--green);
+    --sent-nav-inactive: #bbbbbb;
+    --sent-primary: var(--green);
+    --sent-muted: var(--muted);
+    --sent-success: var(--green);
+    --sent-danger: #e05050;
+    --sent-line: var(--border);
   }
 
   html,
   body,
   #root {
     @apply h-full min-h-0 antialiased font-sans transition-colors duration-200 ease-out;
-    background-color: #f9f7f2 !important;
-    color: #181208;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #111111;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 }
 
@@ -116,9 +140,21 @@
     font-size: 9px;
     line-height: 1.35;
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     color: var(--sent-stone);
+  }
+
+  /** Strip row: muted label on surface with bottom border (Garden section headers). */
+  .garden-section-header {
+    font-size: 9px;
+    line-height: 1.35;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--border);
   }
 
   .sent-nav-label {
@@ -173,6 +209,26 @@
     font-weight: 400;
     color: var(--sent-stone);
   }
+
+  /** Progress — track / fill / label (Garden). */
+  .garden-progress-track {
+    height: 4px;
+    width: 100%;
+    border-radius: 2px;
+    background-color: var(--border);
+    overflow: hidden;
+  }
+  .garden-progress-fill {
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--green);
+    transition: width 0.2s ease-out;
+  }
+  .garden-progress-pct {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--green);
+  }
 }
 
 /* Profile / supporter feed — dynamic accent via CSS variable --profile-accent or --feed-accent */
@@ -189,7 +245,7 @@
   }
   .profile-accent-btn-primary {
     background-color: var(--profile-accent, var(--color-accent)) !important;
-    color: var(--sent-on-ink) !important;
+    color: #ffffff !important;
     border-color: transparent !important;
   }
   .profile-accent-btn-primary:hover {

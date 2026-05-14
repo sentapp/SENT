@@ -27,9 +27,9 @@ export function postTypePostCardClass() {
 export function postTypeBadgeClass(type) {
   switch (normalizePostTypeKey(type)) {
     case 'field_story':
-      return 'bg-[#DCFCE7] text-[#15803D]';
+      return 'bg-green-light text-green';
     case 'prayer':
-      return 'bg-[#EAE3D8] text-[#6B5D50]';
+      return 'bg-rose-light text-[color:var(--rose)]';
     case 'monthly':
       return 'bg-[#F3F4F6] text-[#57534E]';
     case 'win':

@@ -70,7 +70,7 @@ function IconProfile({ className }) {
 function BottomNav() {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t-[0.5px] border-t-[#E2DAD0] bg-[#F2EDE4] pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]"
       aria-label="Supporter navigation"
     >
       <ul className="mx-auto grid h-14 max-w-6xl grid-cols-5 items-stretch px-1">

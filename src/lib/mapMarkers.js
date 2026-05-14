@@ -20,13 +20,13 @@ export function createPin(color, size) {
 }
 
 /** Missionary home base */
-export const homeMapIcon = createPin('#181208', 16);
+export const homeMapIcon = createPin('#2A9A58', 16);
 
 /** Most recent post location */
-export const mapPinCurrent = createPin('#0F6E56', 14);
+export const mapPinCurrent = createPin('#2A9A58', 14);
 
 /** Older post / past trip locations */
-export const mapPinPast = createPin('#854F0B', 12);
+export const mapPinPast = createPin('#C17A00', 12);
 
 /** Planned / upcoming (reserved for timeline use) */
 export const mapPinUpcoming = createPin('#534AB7', 12);

@@ -5,24 +5,29 @@
  * `church_leader`, `mission_team`, `donor`, `other`. Any other non-empty string is stored as-is for
  * legacy/custom values; the UI shows raw text with a neutral pill when not in this list.
  */
+const MUTED = '#888888';
+const INK = '#111111';
+const GREEN = '#2A9A58';
+const AMBER = '#C17A00';
+
 export const RELATIONSHIP_TAG_OPTIONS = [
-  { value: 'friend', label: 'Friend', accent: '#6B5D50' },
-  { value: 'family', label: 'Family', accent: '#181208' },
-  { value: 'pastor', label: 'Pastor', accent: '#6B5D50' },
-  { value: 'church_leader', label: 'Church leader', accent: '#9C8C78' },
-  { value: 'mission_team', label: 'Mission team', accent: '#181208' },
-  { value: 'donor', label: 'Donor', accent: '#6B5D50' },
-  { value: 'other', label: 'Other', accent: '#9C8C78' },
+  { value: 'friend', label: 'Friend', accent: AMBER },
+  { value: 'family', label: 'Family', accent: GREEN },
+  { value: 'pastor', label: 'Pastor', accent: AMBER },
+  { value: 'church_leader', label: 'Church leader', accent: MUTED },
+  { value: 'mission_team', label: 'Mission team', accent: GREEN },
+  { value: 'donor', label: 'Donor', accent: AMBER },
+  { value: 'other', label: 'Other', accent: MUTED },
 ];
 
 const VALUE_SET = new Set(RELATIONSHIP_TAG_OPTIONS.map((o) => o.value));
 
-/** Warm neutrals for relationship row (Theme 3 — no blue). */
+/** Light surface pills for relationship row (Garden). */
 const REL_COLORS = Object.fromEntries(
   RELATIONSHIP_TAG_OPTIONS.map((o) => [
     o.value,
     {
-      bg: '#F2EDE4',
+      bg: '#FAFAFA',
       text: o.accent,
       border: `${o.accent}44`,
     },
@@ -63,5 +68,5 @@ export function getRelationshipTagColors(value) {
     const c = REL_COLORS[id];
     return { bg: c.bg, text: c.text, border: c.border };
   }
-  return { bg: '#EAE3D8', text: '#6B5D50', border: 'rgba(107, 93, 80, 0.28)' };
+  return { bg: '#FAFAFA', text: INK, border: 'rgba(136, 136, 136, 0.28)' };
 }

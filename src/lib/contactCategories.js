@@ -39,19 +39,24 @@ export const CATEGORY_LABELS = {
   individual: 'Individual',
 };
 
-const INK = '#181208';
-const ON_INK = '#F9F7F2';
-const TAN_BG = '#EAE3D8';
-const TAN_TEXT = '#6B5D50';
-const TAN_BORDER = 'rgba(107, 93, 80, 0.35)';
+const GREEN = '#2A9A58';
+const ON_GREEN = '#FFFFFF';
+const ROSE_LIGHT = '#FDE8EE';
+const ROSE_TEXT = '#C43D5E';
+const AMBER_LIGHT = '#FDF6E8';
+const AMBER_TEXT = '#C17A00';
+const CONN_BG = '#EBF5FF';
+const CONN_TEXT = '#1060A0';
+const IND_BG = '#F5F0FF';
+const IND_TEXT = '#6040B0';
 
-/** Pill styles — Partner = ink on cream; other categories = tan field + brown text (Theme 3). */
+/** Pill styles — Garden multicolor. */
 export const CATEGORY_TAG_COLORS = {
-  supporter: { bg: INK, text: ON_INK, border: 'rgba(24, 18, 8, 0.35)' },
-  church: { bg: TAN_BG, text: TAN_TEXT, border: TAN_BORDER },
-  former: { bg: TAN_BG, text: TAN_TEXT, border: TAN_BORDER },
-  connector: { bg: TAN_BG, text: TAN_TEXT, border: TAN_BORDER },
-  individual: { bg: TAN_BG, text: TAN_TEXT, border: TAN_BORDER },
+  supporter: { bg: GREEN, text: ON_GREEN, border: 'rgba(42, 154, 88, 0.35)' },
+  church: { bg: ROSE_LIGHT, text: ROSE_TEXT, border: 'rgba(196, 61, 94, 0.28)' },
+  former: { bg: AMBER_LIGHT, text: AMBER_TEXT, border: 'rgba(193, 122, 0, 0.3)' },
+  connector: { bg: CONN_BG, text: CONN_TEXT, border: 'rgba(16, 96, 160, 0.25)' },
+  individual: { bg: IND_BG, text: IND_TEXT, border: 'rgba(96, 64, 176, 0.25)' },
 };
 
 const ALLOWED = new Set(CONTACT_CATEGORY_VALUES);

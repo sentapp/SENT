@@ -377,8 +377,8 @@ export default function SupporterFeed() {
                   </span>
                   <span className="feed-accent-text">{pushPct}%</span>
                 </div>
-                <div className="mt-2 h-[2px] w-full rounded-none bg-[#E2DAD0]">
-                  <div className="h-[2px] rounded-none bg-[#181208]" style={{ width: `${pushPct}%` }} />
+                <div className="garden-progress-track mt-2">
+                  <div className="garden-progress-fill" style={{ width: `${pushPct}%` }} />
                 </div>
               </div>
               {daysLeft != null ? (

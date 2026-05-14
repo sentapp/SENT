@@ -1,12 +1,12 @@
-/** Default matches Theme 3 ink / DB `profiles.accent_color` when unset. */
-export const DEFAULT_PROFILE_ACCENT = '#181208';
+/** Default matches Garden primary / DB `profiles.accent_color` when unset. */
+export const DEFAULT_PROFILE_ACCENT = '#2A9A58';
 
 export const ACCENT_PRESETS = [
-  { hex: '#181208', label: 'Ink' },
-  { hex: '#0F6E56', label: 'Green' },
-  { hex: '#534AB7', label: 'Purple' },
-  { hex: '#854F0B', label: 'Amber' },
-  { hex: '#A32D2D', label: 'Rose' },
+  { hex: '#2A9A58', label: 'Green' },
+  { hex: '#1060A0', label: 'Blue' },
+  { hex: '#6040B0', label: 'Purple' },
+  { hex: '#C17A00', label: 'Amber' },
+  { hex: '#C43D5E', label: 'Rose' },
   { hex: '#0D7377', label: 'Teal' },
   { hex: '#3730A3', label: 'Indigo' },
   { hex: '#334155', label: 'Slate' },

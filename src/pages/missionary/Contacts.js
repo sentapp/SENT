@@ -50,9 +50,9 @@ function isPipelineStripContact(c) {
   return PIPELINE_STRIP_SET.has(st) && normalizeCategory(c.category) !== 'supporter';
 }
 const STRIP_DOT = {
-  contacted: '#181208',
-  meeting_scheduled: '#0F6E56',
-  committed: '#7C3AED',
+  contacted: '#2A9A58',
+  meeting_scheduled: '#C17A00',
+  committed: '#6040B0',
 };
 const STRIP_STAGE_LABEL = {
   contacted: 'Contacted',
@@ -162,11 +162,8 @@ function ImportBlockingOverlay({ open, progress, onCancel }) {
               ) : null}
             </div>
             <div className="w-full space-y-2">
-              <div className="h-[2px] w-full overflow-hidden rounded-none bg-[#E2DAD0]">
-                <div
-                  className="h-full rounded-none bg-[#181208] transition-[width] duration-200"
-                  style={{ width: `${pct}%` }}
-                />
+              <div className="garden-progress-track">
+                <div className="garden-progress-fill" style={{ width: `${pct}%` }} />
               </div>
               {progress?.note ? <p className="text-xs text-muted">{progress.note}</p> : null}
             </div>
@@ -1254,7 +1251,7 @@ export default function MissionaryContacts() {
                 onClick={() => setActiveFilter(t.value)}
                 className={`min-h-[44px] rounded-md px-1 py-2 text-center text-xs font-semibold leading-tight transition sm:px-2 sm:text-sm ${
                   active
-                    ? 'border-b-2 border-[#181208] bg-white text-[#181208] shadow-sm'
+                    ? 'border-b-2 border-green bg-white text-green shadow-sm'
                     : 'border-b-2 border-transparent text-neutral-600 hover:bg-white/70'
                 }`}
               >
@@ -1280,7 +1277,7 @@ export default function MissionaryContacts() {
                     key={c.id}
                     type="button"
                     onClick={() => handleOpenContact(c)}
-                    className="w-[min(200px,72vw)] shrink-0 cursor-pointer rounded-card border border-mission-line bg-white p-3 text-left shadow-none transition-colors hover:border-accent/40 hover:bg-[#F9F7F2]"
+                    className="w-[min(200px,72vw)] shrink-0 cursor-pointer rounded-card border border-mission-line bg-white p-3 text-left shadow-none transition-colors hover:border-green/30 hover:bg-surface"
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -1340,7 +1337,7 @@ export default function MissionaryContacts() {
                     else handleOpenContact(c);
                   }
                 }}
-                className="scroll-mt-4 cursor-pointer rounded-[12px] border-[0.5px] border-[#E2DAD0] bg-white px-[14px] py-3 text-left shadow-none transition-colors duration-200 ease-out hover:bg-[#F9F7F2]"
+                className="scroll-mt-4 cursor-pointer rounded-[12px] border-[0.5px] border-border bg-white px-[14px] py-3 text-left shadow-none transition-colors duration-200 ease-out hover:bg-surface"
               >
                 <div className="flex flex-row flex-nowrap items-start gap-3">
                   {selectMode ? (

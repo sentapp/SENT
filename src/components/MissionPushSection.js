@@ -301,16 +301,13 @@ export default function MissionPushSection({ missionaryId }) {
           {!loading ? (
             <div className="space-y-2 px-4 py-4">
               <p
-                className="text-[22px] font-normal leading-tight text-ink"
+                className="text-[22px] font-normal leading-tight text-green"
                 style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
               >
                 {goalAmt > 0 ? `${pctFunded}% funded` : '—'}
               </p>
-              <div className="h-[2px] w-full rounded-none bg-[#E2DAD0]">
-                <div
-                  className="h-[2px] rounded-none bg-[#181208]"
-                  style={{ width: `${goalAmt > 0 ? pctFunded : 0}%` }}
-                />
+              <div className="garden-progress-track">
+                <div className="garden-progress-fill" style={{ width: `${goalAmt > 0 ? pctFunded : 0}%` }} />
               </div>
               <p className="text-[12px] leading-snug text-muted">
                 ${raisedAmt.toLocaleString()} raised of ${goalAmt.toLocaleString()}

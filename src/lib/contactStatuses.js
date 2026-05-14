@@ -20,14 +20,23 @@ export const CONTACT_STATUS_FORM_OPTIONS = [
   { value: 'declined', label: 'Not interested' },
 ];
 
+const MUTED = '#888888';
+const GREEN = '#2A9A58';
+const AMBER = '#C17A00';
+const AMBER_LIGHT = '#FDF6E8';
+const GREEN_LIGHT = '#E8F5ED';
+const SURFACE = '#FAFAFA';
+const ROSE = '#C43D5E';
+const ROSE_LIGHT = '#FDE8EE';
+
 /** WHERE row popover — same values as {@link CONTACT_STATUS_FORM_OPTIONS}, with accent stripes. */
 export const QUICK_STATUS_EDIT_OPTIONS = [
-  { value: 'prospect', label: 'Not contacted', accent: '#9C8C78' },
-  { value: 'contacted', label: 'In conversation', accent: '#6B5D50' },
-  { value: 'meeting_scheduled', label: 'Meeting set', accent: '#181208' },
-  { value: 'committed', label: 'Committed', accent: '#6B5D50' },
-  { value: 'partner', label: 'Partner', accent: '#181208' },
-  { value: 'declined', label: 'Not interested', accent: '#A32D2D' },
+  { value: 'prospect', label: 'Not contacted', accent: MUTED },
+  { value: 'contacted', label: 'In conversation', accent: AMBER },
+  { value: 'meeting_scheduled', label: 'Meeting set', accent: GREEN },
+  { value: 'committed', label: 'Committed', accent: AMBER },
+  { value: 'partner', label: 'Partner', accent: GREEN },
+  { value: 'declined', label: 'Not interested', accent: ROSE },
 ];
 
 const LABEL_BY_VALUE = CONTACT_STATUS_FORM_OPTIONS.reduce((acc, { value, label }) => {
@@ -35,20 +44,14 @@ const LABEL_BY_VALUE = CONTACT_STATUS_FORM_OPTIONS.reduce((acc, { value, label }
   return acc;
 }, {});
 
-const STONE = '#9C8C78';
-const BROWN = '#6B5D50';
-const INK = '#181208';
-const TAN_BG = '#EAE3D8';
-const TAN_DEEP = '#D4C9BA';
-
-/** Pill colors for WHERE (status) tags — tan / stone palette (Theme 3). */
+/** Pill colors for WHERE (status) tags — Garden multicolor. */
 export const STATUS_TAG_COLORS = {
-  prospect: { bg: '#F2EDE4', text: STONE, border: 'rgba(156, 140, 120, 0.35)' },
-  contacted: { bg: TAN_BG, text: BROWN, border: 'rgba(107, 93, 80, 0.35)' },
-  meeting_scheduled: { bg: TAN_DEEP, text: INK, border: 'rgba(24, 18, 8, 0.22)' },
-  committed: { bg: TAN_BG, text: BROWN, border: 'rgba(107, 93, 80, 0.35)' },
-  partner: { bg: TAN_DEEP, text: INK, border: 'rgba(24, 18, 8, 0.25)' },
-  declined: { bg: '#FEF2F2', text: '#A32D2D', border: 'rgba(163, 45, 45, 0.25)' },
+  prospect: { bg: SURFACE, text: MUTED, border: 'rgba(136, 136, 136, 0.35)' },
+  contacted: { bg: AMBER_LIGHT, text: AMBER, border: 'rgba(193, 122, 0, 0.35)' },
+  meeting_scheduled: { bg: GREEN_LIGHT, text: GREEN, border: 'rgba(42, 154, 88, 0.35)' },
+  committed: { bg: AMBER_LIGHT, text: AMBER, border: 'rgba(193, 122, 0, 0.3)' },
+  partner: { bg: GREEN, text: '#FFFFFF', border: 'rgba(42, 154, 88, 0.35)' },
+  declined: { bg: ROSE_LIGHT, text: ROSE, border: 'rgba(196, 61, 94, 0.28)' },
 };
 
 /** Map legacy DB value for UI + saves. */
