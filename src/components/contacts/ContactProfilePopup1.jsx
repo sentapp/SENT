@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Button, Input, Modal } from '../../components/ui';
 import { useAuth } from '../../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { categoryLabel, normalizeCategory } from '../../lib/contactCategories';
@@ -8,6 +9,7 @@ import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { relationshipLabel } from '../../lib/contactRelationships';
 import { notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
 import { statusLabel } from '../../lib/contactStatuses';
+import { createTask, fetchTasksForContact, completeTask, uncompleteTask } from '../../lib/tasksRepository';
 import { ContactThreeQuickTagRows } from './QuickTagPopover';
 import { lastContactBadgeFromIso } from './ContactQuickViewPopup';
 
@@ -177,6 +179,13 @@ export function ContactProfilePopup1({
   const [editingLogId, setEditingLogId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
   const [activityMutating, setActivityMutating] = useState(false);
+  const [contactTasks, setContactTasks] = useState([]);
+  const [contactTasksLoading, setContactTasksLoading] = useState(false);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDue, setNewTaskDue] = useState('');
+  const [newTaskSaving, setNewTaskSaving] = useState(false);
+  const [newTaskError, setNewTaskError] = useState('');
 
   const loadActivityLogs = useCallback(async () => {
     if (!supabase || !contact?.id || !user?.id) {
@@ -204,8 +213,23 @@ export function ContactProfilePopup1({
     void loadActivityLogs();
   }, [loadActivityLogs, activityLogsRefreshKey]);
 
+  const loadContactTasks = useCallback(async () => {
+    if (!supabase || !contact?.id || !user?.id) {
+      setContactTasks([]);
+      return;
+    }
+    setContactTasksLoading(true);
+    const list = await fetchTasksForContact(supabase, user.id, contact.id);
+    setContactTasks(list);
+    setContactTasksLoading(false);
+  }, [contact?.id, user?.id]);
+
   useEffect(() => {
-    if (!contact || showLog) return undefined;
+    void loadContactTasks();
+  }, [loadContactTasks, activityLogsRefreshKey]);
+
+  useEffect(() => {
+    if (!contact || showLog || taskModalOpen) return undefined;
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -214,7 +238,7 @@ export function ContactProfilePopup1({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [contact, showLog, onClose]);
+  }, [contact, showLog, taskModalOpen, onClose]);
 
   const beginEditLog = (log) => {
     setEditingLogId(log.id);
@@ -257,6 +281,57 @@ export function ContactProfilePopup1({
     void loadActivityLogs();
   };
 
+  const resetTaskModal = () => {
+    setNewTaskTitle('');
+    setNewTaskDue('');
+    setNewTaskError('');
+  };
+
+  const saveNewContactTask = async () => {
+    if (!user?.id || !contact?.id) return;
+    setNewTaskError('');
+    const title = newTaskTitle.trim();
+    if (!title) {
+      setNewTaskError('Title is required.');
+      return;
+    }
+    setNewTaskSaving(true);
+    const res = await createTask(supabase, {
+      missionaryId: user.id,
+      contactId: contact.id,
+      title,
+      notes: null,
+      dueDate: newTaskDue || null,
+    });
+    setNewTaskSaving(false);
+    if (!res.ok) {
+      setNewTaskError(res.error || 'Could not save.');
+      return;
+    }
+    setTaskModalOpen(false);
+    resetTaskModal();
+    void loadContactTasks();
+  };
+
+  const toggleContactTask = async (task) => {
+    if (!supabase || !user?.id) return;
+    if (!task.isComplete) {
+      setContactTasks((prev) =>
+        prev.map((x) =>
+          x.id === task.id ? { ...x, isComplete: true, completedAt: new Date().toISOString() } : x,
+        ),
+      );
+      await completeTask(supabase, task.id, user.id);
+      void loadActivityLogs();
+    } else {
+      setContactTasks((prev) =>
+        prev.map((x) => (x.id === task.id ? { ...x, isComplete: false, completedAt: null } : x)),
+      );
+      await uncompleteTask(supabase, task.id, user.id);
+    }
+    void loadContactTasks();
+  };
+
   if (!contact || typeof document === 'undefined') return null;
 
   const badge = lastContactBadgeFromIso(lastContactIso ?? null);
@@ -290,14 +365,15 @@ export function ContactProfilePopup1({
   };
 
   return createPortal(
-    <div
-      className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: 300, backgroundColor: 'rgba(0,0,0,0.25)' }}
-      role="presentation"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
-      }}
-    >
+    <>
+      <div
+        className="fixed inset-0 flex items-center justify-center p-4"
+        style={{ zIndex: 300, backgroundColor: 'rgba(0,0,0,0.25)' }}
+        role="presentation"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose?.();
+        }}
+      >
       <div
         className="w-full overflow-y-auto overflow-x-hidden bg-white shadow-lg"
         style={{
@@ -384,6 +460,47 @@ export function ContactProfilePopup1({
             <p className="mt-2 whitespace-pre-wrap px-1 text-sm text-neutral-800">{notesDisplay}</p>
           ) : (
             <p className="mt-2 px-1 text-sm italic text-neutral-500">No notes yet</p>
+          )}
+        </div>
+
+        <div className="border-t border-[#E5E2DD] px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className={`${SECTION_STRIP} flex-1 min-w-[8rem]`}>Tasks</div>
+            <button
+              type="button"
+              className="shrink-0 rounded-md border border-[#E5E2DD] bg-white px-3 py-1.5 text-xs font-semibold text-mission-blue hover:bg-mission-blue/5"
+              onClick={() => {
+                resetTaskModal();
+                setTaskModalOpen(true);
+              }}
+            >
+              + Add task
+            </button>
+          </div>
+          {contactTasksLoading ? (
+            <p className="mt-2 text-sm text-neutral-500">Loading…</p>
+          ) : contactTasks.filter((t) => !t.isComplete).length === 0 ? (
+            <p className="mt-2 text-sm italic text-neutral-500">No open tasks for this contact</p>
+          ) : (
+            <ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">
+              {contactTasks
+                .filter((t) => !t.isComplete)
+                .map((t) => (
+                  <li key={t.id} className="flex items-start gap-2 rounded-md border border-[#E5E2DD] bg-[#FAFAF8] px-2.5 py-2">
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onChange={() => void toggleContactTask(t)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--color-accent)]"
+                      aria-label={`Complete ${t.title}`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink">{t.title}</p>
+                      <p className="text-xs text-neutral-500">{t.dueDate ? `Due ${t.dueDate}` : 'No due date'}</p>
+                    </div>
+                  </li>
+                ))}
+            </ul>
           )}
         </div>
 
@@ -484,7 +601,54 @@ export function ContactProfilePopup1({
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+
+      <Modal
+        stackZIndex={340}
+        open={taskModalOpen}
+        title="Add task"
+        onClose={() => {
+          if (!newTaskSaving) {
+            setTaskModalOpen(false);
+            resetTaskModal();
+          }
+        }}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={newTaskSaving}
+              onClick={() => {
+                setTaskModalOpen(false);
+                resetTaskModal();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" disabled={newTaskSaving} onClick={() => void saveNewContactTask()}>
+              {newTaskSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        }
+      >
+        {newTaskError ? <p className="mb-2 text-sm text-red-600">{newTaskError}</p> : null}
+        <label className="block">
+          <span className="text-xs font-semibold text-neutral-600">Title</span>
+          <Input
+            value={newTaskTitle}
+            onChange={(e) => setNewTaskTitle(e.target.value)}
+            className="mt-1"
+            placeholder="What needs to happen?"
+          />
+        </label>
+        <label className="mt-3 block">
+          <span className="text-xs font-semibold text-neutral-600">Due date (optional)</span>
+          <Input type="date" value={newTaskDue} onChange={(e) => setNewTaskDue(e.target.value)} className="mt-1" />
+        </label>
+        <p className="mt-3 text-xs text-neutral-500">This task is linked to {contact.fullName || 'this contact'}.</p>
+      </Modal>
+    </>,
     document.body,
   );
 }

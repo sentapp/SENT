@@ -5,8 +5,10 @@ import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
 import { useMissionaryPipelineContacts } from '../../hooks/useMissionaryPipelineContacts';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
+import { useMissionaryTasks } from '../../hooks/useMissionaryTasks';
 import { useAppState } from '../../state/AppState';
 import { supabase } from '../../lib/supabaseClient';
+import { createTask } from '../../lib/tasksRepository';
 import MissionPushSection from '../../components/MissionPushSection';
 import MissionaryPipelineSection from '../../components/MissionaryPipelineSection';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
@@ -106,6 +108,13 @@ function MissionaryPrayerRequestMenu({ onDelete }) {
   );
 }
 
+function localDateStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export default function MissionaryOverview() {
   const navigate = useNavigate();
   const { profile, user, loading: authLoading } = useAuth();
@@ -117,9 +126,15 @@ export default function MissionaryOverview() {
     { authLoading, onAfterMutation: () => void refetchContacts() },
   );
   const { prayerRequests: prayer, loading: prayerLoading, refetch: refetchPrayer } = useMissionaryPrayerRequests(user?.id);
-  const { state, actions } = useAppState();
-  const [newTask, setNewTask] = useState('');
-  const taskInputRef = useRef(null);
+  const { state } = useAppState();
+  const { tasks, loading: tasksLoading, refetch: refetchTasks, toggleTaskComplete } = useMissionaryTasks(user?.id);
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
+  const [addTaskTitle, setAddTaskTitle] = useState('');
+  const [addTaskContactId, setAddTaskContactId] = useState('');
+  const [addTaskDue, setAddTaskDue] = useState('');
+  const [addTaskSaving, setAddTaskSaving] = useState(false);
+  const [addTaskError, setAddTaskError] = useState('');
+  const [contactPickQuery, setContactPickQuery] = useState('');
   const [prayerBusyId, setPrayerBusyId] = useState(null);
 
   const deleteMissionaryPrayer = useCallback(
@@ -210,7 +225,78 @@ export default function MissionaryOverview() {
   const gap = Math.max(goal - monthlySupport, 0);
   const pct = goal > 0 ? Math.min(100, Math.round((monthlySupport / goal) * 100)) : 0;
 
-  const tasks = state.missionary.tasks;
+  const todayStr = localDateStr();
+  const incompleteTasks = useMemo(() => tasks.filter((t) => !t.isComplete), [tasks]);
+  const overdueTasks = useMemo(
+    () =>
+      incompleteTasks
+        .filter((t) => t.dueDate && t.dueDate < todayStr)
+        .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate))),
+    [incompleteTasks, todayStr],
+  );
+  const dueTodayTasks = useMemo(() => incompleteTasks.filter((t) => t.dueDate === todayStr), [incompleteTasks, todayStr]);
+  const upcomingTasks = useMemo(
+    () =>
+      incompleteTasks
+        .filter((t) => !t.dueDate || t.dueDate > todayStr)
+        .sort((a, b) => {
+          if (!a.dueDate && !b.dueDate) return 0;
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return String(a.dueDate).localeCompare(String(b.dueDate));
+        }),
+    [incompleteTasks, todayStr],
+  );
+
+  const contactNameById = useMemo(() => {
+    const m = new Map();
+    for (const c of contacts) {
+      m.set(c.id, c.fullName || 'Unnamed');
+    }
+    return m;
+  }, [contacts]);
+
+  const contactPickList = useMemo(() => {
+    const q = contactPickQuery.trim().toLowerCase();
+    const base = q
+      ? contacts.filter((c) => (c.fullName || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))
+      : contacts;
+    return base.slice(0, 12);
+  }, [contacts, contactPickQuery]);
+
+  const resetAddTaskForm = () => {
+    setAddTaskTitle('');
+    setAddTaskContactId('');
+    setAddTaskDue('');
+    setAddTaskError('');
+    setContactPickQuery('');
+  };
+
+  const saveNewTask = async () => {
+    if (!user?.id) return;
+    setAddTaskError('');
+    const title = addTaskTitle.trim();
+    if (!title) {
+      setAddTaskError('Title is required.');
+      return;
+    }
+    setAddTaskSaving(true);
+    const res = await createTask(supabase, {
+      missionaryId: user.id,
+      contactId: addTaskContactId || null,
+      title,
+      notes: null,
+      dueDate: addTaskDue || null,
+    });
+    setAddTaskSaving(false);
+    if (!res.ok) {
+      setAddTaskError(res.error || 'Could not save.');
+      return;
+    }
+    setAddTaskOpen(false);
+    resetAddTaskForm();
+    void refetchTasks();
+  };
 
   return (
     <div className="space-y-6">
@@ -277,6 +363,201 @@ export default function MissionaryOverview() {
         </div>
       </Card>
 
+      <Card className="p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">Tasks</p>
+            <p className="mt-1 text-xs text-neutral-500">Due dates, contacts, and one-tap completion.</p>
+          </div>
+          <Button type="button" variant="accent" onClick={() => setAddTaskOpen(true)}>
+            + Add task
+          </Button>
+        </div>
+
+        {tasksLoading ? (
+          <p className="mt-4 text-sm text-neutral-500">Loading tasks…</p>
+        ) : incompleteTasks.length === 0 ? (
+          <div className="mt-5">
+            <EmptyState
+              icon="clipboard"
+              title="Nothing on your list"
+              subtitle="Add tasks with optional due dates and contacts."
+              action={
+                <Button type="button" variant="accent" onClick={() => setAddTaskOpen(true)}>
+                  Add a task
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <div className="mt-5 space-y-5">
+            {overdueTasks.length > 0 || dueTodayTasks.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Due today & overdue</p>
+                <ul className="mt-2 space-y-2">
+                  {overdueTasks.map((t) => (
+                    <li
+                      key={t.id}
+                      className="flex items-start gap-3 rounded-btn border border-red-200 bg-red-50/60 px-4 py-3"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        onChange={() => void toggleTaskComplete(t)}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--color-accent)]"
+                        aria-label={`Complete ${t.title}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-ink">{t.title}</p>
+                        <p className="mt-0.5 text-xs text-red-800">
+                          Overdue · {t.dueDate}
+                          {t.contactId ? ` · ${contactNameById.get(t.contactId) || 'Contact'}` : ''}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                  {dueTodayTasks.map((t) => (
+                    <li
+                      key={t.id}
+                      className="flex items-start gap-3 rounded-btn border border-amber-200 bg-amber-50/70 px-4 py-3"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        onChange={() => void toggleTaskComplete(t)}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--color-accent)]"
+                        aria-label={`Complete ${t.title}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-ink">{t.title}</p>
+                        <p className="mt-0.5 text-xs text-amber-900">
+                          Due today
+                          {t.contactId ? ` · ${contactNameById.get(t.contactId) || 'Contact'}` : ''}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {upcomingTasks.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Upcoming</p>
+                <ul className="mt-2 space-y-2">
+                  {upcomingTasks.map((t) => (
+                    <li key={t.id} className="flex items-start gap-3 rounded-btn border border-neutral-200 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        onChange={() => void toggleTaskComplete(t)}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--color-accent)]"
+                        aria-label={`Complete ${t.title}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-neutral-800">{t.title}</p>
+                        <p className="mt-0.5 text-xs text-neutral-500">
+                          {t.dueDate ? `Due ${t.dueDate}` : 'No due date'}
+                          {t.contactId ? ` · ${contactNameById.get(t.contactId) || 'Contact'}` : ''}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </Card>
+
+      <Modal
+        open={addTaskOpen}
+        title="Add task"
+        onClose={() => {
+          if (!addTaskSaving) {
+            setAddTaskOpen(false);
+            resetAddTaskForm();
+          }
+        }}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={addTaskSaving}
+              onClick={() => {
+                setAddTaskOpen(false);
+                resetAddTaskForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" disabled={addTaskSaving} onClick={() => void saveNewTask()}>
+              {addTaskSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        }
+      >
+        {addTaskError ? <p className="mb-3 text-sm text-red-600">{addTaskError}</p> : null}
+        <label className="block">
+          <span className="text-xs font-semibold text-neutral-600">Title</span>
+          <Input
+            value={addTaskTitle}
+            onChange={(e) => setAddTaskTitle(e.target.value)}
+            className="mt-1"
+            placeholder="What needs to happen?"
+          />
+        </label>
+        <label className="mt-4 block">
+          <span className="text-xs font-semibold text-neutral-600">Due date (optional)</span>
+          <Input type="date" value={addTaskDue} onChange={(e) => setAddTaskDue(e.target.value)} className="mt-1" />
+        </label>
+        <div className="mt-4">
+          <span className="text-xs font-semibold text-neutral-600">Contact (optional)</span>
+          <Input
+            value={contactPickQuery}
+            onChange={(e) => setContactPickQuery(e.target.value)}
+            placeholder="Search contacts…"
+            className="mt-1"
+          />
+          {addTaskContactId ? (
+            <p className="mt-2 text-xs text-neutral-600">
+              Selected:{' '}
+              <span className="font-medium text-ink">{contactNameById.get(addTaskContactId) || 'Contact'}</span>{' '}
+              <button
+                type="button"
+                className="font-semibold text-mission-blue hover:underline"
+                onClick={() => setAddTaskContactId('')}
+              >
+                Clear
+              </button>
+            </p>
+          ) : null}
+          {!addTaskContactId && contactPickQuery.trim() ? (
+            <ul className="mt-2 max-h-40 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm">
+              {contactPickList.length === 0 ? (
+                <li className="px-3 py-2 text-neutral-500">No matches</li>
+              ) : (
+                contactPickList.map((c) => (
+                  <li key={c.id} className="border-b border-neutral-100 last:border-b-0">
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left hover:bg-neutral-50"
+                      onClick={() => {
+                        setAddTaskContactId(c.id);
+                        setContactPickQuery('');
+                      }}
+                    >
+                      {c.fullName || 'Unnamed'}
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          ) : null}
+        </div>
+      </Modal>
+
       <MissionaryPipelineSection
         pipelineContacts={pipelineContacts}
         pipelineInProgressCount={pipelineInProgressCount}
@@ -318,74 +599,6 @@ export default function MissionaryOverview() {
           </ul>
         )}
       </Modal>
-
-      <Card className="p-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold">This week’s tasks</p>
-            <p className="mt-1 text-xs text-neutral-500">Empty by default — add what matters this week.</p>
-          </div>
-          <div className="flex w-full gap-2 md:w-auto">
-            <Input
-              ref={taskInputRef}
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              placeholder="Add a task…"
-              className="py-2.5 text-sm md:w-[320px]"
-            />
-            <Button
-              type="button"
-              variant="accent"
-              onClick={() => {
-                actions.addTask(newTask);
-                setNewTask('');
-              }}
-            >
-              Add
-            </Button>
-          </div>
-        </div>
-
-        {tasks.length === 0 ? (
-          <div className="mt-5">
-            <EmptyState
-              icon="clipboard"
-              title="Nothing on your list yet"
-              subtitle="Add a few concrete tasks for this week — small steps keep momentum."
-              action={
-                <Button type="button" variant="accent" onClick={() => taskInputRef.current?.focus()}>
-                  Add a task
-                </Button>
-              }
-            />
-          </div>
-        ) : (
-          <ul className="mt-5 space-y-2">
-            {tasks.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-3 rounded-btn border border-neutral-200 px-4 py-3">
-                <label className="flex flex-1 items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(t.done)}
-                    onChange={() => actions.toggleTask(t.id)}
-                    className="h-4 w-4 accent-[color:var(--color-accent)]"
-                  />
-                  <span className={`text-sm ${t.done ? 'text-neutral-400 line-through' : 'text-neutral-800'}`}>
-                    {t.text}
-                  </span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => actions.deleteTask(t.id)}
-                  className="text-xs font-semibold text-neutral-500 hover:text-neutral-800"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
 
       <Card className="p-5">
         <p className="text-sm font-semibold text-ink">Supporter prayer requests</p>

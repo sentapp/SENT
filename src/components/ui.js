@@ -148,12 +148,16 @@ export function Modal({
   backdropClose = true,
   closeButtonLabel = 'Close',
   panelClassName = '',
+  stackZIndex,
 }) {
   if (!open) return null;
   const closeBtnIsIcon = closeButtonLabel === '×' || closeButtonLabel === '✕';
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 transition-opacity duration-200 md:items-center"
+      className={`fixed inset-0 flex items-end justify-center bg-black/40 p-4 transition-opacity duration-200 md:items-center ${
+        stackZIndex != null ? '' : 'z-50'
+      }`}
+      style={stackZIndex != null ? { zIndex: stackZIndex } : undefined}
       role="presentation"
       onClick={() => {
         if (backdropClose) onClose?.();

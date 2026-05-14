@@ -6,7 +6,11 @@ import {
   ContactQuickLogPopup,
   lastContactBadgeFromIso,
 } from '../../components/contacts/ContactQuickViewPopup';
-import { PartnerQuickViewPopup } from '../../components/contacts/PartnerQuickViewPopup';
+import { PartnerSideDrawer } from '../../components/contacts/PartnerSideDrawer';
+import {
+  DRAWER_STACK_QUICK_LOG_BACKDROP_Z,
+  DRAWER_STACK_QUICK_LOG_MODAL_Z,
+} from '../../components/contacts/quickViewOverlayZIndex';
 import { Button, EmptyState, Modal } from '../../components/ui';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { findEmailConflict, findPhoneConflict } from '../../lib/contactDuplicates';
@@ -706,22 +710,22 @@ export default function MissionaryPartners() {
         </>
       )}
 
-      <PartnerQuickViewPopup
-        open={Boolean(popupPartner)}
+      <PartnerSideDrawer
         partner={popupPartner}
-        lastContactIso={popupPartner ? lastContactMap[popupPartner.id] ?? null : null}
         onClose={() => {
           setPopupPartner(null);
           setCommActionError('');
         }}
+        lastContactIso={popupPartner ? lastContactMap[popupPartner.id] ?? null : null}
         onCall={handlePopupCall}
         onText={handlePopupText}
         onLog={handlePopupLog}
-        onViewFullProfile={openFullProfileFromPopup}
+        onEditFullProfile={openFullProfileFromPopup}
         suppressEscape={Boolean(quickLog)}
         actionError={commActionError}
         saveQuickTag={saveQuickTag}
         patchContactInList={patchContactInList}
+        updateContact={updateContact}
         onPatchContact={(next) =>
           setPopupPartner((cur) => (cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur))
         }
@@ -739,6 +743,8 @@ export default function MissionaryPartners() {
         saving={quickSaving}
         onSave={() => void submitQuickLog()}
         onClose={() => !quickSaving && setQuickLog(null)}
+        backdropZIndex={DRAWER_STACK_QUICK_LOG_BACKDROP_Z}
+        panelZIndex={DRAWER_STACK_QUICK_LOG_MODAL_Z}
       />
 
       <Modal
