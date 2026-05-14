@@ -47,7 +47,7 @@ export function ProfileAvatarAccentSection({
 
   const avatarSurfaceStyle = photoUrl
     ? { backgroundColor: '#fff' }
-    : { backgroundColor: '#EAE3D8', color: '#181208' };
+    : { backgroundColor: '#FAFAFA', color: '#111111' };
 
   return (
     <div className="space-y-6">
@@ -56,11 +56,11 @@ export function ProfileAvatarAccentSection({
           type="button"
           onClick={openPicker}
           disabled={disabled || busy}
-          className="group relative shrink-0 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-[color:var(--profile-accent,#181208)] disabled:opacity-50"
+          className="group relative shrink-0 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-[color:var(--profile-accent,#2A9A58)] disabled:opacity-50"
           aria-label="Change profile photo"
         >
           <span
-            className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-white text-3xl font-semibold shadow-md ring-2 ring-[#E2DAD0]/90 transition group-hover:ring-[color:var(--profile-accent,#181208)]"
+            className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-white text-3xl font-semibold shadow-md ring-2 ring-border/90 transition group-hover:ring-[color:var(--profile-accent,#2A9A58)]"
             style={avatarSurfaceStyle}
           >
             {photoUrl ? (
@@ -103,7 +103,7 @@ export function ProfileAvatarAccentSection({
                 aria-pressed={selected}
                 onClick={() => onAccentChange(hex)}
                 className={`h-10 w-10 rounded-full border-2 shadow-sm transition hover:scale-105 disabled:opacity-50 ${
-                  selected ? 'border-neutral-900 ring-2 ring-offset-2 ring-neutral-900' : 'border-white ring-1 ring-[#E2DAD0]'
+                  selected ? 'border-neutral-900 ring-2 ring-offset-2 ring-neutral-900' : 'border-white ring-1 ring-border'
                 }`}
                 style={{ backgroundColor: hex }}
               />

@@ -319,7 +319,7 @@ export default function MissionaryUpdates() {
                     {photoUrl ? (
                       <img src={photoUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-[#EAE3D8] text-xs font-semibold text-[#181208]">
+                      <div className="flex h-full w-full items-center justify-center bg-surface text-xs font-semibold text-ink">
                         {avatarInitials.slice(0, 2)}
                       </div>
                     )}

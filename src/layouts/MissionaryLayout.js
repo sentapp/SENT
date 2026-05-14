@@ -10,7 +10,7 @@ const items = [
   { to: '/missionary/settings', label: 'Settings' },
 ];
 
-/** Mobile bottom bar: 6 tabs — icons + labels; Theme 3 nav. */
+/** Mobile bottom bar: 6 tabs — icons + labels; Garden nav. */
 const bottomNavItems = [
   {
     to: '/missionary',

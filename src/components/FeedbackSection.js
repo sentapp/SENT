@@ -56,7 +56,7 @@ export default function FeedbackSection() {
               if (status === 'success') setStatus('idle');
             }}
             disabled={!configured || status === 'sending'}
-            className="w-full rounded-btn border border-[#E2DAD0] px-4 py-[14px] text-[16px] outline-none focus:border-mission-ink disabled:bg-[#F2EDE4]"
+            className="w-full rounded-btn border border-border bg-surface px-4 py-[14px] text-[16px] outline-none focus:border-green disabled:opacity-60"
           >
             {FEEDBACK_OPTIONS.map((opt) => (
               <option key={opt} value={opt}>

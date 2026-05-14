@@ -226,7 +226,7 @@ export default function SupporterPrayer() {
                   type="checkbox"
                   checked={anonymous}
                   onChange={(e) => setAnonymous(e.target.checked)}
-                  className="h-4 w-4 accent-[#181208]"
+                  className="h-4 w-4 accent-green"
                 />
                 Submit anonymously
               </label>
@@ -312,7 +312,7 @@ export default function SupporterPrayer() {
                 type="checkbox"
                 checked={editAnonymous}
                 onChange={(e) => setEditAnonymous(e.target.checked)}
-                className="h-4 w-4 accent-[#181208]"
+                className="h-4 w-4 accent-green"
               />
               Submit anonymously
             </label>

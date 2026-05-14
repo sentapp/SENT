@@ -21,6 +21,7 @@ import { normalizeRelationshipForSave } from '../../lib/contactRelationships';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../../lib/contactStatuses';
 import { phoneDigits } from '../../lib/phoneFormat';
 import { supabase } from '../../lib/supabaseClient';
+import { getContactAvatarStyle } from '../../lib/contactAvatarStyles';
 import ContactEditFormLayout from './ContactEditFormLayout';
 
 const partnerFilters = [
@@ -518,7 +519,7 @@ export default function MissionaryPartners() {
                 onClick={() => setPartnerViewFilter(f.value)}
                 className={`min-h-[40px] flex-1 rounded-md px-3 py-2 text-center text-xs font-semibold transition sm:text-sm ${
                   active
-                    ? 'border-b-2 border-[#181208] bg-white text-[#181208] shadow-sm'
+                    ? 'border-b-2 border-green bg-white text-green shadow-sm'
                     : 'border-b-2 border-transparent text-neutral-600 hover:bg-white/70'
                 }`}
               >
@@ -564,7 +565,7 @@ export default function MissionaryPartners() {
                       <div
                         role="button"
                         tabIndex={0}
-                        className="group cursor-pointer overflow-hidden rounded-[12px] border-[0.5px] border-[#E2DAD0] border-l-[3px] border-l-[#A32D2D] bg-white text-left outline-none transition-colors duration-200 ease-out hover:bg-[#F9F7F2] focus-visible:ring-2 focus-visible:ring-mission-ink/30"
+                        className="group cursor-pointer overflow-hidden rounded-[12px] border-[0.5px] border-border border-l-[3px] border-l-rose-600 bg-white text-left outline-none transition-colors duration-200 ease-out hover:bg-surface focus-visible:ring-2 focus-visible:ring-green/25"
                         onClick={() => openPartnerDrawer(p)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -575,7 +576,10 @@ export default function MissionaryPartners() {
                       >
                         <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-4">
                           <div className="flex min-w-0 flex-1 items-start gap-3">
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-sm font-semibold text-mission-ink">
+                            <span
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+                              style={getContactAvatarStyle(p.category)}
+                            >
                               {partnerInitials(p.fullName)}
                             </span>
                             <div className="min-w-0 flex-1">
@@ -657,7 +661,7 @@ export default function MissionaryPartners() {
                       <div
                         role="button"
                         tabIndex={0}
-                        className="flex w-full cursor-pointer flex-col gap-1.5 overflow-hidden rounded-[12px] border-[0.5px] border-[#E2DAD0] bg-white p-3 text-left outline-none transition-colors duration-200 ease-out hover:bg-[#F9F7F2] focus-visible:ring-2 focus-visible:ring-mission-ink/30"
+                        className="flex w-full cursor-pointer flex-col gap-1.5 overflow-hidden rounded-[12px] border-[0.5px] border-border bg-white p-3 text-left outline-none transition-colors duration-200 ease-out hover:bg-surface focus-visible:ring-2 focus-visible:ring-green/25"
                         onClick={() => openPartnerDrawer(p)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -680,7 +684,10 @@ export default function MissionaryPartners() {
                           className="mb-1 flex flex-col gap-1"
                         />
                         <div className="flex items-center gap-3">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-sm font-semibold text-mission-ink">
+                          <span
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+                            style={getContactAvatarStyle(p.category)}
+                          >
                             {partnerInitials(p.fullName)}
                           </span>
                           <span className="min-w-0 flex-1">

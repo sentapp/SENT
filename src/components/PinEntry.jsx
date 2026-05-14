@@ -10,7 +10,7 @@ export function PinDots({ digits, max = 4 }) {
         <span
           key={i}
           className={`h-4 w-4 rounded-full border-2 transition ${
-            i < filled ? 'border-mission-ink bg-mission-ink' : 'border-[#E2DAD0] bg-white'
+            i < filled ? 'border-mission-ink bg-mission-ink' : 'border-border bg-white'
           }`}
         />
       ))}

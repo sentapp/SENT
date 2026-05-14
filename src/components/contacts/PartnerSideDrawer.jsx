@@ -8,12 +8,13 @@ import { categoryLabel, normalizeCategory } from '../../lib/contactCategories';
 import { ContactThreeQuickTagRows } from './QuickTagPopover';
 import { PARTNER_DRAWER_BACKDROP_Z, PARTNER_DRAWER_PANEL_Z } from './quickViewOverlayZIndex';
 import { lastContactBadgeFromIso } from './ContactQuickViewPopup';
+import { getContactAvatarStyle } from '../../lib/contactAvatarStyles';
 
 const SECTION_STRIP =
-  'rounded-md bg-[#F4F2EE] px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-600';
+  'rounded-md bg-surface px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted';
 
 const COMM_DOT = {
-  call: 'bg-[#6B5D50]',
+  call: 'bg-[#C17A00]',
   text: 'bg-emerald-500',
   meeting: 'bg-purple-500',
   note: 'bg-neutral-500',
@@ -33,7 +34,7 @@ function InfoRow({ label, value, href, valueClassName = 'text-sm font-medium tex
       <p className={`mt-0.5 ${valueClassName}`}>{text || '—'}</p>
     );
   return (
-    <div className="border-b border-[#E5E2DD] px-4 py-2.5 last:border-b-0">
+    <div className="border-b border-[#EEEEEE] px-4 py-2.5 last:border-b-0">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
       {body}
     </div>
@@ -195,7 +196,7 @@ export function PartnerSideDrawer({
           bottom: 0,
           width: drawerWidth,
           zIndex: PARTNER_DRAWER_PANEL_Z,
-          borderLeft: '1px solid #E5E2DD',
+          borderLeft: '1px solid #EEEEEE',
           boxShadow: '-4px 0 20px rgba(0,0,0,0.08)',
           transform,
           transition: 'transform 0.25s ease-out',
@@ -204,10 +205,11 @@ export function PartnerSideDrawer({
         aria-modal="true"
         aria-labelledby="partner-drawer-name"
       >
-        <div className="z-10 shrink-0 border-b border-[#E5E2DD] bg-white px-4 pb-3 pt-4">
+        <div className="z-10 shrink-0 border-b border-border bg-white px-4 pb-3 pt-4">
           <div className="flex gap-3">
             <div
-              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-xs font-semibold text-mission-ink"
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+              style={getContactAvatarStyle(partner.category)}
               aria-hidden
             >
               {initialsFromDisplayName(partner.fullName || '')}
@@ -228,7 +230,7 @@ export function PartnerSideDrawer({
             </button>
           </div>
           {saveQuickTag || updateContact ? (
-            <div className="mt-3 border-t border-[#E5E2DD]/80 pt-3" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-3 border-t border-[#EEEEEE]/80 pt-3" onClick={(e) => e.stopPropagation()}>
               <ContactThreeQuickTagRows
                 contact={partner}
                 saveQuickTag={saveQuickTag}
@@ -244,7 +246,7 @@ export function PartnerSideDrawer({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="grid grid-cols-3 gap-2 border-b border-[#E5E2DD] px-3 py-3 text-center text-xs">
+          <div className="grid grid-cols-3 gap-2 border-b border-[#EEEEEE] px-3 py-3 text-center text-xs">
             <div>
               <p className="font-semibold uppercase tracking-wide text-mission-muted">Last contact</p>
               <p className={`mt-1 text-sm ${lastBadge.className}`}>{lastBadge.label}</p>
@@ -279,7 +281,7 @@ export function PartnerSideDrawer({
 
           {actionError ? <p className="px-4 py-2 text-sm text-red-600">{actionError}</p> : null}
 
-          <div className="grid grid-cols-3 gap-px border-y border-[#E5E2DD] bg-[#E5E2DD] px-0">
+          <div className="grid grid-cols-3 gap-px border-y border-[#EEEEEE] bg-[#EEEEEE] px-0">
             <button
               type="button"
               className="min-h-[44px] bg-white text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
@@ -303,7 +305,7 @@ export function PartnerSideDrawer({
             </button>
           </div>
 
-          <div className="border-b border-[#E5E2DD] px-4 py-3">
+          <div className="border-b border-[#EEEEEE] px-4 py-3">
             <div className={SECTION_STRIP}>Activity</div>
             {logsLoading ? (
               <p className="mt-2 text-sm text-neutral-500">Loading…</p>
@@ -324,7 +326,7 @@ export function PartnerSideDrawer({
                   return (
                     <li
                       key={log.id}
-                      className="flex items-start gap-2 rounded-lg border border-[#E5E2DD] bg-[#FAFAF8] p-2.5"
+                      className="flex items-start gap-2 rounded-lg border border-[#EEEEEE] bg-[#FAFAFA] p-2.5"
                     >
                       <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${commDotClass(log.comm_type)}`} aria-hidden />
                       <div className="min-w-0 flex-1">
@@ -350,10 +352,10 @@ export function PartnerSideDrawer({
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-[#E5E2DD] bg-white p-3">
+        <div className="shrink-0 border-t border-[#EEEEEE] bg-white p-3">
           <button
             type="button"
-            className="w-full rounded-md border border-[#E5E2DD] bg-white py-2.5 text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
+            className="w-full rounded-md border border-[#EEEEEE] bg-white py-2.5 text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
             onClick={onEditFullProfile}
           >
             Edit full profile

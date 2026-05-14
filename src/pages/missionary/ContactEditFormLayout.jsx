@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
+import { getContactAvatarStyle } from '../../lib/contactAvatarStyles';
 import { Input, Label, Textarea } from '../../components/ui';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
 
@@ -72,7 +73,8 @@ export default function ContactEditFormLayout({
       ) : null}
       <div className="flex gap-3 border-b border-mission-line pb-4">
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-[15px] font-medium leading-none text-[#181208]"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[15px] font-medium leading-none"
+          style={getContactAvatarStyle(form.category)}
           aria-hidden
         >
           {initials}
@@ -188,7 +190,7 @@ export default function ContactEditFormLayout({
         <label className="flex cursor-pointer items-center gap-3 rounded-btn border border-neutral-200 bg-white px-3 py-2">
           <input
             type="checkbox"
-            className="h-5 w-5 shrink-0 accent-[#181208]"
+            className="h-5 w-5 shrink-0 accent-green"
             checked={form.isOneTimeDonor}
             onChange={(e) =>
               setForm((f) => ({

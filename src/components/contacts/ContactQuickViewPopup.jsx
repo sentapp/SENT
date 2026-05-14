@@ -11,6 +11,7 @@ import {
   QUICK_VIEW_BACKDROP_Z,
   QUICK_VIEW_MODAL_Z,
 } from './quickViewOverlayZIndex';
+import { getContactAvatarStyle } from '../../lib/contactAvatarStyles';
 
 const COMM_TYPE_LABEL = {
   call: 'Call',
@@ -129,7 +130,8 @@ export function ContactQuickViewPopup({
           <div className="border-b border-mission-line p-4">
             <div className="flex gap-3">
               <div
-                className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-xs font-semibold text-mission-ink"
+                className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+                style={getContactAvatarStyle(contact.category)}
                 aria-hidden
               >
                 {initialsFromDisplayName(contact.fullName || '')}
@@ -317,7 +319,7 @@ export function ContactQuickLogPopup({
                 onClick={() => onSelectType(t)}
                 className={`rounded-btn border px-3 py-1.5 text-sm font-medium ${
                   selectedType === t
-                    ? 'border-mission-ink bg-[#EAE3D8] text-mission-ink'
+                    ? 'border-green bg-green-light text-green'
                     : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
                 }`}
               >

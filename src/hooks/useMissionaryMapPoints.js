@@ -29,7 +29,7 @@ export function postTypeBadgeClass(type) {
       return 'bg-amber-100 text-amber-900';
     case 'field_story':
     default:
-      return 'bg-[#181208]/12 text-[#181208]';
+      return 'bg-green/12 text-green';
   }
 }
 
@@ -64,7 +64,7 @@ export function useMissionaryMapPoints(profile, posts) {
         title: 'Home base',
         popup: (
           <div className="max-w-[260px] space-y-2">
-            <span className="inline-flex rounded-full bg-[#EAE3D8] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#6B5D50]">
+            <span className="inline-flex rounded-full bg-surface px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
               Home base
             </span>
             <p className="text-base font-bold leading-snug text-ink">{locationName || 'Mission base'}</p>

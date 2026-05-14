@@ -12,6 +12,7 @@ import { statusLabel } from '../../lib/contactStatuses';
 import { createTask, fetchTasksForContact, completeTask, uncompleteTask } from '../../lib/tasksRepository';
 import { ContactThreeQuickTagRows } from './QuickTagPopover';
 import { lastContactBadgeFromIso } from './ContactQuickViewPopup';
+import { getContactAvatarStyle } from '../../lib/contactAvatarStyles';
 
 function cleanDisplayNotesBody(rawNotes) {
   const body = notesWithoutSocialBlock(rawNotes);
@@ -22,7 +23,7 @@ function cleanDisplayNotesBody(rawNotes) {
 }
 
 const COMM_TYPE_META = {
-  call: { label: 'Call', badge: 'bg-[#EAE3D8] text-[#6B5D50] ring-1 ring-[#E2DAD0]/90' },
+  call: { label: 'Call', badge: 'bg-[color:var(--amber-light)] text-[color:var(--amber)] ring-1 ring-border/90' },
   text: { label: 'Text', badge: 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80' },
   meeting: { label: 'Meeting', badge: 'bg-purple-100 text-purple-900 ring-1 ring-purple-200/80' },
   note: { label: 'Note', badge: 'bg-neutral-100 text-neutral-800 ring-1 ring-neutral-200/80' },
@@ -71,7 +72,7 @@ function ActivityLogRowMenu({ onEdit, onDelete }) {
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-full z-20 mt-1 min-w-[9rem] rounded-md border border-[#E5E2DD] bg-white py-1 shadow-lg"
+          className="absolute right-0 top-full z-20 mt-1 min-w-[9rem] rounded-md border border-[#EEEEEE] bg-white py-1 shadow-lg"
         >
           <button
             type="button"
@@ -122,7 +123,7 @@ function InfoRow({ label, value, href, valueClassName = 'text-sm font-medium tex
       <p className={`mt-0.5 ${valueClassName}`}>{text || '—'}</p>
     ));
   return (
-    <div className="border-b border-[#E5E2DD] px-4 py-2.5 last:border-b-0">
+    <div className="border-b border-[#EEEEEE] px-4 py-2.5 last:border-b-0">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
       {body}
     </div>
@@ -130,10 +131,10 @@ function InfoRow({ label, value, href, valueClassName = 'text-sm font-medium tex
 }
 
 const SECTION_STRIP =
-  'rounded-md bg-[#F4F2EE] px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-600';
+  'rounded-md bg-surface px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted';
 
 const BTN_BORDERED =
-  'flex min-h-[44px] items-center justify-center border border-[#E5E2DD] bg-white text-sm font-semibold text-mission-ink hover:bg-mission-ink/5';
+  'flex min-h-[44px] items-center justify-center border border-[#EEEEEE] bg-white text-sm font-semibold text-mission-ink hover:bg-mission-ink/5';
 
 /**
  * Full profile-style popup for the Contacts page (Layout A).
@@ -380,7 +381,7 @@ export function ContactProfilePopup1({
           maxWidth: 380,
           maxHeight: '85vh',
           borderRadius: 16,
-          border: '1px solid #E5E2DD',
+          border: '1px solid #EEEEEE',
         }}
         role="dialog"
         aria-modal="true"
@@ -388,10 +389,11 @@ export function ContactProfilePopup1({
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="border-b border-[#E5E2DD] p-4">
+        <div className="border-b border-border p-4">
           <div className="flex gap-3">
             <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-sm font-semibold text-mission-ink"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+              style={getContactAvatarStyle(contact.category)}
               aria-hidden
             >
               {initialsFromDisplayName(contact.fullName || '')}
@@ -417,7 +419,7 @@ export function ContactProfilePopup1({
         </div>
 
         {saveQuickTag ? (
-          <div className="border-b border-[#E5E2DD] px-4 py-3">
+          <div className="border-b border-[#EEEEEE] px-4 py-3">
             <ContactThreeQuickTagRows
               contact={contact}
               saveQuickTag={saveQuickTag}
@@ -454,7 +456,7 @@ export function ContactProfilePopup1({
           </div>
         </div>
 
-        <div className="border-t border-[#E5E2DD] px-4 py-3">
+        <div className="border-t border-[#EEEEEE] px-4 py-3">
           <div className={SECTION_STRIP}>Notes</div>
           {notesDisplay ? (
             <p className="mt-2 whitespace-pre-wrap px-1 text-sm text-neutral-800">{notesDisplay}</p>
@@ -463,12 +465,12 @@ export function ContactProfilePopup1({
           )}
         </div>
 
-        <div className="border-t border-[#E5E2DD] px-4 py-3">
+        <div className="border-t border-[#EEEEEE] px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className={`${SECTION_STRIP} flex-1 min-w-[8rem]`}>Tasks</div>
             <button
               type="button"
-              className="shrink-0 rounded-md border border-[#E5E2DD] bg-white px-3 py-1.5 text-xs font-semibold text-mission-ink hover:bg-mission-ink/5"
+              className="shrink-0 rounded-md border border-[#EEEEEE] bg-white px-3 py-1.5 text-xs font-semibold text-mission-ink hover:bg-mission-ink/5"
               onClick={() => {
                 resetTaskModal();
                 setTaskModalOpen(true);
@@ -486,7 +488,7 @@ export function ContactProfilePopup1({
               {contactTasks
                 .filter((t) => !t.isComplete)
                 .map((t) => (
-                  <li key={t.id} className="flex items-start gap-2 rounded-md border border-[#E5E2DD] bg-[#FAFAF8] px-2.5 py-2">
+                  <li key={t.id} className="flex items-start gap-2 rounded-md border border-[#EEEEEE] bg-[#FAFAFA] px-2.5 py-2">
                     <input
                       type="checkbox"
                       checked={false}
@@ -504,7 +506,7 @@ export function ContactProfilePopup1({
           )}
         </div>
 
-        <div className="border-t border-[#E5E2DD] px-4 py-3">
+        <div className="border-t border-[#EEEEEE] px-4 py-3">
           <div className={SECTION_STRIP}>Activity</div>
           {activityLoading ? (
             <p className="mt-2 px-1 text-sm text-neutral-500">Loading…</p>
@@ -521,7 +523,7 @@ export function ContactProfilePopup1({
                     : '—';
                 const isEditing = editingLogId === log.id;
                 return (
-                  <li key={log.id} className="rounded-lg border border-[#E5E2DD] bg-[#FAFAF8] p-2.5">
+                  <li key={log.id} className="rounded-lg border border-[#EEEEEE] bg-[#FAFAFA] p-2.5">
                     <div className="flex items-start gap-2">
                       <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${typeBadge}`}>
                         {label}
@@ -531,7 +533,7 @@ export function ContactProfilePopup1({
                         {isEditing ? (
                           <div className="mt-1.5 space-y-2">
                             <textarea
-                              className="w-full rounded-md border border-[#E5E2DD] bg-white px-2 py-1.5 text-sm text-ink"
+                              className="w-full rounded-md border border-[#EEEEEE] bg-white px-2 py-1.5 text-sm text-ink"
                               rows={3}
                               value={editDraft}
                               onChange={(e) => setEditDraft(e.target.value)}
@@ -549,7 +551,7 @@ export function ContactProfilePopup1({
                               <button
                                 type="button"
                                 disabled={activityMutating}
-                                className="rounded-md border border-[#E5E2DD] bg-white px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-50"
+                                className="rounded-md border border-[#EEEEEE] bg-white px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-50"
                                 onClick={cancelEditLog}
                               >
                                 Cancel
@@ -575,10 +577,10 @@ export function ContactProfilePopup1({
         </div>
 
         {actionError ? (
-          <p className="border-t border-[#E5E2DD] px-4 py-2 text-sm text-red-600">{actionError}</p>
+          <p className="border-t border-[#EEEEEE] px-4 py-2 text-sm text-red-600">{actionError}</p>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-px border-t border-[#E5E2DD] bg-[#E5E2DD]">
+        <div className="grid grid-cols-2 gap-px border-t border-[#EEEEEE] bg-[#EEEEEE]">
           <button type="button" className={`${BTN_BORDERED} rounded-none`} onClick={onCall}>
             Call
           </button>

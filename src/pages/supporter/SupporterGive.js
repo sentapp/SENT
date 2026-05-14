@@ -108,7 +108,7 @@ export default function SupporterGive() {
 
       <Card className="overflow-hidden border border-neutral-200/80 bg-gradient-to-b from-white to-neutral-50/80 p-6 shadow-sm">
         <div className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:gap-5 sm:text-left">
-          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-md ring-2 ring-[color:color-mix(in_srgb,var(--feed-accent,#181208)_18%,transparent)]">
+          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-md ring-2 ring-[color:color-mix(in_srgb,var(--feed-accent,#2A9A58)_18%,transparent)]">
             {photoUrl ? (
               <img src={photoUrl} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -149,7 +149,7 @@ export default function SupporterGive() {
               href={nonTaxUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex flex-1 items-center justify-center rounded-btn border-2 border-[color:var(--feed-accent,#181208)] bg-white px-5 py-3.5 text-center text-[17px] font-semibold text-[color:var(--feed-accent,#181208)] shadow-sm transition hover:bg-[color:color-mix(in_srgb,var(--feed-accent,#181208)_8%,white)] sm:max-w-xs sm:flex-none sm:min-w-[200px]"
+              className="inline-flex flex-1 items-center justify-center rounded-btn border-2 border-[color:var(--feed-accent,#2A9A58)] bg-white px-5 py-3.5 text-center text-[17px] font-semibold text-[color:var(--feed-accent,#2A9A58)] shadow-sm transition hover:bg-[color:color-mix(in_srgb,var(--feed-accent,#2A9A58)_8%,white)] sm:max-w-xs sm:flex-none sm:min-w-[200px]"
             >
               One-time gift
             </a>
