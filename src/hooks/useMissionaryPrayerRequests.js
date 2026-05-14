@@ -22,5 +22,5 @@ export function useMissionaryPrayerRequests(missionaryId) {
     refetch();
   }, [refetch]);
 
-  return { prayerRequests, loading, refetch };
+  return { prayerRequests, loading, refetch, setPrayerRequests };
 }

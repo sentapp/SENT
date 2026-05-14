@@ -194,8 +194,13 @@ export default function SupporterPrayer() {
     setBusyId(id);
     const { error } = await deletePrayerRequestAsAuthor(supabase, id, user.id);
     setBusyId(null);
-    if (error) return;
+    if (error) {
+      console.error(error);
+      window.alert(error.message || 'Could not delete your prayer request.');
+      return;
+    }
     setRequests((prev) => prev.filter((r) => r.id !== id));
+    void load();
   };
 
   return (

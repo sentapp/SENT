@@ -146,7 +146,12 @@ export default function MissionaryOverview() {
     user?.id,
     { authLoading, onAfterMutation: () => void refetchContacts() },
   );
-  const { prayerRequests: prayer, loading: prayerLoading, refetch: refetchPrayer } = useMissionaryPrayerRequests(user?.id);
+  const {
+    prayerRequests: prayer,
+    loading: prayerLoading,
+    refetch: refetchPrayer,
+    setPrayerRequests,
+  } = useMissionaryPrayerRequests(user?.id);
   const { state } = useAppState();
   const { tasks, loading: tasksLoading, refetch: refetchTasks, completeTask } = useMissionaryTasks(user?.id);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
@@ -167,11 +172,13 @@ export default function MissionaryOverview() {
       setPrayerBusyId(null);
       if (error) {
         console.error(error);
+        window.alert(error.message || 'Could not delete this prayer request.');
         return;
       }
+      setPrayerRequests((prev) => prev.filter((r) => r.id !== id));
       void refetchPrayer();
     },
-    [user?.id, refetchPrayer],
+    [user?.id, refetchPrayer, setPrayerRequests],
   );
   const [oneTimeModalOpen, setOneTimeModalOpen] = useState(false);
   const [oneTimeModalRows, setOneTimeModalRows] = useState([]);
