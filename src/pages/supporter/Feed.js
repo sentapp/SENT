@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState, useRef } from 'react';
+import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { linkSupporterToMissionary } from '../../lib/supporterConnection';
 import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
@@ -12,6 +12,8 @@ import {
   fetchMyReactionsForPosts,
   togglePostReaction,
 } from '../../lib/postReactionsRepository';
+import { supabase } from '../../lib/supabaseClient';
+import { deleteOwnPostComment, fetchCommentsForPosts, insertPostComment } from '../../lib/postCommentsRepository';
 import { Card, EmptyState } from '../../components/ui';
 import { postTypeBadgeClass, postTypePostCardClass } from '../../lib/postTypeStyles';
 
@@ -75,6 +77,65 @@ function daysUntilDeadline(deadlineStr) {
   return diff;
 }
 
+function PostCommentsBlock({ userId, comments, draft, onDraftChange, onSubmit, onDelete, busySubmit, deletingCommentId }) {
+  const list = comments || [];
+  return (
+    <div className="mt-4 border-t border-mission-line/80 pt-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-mission-muted">Comments</p>
+      {list.length > 0 ? (
+        <ul className="mt-2 space-y-2">
+          {list.map((c) => (
+            <li key={c.id} className="rounded-md bg-[color:var(--color-bg)] px-3 py-2 text-sm text-mission-ink">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-mission-muted">
+                    {c.authorDisplayName || 'Anonymous'} ·{' '}
+                    {c.createdAt ? new Date(c.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : ''}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm">{c.body}</p>
+                </div>
+                {userId && c.authorId && String(c.authorId) === String(userId) ? (
+                  <button
+                    type="button"
+                    disabled={Boolean(deletingCommentId)}
+                    className="shrink-0 text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
+                    onClick={() => onDelete(c.id)}
+                  >
+                    {deletingCommentId === c.id ? '…' : 'Delete'}
+                  </button>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs text-mission-muted">No comments yet.</p>
+      )}
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+        <label className="min-w-0 flex-1 text-xs font-medium text-mission-muted">
+          <span className="sr-only">Add a comment</span>
+          <input
+            type="text"
+            value={draft}
+            disabled={!userId || busySubmit}
+            onChange={(e) => onDraftChange(e.target.value)}
+            placeholder={userId ? 'Add a comment…' : 'Sign in to comment'}
+            className="mt-1 w-full rounded-btn border border-mission-line bg-white px-3 py-2 text-sm text-ink placeholder:text-neutral-400"
+          />
+        </label>
+        <button
+          type="button"
+          disabled={!userId || busySubmit || !draft.trim()}
+          onClick={onSubmit}
+          className="feed-accent-bg shrink-0 rounded-btn px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {busySubmit ? 'Posting…' : 'Post'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function SupporterFeed() {
   const { profile: supporterProfile, user, refreshProfile } = useAuth();
   const missionaryId = supporterProfile?.connected_missionary_id;
@@ -115,6 +176,10 @@ export default function SupporterFeed() {
 
   const [missionPush, setMissionPush] = useState(null);
 
+  const [commentsByPost, setCommentsByPost] = useState(() => new Map());
+  const [commentDraftByPost, setCommentDraftByPost] = useState({});
+  const [commentBusyKey, setCommentBusyKey] = useState('');
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -150,6 +215,24 @@ export default function SupporterFeed() {
     };
   }, [feed, user?.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!feed.length || !supabase) {
+        if (!cancelled) setCommentsByPost(new Map());
+        return;
+      }
+      const m = await fetchCommentsForPosts(
+        supabase,
+        feed.map((p) => p.id),
+      );
+      if (!cancelled) setCommentsByPost(m);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [feed]);
+
   const toggle = async (postId, kind) => {
     if (!user?.id) return;
     setBusy((b) => new Map(b).set(`${postId}-${kind}`, true));
@@ -166,6 +249,38 @@ export default function SupporterFeed() {
     setCounts(c);
     setMine(m);
   };
+
+  const submitPostComment = useCallback(async (postId, draftText) => {
+    if (!supabase || !user?.id) return;
+    const text = String(draftText ?? '').trim();
+    if (!text) return;
+    setCommentBusyKey(`s:${postId}`);
+    const { data, error } = await insertPostComment(supabase, { postId, authorId: user.id, body: text });
+    setCommentBusyKey('');
+    if (error || !data) return;
+    setCommentDraftByPost((prev) => ({ ...prev, [postId]: '' }));
+    setCommentsByPost((prev) => {
+      const m = new Map(prev);
+      m.set(postId, [...(m.get(postId) || []), data]);
+      return m;
+    });
+  }, [user?.id]);
+
+  const deletePostComment = useCallback(async (postId, commentId) => {
+    if (!supabase || !user?.id) return;
+    setCommentBusyKey(`d:${commentId}`);
+    const { error } = await deleteOwnPostComment(supabase, commentId, user.id);
+    setCommentBusyKey('');
+    if (error) return;
+    setCommentsByPost((prev) => {
+      const m = new Map(prev);
+      m.set(
+        postId,
+        (m.get(postId) || []).filter((c) => c.id !== commentId),
+      );
+      return m;
+    });
+  }, [user?.id]);
 
   const taxUrl = (missionaryDb?.tax_deductible_url || '').trim();
   const nonTaxUrl = (missionaryDb?.non_tax_deductible_url || '').trim();
@@ -351,6 +466,21 @@ export default function SupporterFeed() {
                         onClick={() => toggle(p.id, 'pray')}
                       />
                     </div>
+                    <PostCommentsBlock
+                      userId={user?.id}
+                      comments={commentsByPost.get(p.id)}
+                      draft={commentDraftByPost[p.id] || ''}
+                      onDraftChange={(v) =>
+                        setCommentDraftByPost((prev) => ({
+                          ...prev,
+                          [p.id]: v,
+                        }))
+                      }
+                      onSubmit={() => void submitPostComment(p.id, commentDraftByPost[p.id] || '')}
+                      onDelete={(commentId) => void deletePostComment(p.id, commentId)}
+                      busySubmit={commentBusyKey === `s:${p.id}`}
+                      deletingCommentId={commentBusyKey.startsWith('d:') ? commentBusyKey.slice(2) : null}
+                    />
                       </div>
                     </div>
                   </Card>

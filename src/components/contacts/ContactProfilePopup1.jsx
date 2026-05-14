@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useAuth } from '../../auth/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 import { categoryLabel, normalizeCategory } from '../../lib/contactCategories';
 import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
@@ -15,6 +17,86 @@ function cleanDisplayNotesBody(rawNotes) {
   const trimmed = body.toString().trim();
   if (/^\d+$/.test(trimmed)) return '';
   return trimmed;
+}
+
+const COMM_TYPE_META = {
+  call: { label: 'Call', badge: 'bg-blue-100 text-blue-900 ring-1 ring-blue-200/80' },
+  text: { label: 'Text', badge: 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80' },
+  meeting: { label: 'Meeting', badge: 'bg-purple-100 text-purple-900 ring-1 ring-purple-200/80' },
+  note: { label: 'Note', badge: 'bg-neutral-100 text-neutral-800 ring-1 ring-neutral-200/80' },
+  prayer: { label: 'Prayer', badge: 'bg-amber-100 text-amber-950 ring-1 ring-amber-200/80' },
+  update: { label: 'Update', badge: 'bg-neutral-100 text-neutral-800 ring-1 ring-neutral-200/80' },
+  email: { label: 'Email', badge: 'bg-slate-100 text-slate-800 ring-1 ring-slate-200/80' },
+};
+
+function commTypeDisplay(commType) {
+  const key = String(commType || '').toLowerCase();
+  const meta = COMM_TYPE_META[key] || { label: key ? key.charAt(0).toUpperCase() + key.slice(1) : 'Log', badge: COMM_TYPE_META.note.badge };
+  return meta;
+}
+
+function previewNotes(text, max = 140) {
+  const s = String(text ?? '').replace(/\s+/g, ' ').trim();
+  if (!s) return '—';
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+
+function ActivityLogRowMenu({ onEdit, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  return (
+    <div className="relative shrink-0" ref={wrapRef}>
+      <button
+        type="button"
+        className="rounded-md px-2 py-1 text-lg leading-none text-neutral-500 hover:bg-neutral-100"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Log options"
+        onClick={() => setOpen((v) => !v)}
+      >
+        ⋯
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-20 mt-1 min-w-[9rem] rounded-md border border-[#E5E2DD] bg-white py-1 shadow-lg"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-2 text-left text-sm font-medium text-ink hover:bg-neutral-50"
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50"
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -69,6 +151,7 @@ const BTN_BORDERED =
  *   onText: () => void,
  *   onLog: () => void,
  *   actionError?: string,
+ *   activityLogsRefreshKey?: number,
  * }} props
  */
 export function ContactProfilePopup1({
@@ -86,7 +169,41 @@ export function ContactProfilePopup1({
   onText,
   onLog,
   actionError = '',
+  activityLogsRefreshKey = 0,
 }) {
+  const { user } = useAuth();
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [editingLogId, setEditingLogId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [activityMutating, setActivityMutating] = useState(false);
+
+  const loadActivityLogs = useCallback(async () => {
+    if (!supabase || !contact?.id || !user?.id) {
+      setActivityLogs([]);
+      return;
+    }
+    setActivityLoading(true);
+    const { data, error } = await supabase
+      .from('communication_logs')
+      .select('id, comm_type, notes, created_at')
+      .eq('contact_id', contact.id)
+      .eq('missionary_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('communication_logs', error);
+      setActivityLogs([]);
+    } else {
+      setActivityLogs(data || []);
+    }
+    setActivityLoading(false);
+  }, [contact?.id, user?.id]);
+
+  useEffect(() => {
+    void loadActivityLogs();
+  }, [loadActivityLogs, activityLogsRefreshKey]);
+
   useEffect(() => {
     if (!contact || showLog) return undefined;
     const onKey = (e) => {
@@ -98,6 +215,47 @@ export function ContactProfilePopup1({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [contact, showLog, onClose]);
+
+  const beginEditLog = (log) => {
+    setEditingLogId(log.id);
+    setEditDraft(String(log.notes ?? ''));
+  };
+
+  const cancelEditLog = () => {
+    setEditingLogId(null);
+    setEditDraft('');
+  };
+
+  const saveEditLog = async () => {
+    if (!supabase || !user?.id || !editingLogId) return;
+    setActivityMutating(true);
+    const { error } = await supabase
+      .from('communication_logs')
+      .update({ notes: editDraft })
+      .eq('id', editingLogId)
+      .eq('missionary_id', user.id);
+    setActivityMutating(false);
+    if (error) {
+      console.error(error);
+      return;
+    }
+    cancelEditLog();
+    void loadActivityLogs();
+  };
+
+  const deleteLog = async (id) => {
+    if (!window.confirm('Delete this activity log?')) return;
+    if (!supabase || !user?.id) return;
+    setActivityMutating(true);
+    const { error } = await supabase.from('communication_logs').delete().eq('id', id).eq('missionary_id', user.id);
+    setActivityMutating(false);
+    if (error) {
+      console.error(error);
+      return;
+    }
+    if (editingLogId === id) cancelEditLog();
+    void loadActivityLogs();
+  };
 
   if (!contact || typeof document === 'undefined') return null;
 
@@ -226,6 +384,76 @@ export function ContactProfilePopup1({
             <p className="mt-2 whitespace-pre-wrap px-1 text-sm text-neutral-800">{notesDisplay}</p>
           ) : (
             <p className="mt-2 px-1 text-sm italic text-neutral-500">No notes yet</p>
+          )}
+        </div>
+
+        <div className="border-t border-[#E5E2DD] px-4 py-3">
+          <div className={SECTION_STRIP}>Activity</div>
+          {activityLoading ? (
+            <p className="mt-2 px-1 text-sm text-neutral-500">Loading…</p>
+          ) : activityLogs.length === 0 ? (
+            <p className="mt-2 px-1 text-sm italic text-neutral-500">No activity logged yet</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {activityLogs.map((log) => {
+                const { label, badge: typeBadge } = commTypeDisplay(log.comm_type);
+                const dt = log.created_at ? new Date(log.created_at) : null;
+                const dateStr =
+                  dt && !Number.isNaN(dt.getTime())
+                    ? `${dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} · ${dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+                    : '—';
+                const isEditing = editingLogId === log.id;
+                return (
+                  <li key={log.id} className="rounded-lg border border-[#E5E2DD] bg-[#FAFAF8] p-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${typeBadge}`}>
+                        {label}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] text-neutral-500">{dateStr}</p>
+                        {isEditing ? (
+                          <div className="mt-1.5 space-y-2">
+                            <textarea
+                              className="w-full rounded-md border border-[#E5E2DD] bg-white px-2 py-1.5 text-sm text-ink"
+                              rows={3}
+                              value={editDraft}
+                              onChange={(e) => setEditDraft(e.target.value)}
+                              disabled={activityMutating}
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={activityMutating}
+                                className="rounded-md bg-mission-blue px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                                onClick={() => void saveEditLog()}
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                disabled={activityMutating}
+                                className="rounded-md border border-[#E5E2DD] bg-white px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-50"
+                                onClick={cancelEditLog}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-0.5 text-sm text-neutral-800">{previewNotes(log.notes)}</p>
+                        )}
+                      </div>
+                      {!isEditing ? (
+                        <ActivityLogRowMenu
+                          onEdit={() => beginEditLog(log)}
+                          onDelete={() => void deleteLog(log.id)}
+                        />
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
 

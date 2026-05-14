@@ -17,9 +17,10 @@ const COMM_TYPE_LABEL = {
   text: 'Text',
   meeting: 'Meeting',
   note: 'Note',
+  prayer: 'Prayer',
 };
 
-export const QUICK_LOG_COMM_TYPES = ['call', 'text', 'meeting', 'note'];
+export const QUICK_LOG_COMM_TYPES = ['call', 'text', 'meeting', 'note', 'prayer'];
 
 function daysSince(isoOrNull) {
   if (!isoOrNull) return 999;

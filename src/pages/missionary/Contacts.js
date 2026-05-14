@@ -247,6 +247,7 @@ export default function MissionaryContacts() {
   const [logSaving, setLogSaving] = useState(false);
   const [logError, setLogError] = useState('');
   const [loggedSuccess, setLoggedSuccess] = useState(false);
+  const [activityLogRefreshKey, setActivityLogRefreshKey] = useState(0);
   const [commActionError, setCommActionError] = useState('');
   const [lastTouchAt, setLastTouchAt] = useState(null);
 
@@ -1064,6 +1065,7 @@ export default function MissionaryContacts() {
       setShowLogModal(false);
       setLogText('');
       setLoggedSuccess(true);
+      setActivityLogRefreshKey((k) => k + 1);
     } catch (e) {
       setLogError(e?.message || 'Could not save log.');
     } finally {
@@ -1416,6 +1418,7 @@ export default function MissionaryContacts() {
         onText={handleText}
         onLog={openQuickLogFromDetail}
         actionError={commActionError}
+        activityLogsRefreshKey={activityLogRefreshKey}
       />
 
       <ContactQuickLogPopup

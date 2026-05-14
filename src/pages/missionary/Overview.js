@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { deletePrayerRequestAsMissionary, prayerAttributionLabel } from '../../lib/prayerRequestsRepository';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
@@ -58,6 +59,53 @@ const metricIconBook = (
   </svg>
 );
 
+function MissionaryPrayerRequestMenu({ onDelete }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  return (
+    <div className="relative shrink-0" ref={wrapRef}>
+      <button
+        type="button"
+        className="rounded-btn px-2 py-1 text-lg leading-none text-neutral-600 hover:bg-neutral-100"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Request options"
+        onClick={() => setOpen((v) => !v)}
+      >
+        ⋯
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-20 mt-1 min-w-[10rem] rounded-btn border border-neutral-200 bg-white py-1 shadow-lg"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-4 py-2.5 text-left text-sm font-medium text-red-700 hover:bg-red-50"
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function MissionaryOverview() {
   const navigate = useNavigate();
   const { profile, user, loading: authLoading } = useAuth();
@@ -68,10 +116,27 @@ export default function MissionaryOverview() {
     user?.id,
     { authLoading, onAfterMutation: () => void refetchContacts() },
   );
-  const { prayerRequests: prayer, loading: prayerLoading } = useMissionaryPrayerRequests(user?.id);
+  const { prayerRequests: prayer, loading: prayerLoading, refetch: refetchPrayer } = useMissionaryPrayerRequests(user?.id);
   const { state, actions } = useAppState();
   const [newTask, setNewTask] = useState('');
   const taskInputRef = useRef(null);
+  const [prayerBusyId, setPrayerBusyId] = useState(null);
+
+  const deleteMissionaryPrayer = useCallback(
+    async (id) => {
+      if (!supabase || !user?.id) return;
+      if (!window.confirm('Delete this prayer request from your wall?')) return;
+      setPrayerBusyId(id);
+      const { error } = await deletePrayerRequestAsMissionary(supabase, id, user.id);
+      setPrayerBusyId(null);
+      if (error) {
+        console.error(error);
+        return;
+      }
+      void refetchPrayer();
+    },
+    [user?.id, refetchPrayer],
+  );
   const [oneTimeModalOpen, setOneTimeModalOpen] = useState(false);
   const [oneTimeModalRows, setOneTimeModalRows] = useState([]);
   const [oneTimeModalLoading, setOneTimeModalLoading] = useState(false);
@@ -338,8 +403,19 @@ export default function MissionaryOverview() {
             <div className="space-y-3">
               {prayer.map((r) => (
                 <Card key={r.id} className="border-neutral-100 p-4 shadow-none">
-                  <p className="text-sm text-neutral-800">{r.body}</p>
-                  <p className="mt-2 text-xs text-neutral-500">{(r.prayedCount ?? 0).toString()} prayers</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-neutral-800">{r.body}</p>
+                      <p className="mt-2 text-xs font-medium text-neutral-600">{prayerAttributionLabel(r)}</p>
+                      <p className="mt-1 text-xs text-neutral-500">{(r.prayedCount ?? 0).toString()} prayers</p>
+                    </div>
+                    <MissionaryPrayerRequestMenu
+                      onDelete={() => {
+                        if (prayerBusyId) return;
+                        void deleteMissionaryPrayer(r.id);
+                      }}
+                    />
+                  </div>
                 </Card>
               ))}
             </div>
