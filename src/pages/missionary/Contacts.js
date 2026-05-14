@@ -1322,7 +1322,7 @@ export default function MissionaryContacts() {
             }
           />
         ) : (
-          <div className="flex flex-col">
+          <div className="flex flex-col space-y-2">
             {filteredSorted.map((c) => (
               <div
                 key={c.id}
@@ -1340,7 +1340,7 @@ export default function MissionaryContacts() {
                     else handleOpenContact(c);
                   }
                 }}
-                className="scroll-mt-4 mb-2 cursor-pointer rounded-[12px] border-[0.5px] border-[#E2DAD0] bg-white px-[14px] py-3 text-left shadow-none transition-colors duration-200 ease-out last:mb-0 hover:bg-[#F9F7F2]"
+                className="scroll-mt-4 cursor-pointer rounded-[12px] border-[0.5px] border-[#E2DAD0] bg-white px-[14px] py-3 text-left shadow-none transition-colors duration-200 ease-out hover:bg-[#F9F7F2]"
               >
                 <div className="flex flex-row flex-nowrap items-start gap-3">
                   {selectMode ? (

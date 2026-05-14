@@ -653,41 +653,32 @@ export default function MissionaryPartners() {
                   const last = lastContactMap[p.id] ?? null;
                   const badge = lastContactBadgeFromIso(last);
                   return (
-                    <li
-                      key={p.id}
-                      className="overflow-hidden rounded-card border border-mission-line bg-surface transition-shadow duration-200"
-                    >
+                    <li key={p.id} className="list-none">
                       <div
                         role="button"
                         tabIndex={0}
-                        className="flex w-full cursor-pointer flex-col gap-1.5 p-3 text-left outline-none transition-colors hover:bg-[#F2EDE4] focus-visible:ring-2 focus-visible:ring-mission-ink/30"
-                        onClick={() => {
-                          setCommActionError('');
-                          setPopupPartner(p);
-                        }}
+                        className="flex w-full cursor-pointer flex-col gap-1.5 overflow-hidden rounded-[12px] border-[0.5px] border-[#E2DAD0] bg-white p-3 text-left outline-none transition-colors duration-200 ease-out hover:bg-[#F9F7F2] focus-visible:ring-2 focus-visible:ring-mission-ink/30"
+                        onClick={() => openPartnerDrawer(p)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            setCommActionError('');
-                            setPopupPartner(p);
+                            openPartnerDrawer(p);
                           }
                         }}
                       >
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <ContactThreeQuickTagRows
-                            contact={p}
-                            saveQuickTag={saveQuickTag}
-                            patchContactInList={patchContactInList}
-                            onAfterSave={() => void refetch()}
-                            onPatchContact={(next) =>
-                              setPopupPartner((cur) =>
-                                cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur,
-                              )
-                            }
-                            variant="compact"
-                            className="mb-1 flex flex-col gap-1"
-                          />
-                        </div>
+                        <ContactThreeQuickTagRows
+                          contact={p}
+                          saveQuickTag={saveQuickTag}
+                          patchContactInList={patchContactInList}
+                          onAfterSave={() => void refetch()}
+                          onPatchContact={(next) =>
+                            setPopupPartner((cur) =>
+                              cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur,
+                            )
+                          }
+                          variant="compact"
+                          className="mb-1 flex flex-col gap-1"
+                        />
                         <div className="flex items-center gap-3">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-sm font-semibold text-mission-ink">
                             {partnerInitials(p.fullName)}
