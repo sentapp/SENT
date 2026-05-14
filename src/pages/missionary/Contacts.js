@@ -37,7 +37,11 @@ import { normalizeRelationshipForSave } from '../../lib/contactRelationships';
 import {
   ContactQuickLogPopup,
 } from '../../components/contacts/ContactQuickViewPopup';
-import { ContactProfilePopup1 } from '../../components/contacts/ContactProfilePopup1';
+import { ContactSideDrawer } from '../../components/contacts/ContactSideDrawer';
+import {
+  DRAWER_STACK_QUICK_LOG_BACKDROP_Z,
+  DRAWER_STACK_QUICK_LOG_MODAL_Z,
+} from '../../components/contacts/quickViewOverlayZIndex';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
 import { Button, EmptyState, Input, LoadingSpinner, Modal } from '../../components/ui';
 import ContactEditFormLayout from './ContactEditFormLayout';
@@ -237,7 +241,7 @@ export default function MissionaryContacts() {
   const [dedupeLoading, setDedupeLoading] = useState(false);
   const [dedupeBanner, setDedupeBanner] = useState(null);
 
-  const [detailContact, setDetailContact] = useState(null);
+  const [drawerContact, setDrawerContact] = useState(null);
   const [showLogModal, setShowLogModal] = useState(false);
   const [logType, setLogType] = useState('call');
   const [logText, setLogText] = useState('');
@@ -246,7 +250,6 @@ export default function MissionaryContacts() {
   const [loggedSuccess, setLoggedSuccess] = useState(false);
   const [activityLogRefreshKey, setActivityLogRefreshKey] = useState(0);
   const [commActionError, setCommActionError] = useState('');
-  const [lastTouchAt, setLastTouchAt] = useState(null);
 
   const sessionRef = useRef(0);
   const contactUrlHandledRef = useRef(null);
@@ -272,7 +275,7 @@ export default function MissionaryContacts() {
 
   const closeDetail = useCallback(
     ({ restoreScroll = true } = {}) => {
-      setDetailContact(null);
+      setDrawerContact(null);
       setShowLogModal(false);
       setLogText('');
       setLogError('');
@@ -289,7 +292,7 @@ export default function MissionaryContacts() {
       captureListScroll();
       setCommActionError('');
       setLoggedSuccess(false);
-      setDetailContact(c);
+      setDrawerContact(c);
     },
     [captureListScroll],
   );
@@ -715,30 +718,11 @@ export default function MissionaryContacts() {
     handleOpenContact,
   ]);
 
-  const refreshLastContacted = useCallback(async () => {
-    if (!supabase || !detailContact?.id) {
-      setLastTouchAt(null);
-      return;
-    }
-    const { data, error } = await supabase
-      .from('communication_logs')
-      .select('created_at')
-      .eq('contact_id', detailContact.id)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    if (!error && data?.[0]?.created_at) setLastTouchAt(data[0].created_at);
-    else setLastTouchAt(null);
-  }, [detailContact?.id]);
-
   useEffect(() => {
-    void refreshLastContacted();
-  }, [refreshLastContacted]);
-
-  useEffect(() => {
-    if (!detailContact?.id) return;
-    const fresh = contacts.find((x) => String(x.id) === String(detailContact.id));
-    if (fresh) setDetailContact(fresh);
-  }, [contacts, detailContact?.id]);
+    if (!drawerContact?.id) return;
+    const fresh = contacts.find((x) => String(x.id) === String(drawerContact.id));
+    if (fresh) setDrawerContact(fresh);
+  }, [contacts, drawerContact?.id]);
 
   const saveContact = async () => {
     setSaveError('');
@@ -975,7 +959,7 @@ export default function MissionaryContacts() {
 
   const logCommunication = useCallback(
     async (type, notes = '') => {
-      if (!supabase || !detailContact?.id) {
+      if (!supabase || !drawerContact?.id) {
         return { ok: false, error: 'No contact selected.' };
       }
       const {
@@ -987,21 +971,20 @@ export default function MissionaryContacts() {
       const created_at = new Date().toISOString();
       const { error } = await supabase.from('communication_logs').insert({
         missionary_id: mid,
-        contact_id: detailContact.id,
+        contact_id: drawerContact.id,
         comm_type: type,
         notes: notes ?? '',
         created_at,
       });
       if (error) return { ok: false, error: error.message || 'Could not save log.' };
       await refetch();
-      await refreshLastContacted();
       return { ok: true, created_at };
     },
-    [detailContact?.id, refetch, refreshLastContacted],
+    [drawerContact?.id, refetch],
   );
 
   const handleCall = useCallback(() => {
-    const phone = detailContact?.phone;
+    const phone = drawerContact?.phone;
     if (!phone) {
       alert('No phone number on file');
       return;
@@ -1019,10 +1002,10 @@ export default function MissionaryContacts() {
         setCommActionError(res.error || 'Could not log call.');
       }
     })();
-  }, [detailContact?.phone, logCommunication]);
+  }, [drawerContact?.phone, logCommunication]);
 
   const handleText = useCallback(() => {
-    const phone = detailContact?.phone;
+    const phone = drawerContact?.phone;
     if (!phone) {
       alert('No phone number on file');
       return;
@@ -1040,7 +1023,7 @@ export default function MissionaryContacts() {
         setCommActionError(res.error || 'Could not log text.');
       }
     })();
-  }, [detailContact?.phone, logCommunication]);
+  }, [drawerContact?.phone, logCommunication]);
 
   const openQuickLogFromDetail = useCallback(() => {
     setLogType('call');
@@ -1403,33 +1386,31 @@ export default function MissionaryContacts() {
         )}
       </div>
 
-      <ContactProfilePopup1
-        contact={detailContact}
+      <ContactSideDrawer
+        contact={drawerContact}
         onClose={closeDetail}
         saveQuickTag={saveQuickTag}
         patchContactInList={patchContactInList}
         onAfterQuickTagSave={() => void refetch()}
         onPatchContact={(next) =>
-          setDetailContact((prev) =>
+          setDrawerContact((prev) =>
             prev && String(prev.id) === String(next.id) ? { ...prev, ...next } : prev,
           )
         }
         openEditForm={openEdit}
-        lastContactIso={lastTouchAt}
-        showLog={showLogModal}
-        setShowLog={setShowLogModal}
         onCall={handleCall}
         onText={handleText}
         onLog={openQuickLogFromDetail}
         actionError={commActionError}
         activityLogsRefreshKey={activityLogRefreshKey}
+        suppressEscape={showLogModal}
       />
 
       <ContactQuickLogPopup
         open={showLogModal}
-        backdropZIndex={310}
-        panelZIndex={311}
-        title={detailContact ? `Quick log — ${detailContact.fullName || 'Contact'}` : 'Quick log'}
+        backdropZIndex={DRAWER_STACK_QUICK_LOG_BACKDROP_Z}
+        panelZIndex={DRAWER_STACK_QUICK_LOG_MODAL_Z}
+        title={drawerContact ? `Quick log — ${drawerContact.fullName || 'Contact'}` : 'Quick log'}
         selectedType={logType}
         onSelectType={setLogType}
         notes={logText}
