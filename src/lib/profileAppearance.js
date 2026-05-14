@@ -1,8 +1,8 @@
-/** Default matches design token `--color-accent` / DB `profiles.accent_color` default (#185FA5). */
-export const DEFAULT_PROFILE_ACCENT = '#185FA5';
+/** Default matches Theme 3 ink / DB `profiles.accent_color` when unset. */
+export const DEFAULT_PROFILE_ACCENT = '#181208';
 
 export const ACCENT_PRESETS = [
-  { hex: '#185FA5', label: 'Blue' },
+  { hex: '#181208', label: 'Ink' },
   { hex: '#0F6E56', label: 'Green' },
   { hex: '#534AB7', label: 'Purple' },
   { hex: '#854F0B', label: 'Amber' },

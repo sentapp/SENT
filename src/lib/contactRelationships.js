@@ -6,25 +6,25 @@
  * legacy/custom values; the UI shows raw text with a neutral pill when not in this list.
  */
 export const RELATIONSHIP_TAG_OPTIONS = [
-  { value: 'friend', label: 'Friend', accent: '#1D4ED8' },
-  { value: 'family', label: 'Family', accent: '#2563EB' },
-  { value: 'pastor', label: 'Pastor', accent: '#1E40AF' },
-  { value: 'church_leader', label: 'Church leader', accent: '#0369A1' },
-  { value: 'mission_team', label: 'Mission team', accent: '#0E7490' },
-  { value: 'donor', label: 'Donor', accent: '#0284C7' },
-  { value: 'other', label: 'Other', accent: '#475569' },
+  { value: 'friend', label: 'Friend', accent: '#6B5D50' },
+  { value: 'family', label: 'Family', accent: '#181208' },
+  { value: 'pastor', label: 'Pastor', accent: '#6B5D50' },
+  { value: 'church_leader', label: 'Church leader', accent: '#9C8C78' },
+  { value: 'mission_team', label: 'Mission team', accent: '#181208' },
+  { value: 'donor', label: 'Donor', accent: '#6B5D50' },
+  { value: 'other', label: 'Other', accent: '#9C8C78' },
 ];
 
 const VALUE_SET = new Set(RELATIONSHIP_TAG_OPTIONS.map((o) => o.value));
 
-/** Blue-forward tints for relationship row (row 2) vs category greens/purples and status ambers. */
+/** Warm neutrals for relationship row (Theme 3 — no blue). */
 const REL_COLORS = Object.fromEntries(
   RELATIONSHIP_TAG_OPTIONS.map((o) => [
     o.value,
     {
-      bg: '#EFF6FF',
+      bg: '#F2EDE4',
       text: o.accent,
-      border: `${o.accent}55`,
+      border: `${o.accent}44`,
     },
   ]),
 );
@@ -63,5 +63,5 @@ export function getRelationshipTagColors(value) {
     const c = REL_COLORS[id];
     return { bg: c.bg, text: c.text, border: c.border };
   }
-  return { bg: '#F1F5F9', text: '#334155', border: 'rgba(51, 65, 85, 0.28)' };
+  return { bg: '#EAE3D8', text: '#6B5D50', border: 'rgba(107, 93, 80, 0.28)' };
 }

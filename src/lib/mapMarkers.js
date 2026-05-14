@@ -20,7 +20,7 @@ export function createPin(color, size) {
 }
 
 /** Missionary home base */
-export const homeMapIcon = createPin('#185FA5', 16);
+export const homeMapIcon = createPin('#181208', 16);
 
 /** Most recent post location */
 export const mapPinCurrent = createPin('#0F6E56', 14);

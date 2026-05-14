@@ -129,7 +129,7 @@ export function ContactQuickViewPopup({
           <div className="border-b border-mission-line p-4">
             <div className="flex gap-3">
               <div
-                className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-xs font-semibold text-mission-blue"
+                className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-xs font-semibold text-mission-ink"
                 aria-hidden
               >
                 {initialsFromDisplayName(contact.fullName || '')}
@@ -166,7 +166,7 @@ export function ContactQuickViewPopup({
           <div className="space-y-3 px-4 py-3">
             <InfoRow label="Phone">
               {telHref ? (
-                <a href={telHref} className="font-medium text-mission-blue underline">
+                <a href={telHref} className="font-medium text-mission-ink underline">
                   {phoneDisp}
                 </a>
               ) : (
@@ -175,7 +175,7 @@ export function ContactQuickViewPopup({
             </InfoRow>
             <InfoRow label="Email">
               {emailRaw ? (
-                <a href={`mailto:${emailRaw}`} className="break-all font-medium text-mission-blue underline">
+                <a href={`mailto:${emailRaw}`} className="break-all font-medium text-mission-ink underline">
                   {emailRaw}
                 </a>
               ) : (
@@ -198,7 +198,7 @@ export function ContactQuickViewPopup({
           <div className="flex border-t border-mission-line px-2 py-2">
             <button
               type="button"
-              className="min-h-[44px] flex-1 text-center text-sm font-semibold text-mission-blue hover:bg-mission-blue/5"
+              className="min-h-[44px] flex-1 text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
               onClick={onCall}
             >
               Call
@@ -208,7 +208,7 @@ export function ContactQuickViewPopup({
             </span>
             <button
               type="button"
-              className="min-h-[44px] flex-1 text-center text-sm font-semibold text-mission-blue hover:bg-mission-blue/5"
+              className="min-h-[44px] flex-1 text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
               onClick={onText}
             >
               Text
@@ -218,7 +218,7 @@ export function ContactQuickViewPopup({
             </span>
             <button
               type="button"
-              className="min-h-[44px] flex-1 text-center text-sm font-semibold text-mission-blue hover:bg-mission-blue/5"
+              className="min-h-[44px] flex-1 text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
               onClick={onLog}
             >
               Log
@@ -228,7 +228,7 @@ export function ContactQuickViewPopup({
           <div className="border-t border-mission-line p-3">
             <button
               type="button"
-              className="w-full py-2 text-center text-sm font-semibold text-mission-blue hover:underline"
+              className="w-full py-2 text-center text-sm font-semibold text-mission-ink hover:underline"
               onClick={onViewFullProfile}
             >
               Edit full profile →
@@ -317,7 +317,7 @@ export function ContactQuickLogPopup({
                 onClick={() => onSelectType(t)}
                 className={`rounded-btn border px-3 py-1.5 text-sm font-medium ${
                   selectedType === t
-                    ? 'border-mission-blue bg-mission-blue/10 text-mission-blue'
+                    ? 'border-mission-ink bg-[#EAE3D8] text-mission-ink'
                     : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
                 }`}
               >
@@ -344,7 +344,7 @@ export function ContactQuickLogPopup({
             <button
               type="button"
               disabled={saving}
-              className="rounded-btn bg-mission-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="rounded-btn bg-mission-ink px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
               onClick={onSave}
             >
               {saving ? 'Saving…' : 'Save log'}

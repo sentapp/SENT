@@ -17,32 +17,40 @@
 
 @layer base {
   :root {
-    --color-bg: #f7f5f2;
-    --color-surface: #ffffff;
-    --color-border: #e5e2dd;
-    --color-text: #1c1917;
-    --color-muted: #78716c;
-    --color-accent: #185fa5;
+    /* Theme 3 — Paper and Ink meets Vogue */
+    --sent-bg: #f9f7f2;
+    --sent-surface: #ffffff;
+    --sent-ink: #181208;
+    --sent-stone: #9c8c78;
+    --sent-border: #e2dad0;
+    --sent-brown: #6b5d50;
+    --sent-card: #ffffff;
+    --sent-nav-bg: #f2ede4;
+    --sent-on-ink: #f9f7f2;
+
+    --color-bg: var(--sent-bg);
+    --color-surface: var(--sent-surface);
+    --color-border: var(--sent-border);
+    --color-text: var(--sent-ink);
+    --color-muted: var(--sent-stone);
+    --color-accent: var(--sent-ink);
     --color-warm: #c2410c;
     --color-success: #15803d;
-    --sent-nav-active: #1c1917;
-    --sent-nav-inactive: #a8a29e;
-    /* legacy token aliases */
-    --sent-bg: var(--color-bg);
-    --sent-card: var(--color-surface);
-    --sent-line: var(--color-border);
-    --sent-primary: var(--color-text);
-    --sent-muted: var(--color-muted);
+    --sent-nav-active: var(--sent-ink);
+    --sent-nav-inactive: var(--sent-stone);
+    --sent-primary: var(--sent-ink);
+    --sent-muted: var(--sent-stone);
     --sent-success: var(--color-success);
-    --sent-danger: #dc2626;
+    --sent-danger: #181208;
+    --sent-line: var(--sent-border);
   }
 
   html,
   body,
   #root {
     @apply h-full min-h-0 antialiased font-sans transition-colors duration-200 ease-out;
-    background-color: #f7f5f2 !important;
-    color: #1c1917;
+    background-color: #f9f7f2 !important;
+    color: #181208;
   }
 }
 
@@ -73,10 +81,10 @@
   padding: 10px 12px 0 0;
   font-size: 20px;
   font-weight: 600;
-  color: #737373;
+  color: var(--sent-stone);
 }
 .leaflet-container a.leaflet-popup-close-button:hover {
-  color: #171717;
+  color: var(--sent-ink);
 }
 
 /* L.divIcon — hide Leaflet default marker box */
@@ -86,21 +94,61 @@
 }
 
 @layer components {
+  .sent-logo {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 32px;
+    line-height: 1.1;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--sent-ink);
+  }
+
+  .sent-metric {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 28px;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--sent-ink);
+  }
+
+  .sent-section-label {
+    font-size: 9px;
+    line-height: 1.35;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sent-stone);
+  }
+
+  .sent-nav-label {
+    font-size: 8px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .sent-body {
+    font-size: 13px;
+    line-height: 1.5;
+    font-weight: 400;
+    color: var(--sent-ink);
+  }
+
+  .sent-secondary {
+    font-size: 11px;
+    line-height: 1.45;
+    font-weight: 400;
+    color: var(--sent-stone);
+  }
+
   .sent-page-title {
     font-size: 20px;
     line-height: 1.25;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--color-text);
-  }
-
-  .sent-section-label {
-    font-size: 11px;
-    line-height: 1.35;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-muted);
+    color: var(--sent-ink);
   }
 
   .sent-section-title {
@@ -108,7 +156,7 @@
     line-height: 1.35;
     font-weight: 600;
     letter-spacing: -0.015em;
-    color: var(--color-text);
+    color: var(--sent-ink);
   }
 
   .sent-card-title {
@@ -116,29 +164,14 @@
     line-height: 1.35;
     font-weight: 500;
     letter-spacing: -0.01em;
-    color: var(--color-text);
-  }
-
-  .sent-body {
-    font-size: 14px;
-    line-height: 1.5;
-    font-weight: 400;
-    color: var(--color-text);
+    color: var(--sent-ink);
   }
 
   .sent-caption {
     font-size: 13px;
     line-height: 1.45;
     font-weight: 400;
-    color: var(--color-muted);
-  }
-
-  .sent-metric {
-    font-size: 28px;
-    line-height: 1.15;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--color-text);
+    color: var(--sent-stone);
   }
 }
 
@@ -156,7 +189,7 @@
   }
   .profile-accent-btn-primary {
     background-color: var(--profile-accent, var(--color-accent)) !important;
-    color: #fff !important;
+    color: var(--sent-on-ink) !important;
     border-color: transparent !important;
   }
   .profile-accent-btn-primary:hover {

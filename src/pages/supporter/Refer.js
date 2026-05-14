@@ -46,7 +46,7 @@ export default function SupporterRefer() {
   return (
     <div className="space-y-6">
       <header className="space-y-1 text-center md:text-left">
-        <p className="text-sm font-medium text-mission-blue">Refer</p>
+        <p className="text-sm font-medium text-mission-ink">Refer</p>
         <h1 className="text-2xl font-semibold tracking-tight">Invite a friend</h1>
         <p className="text-sm text-neutral-600">Share SENT with someone who might walk alongside a missionary.</p>
       </header>

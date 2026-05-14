@@ -22,11 +22,11 @@ export const CONTACT_STATUS_FORM_OPTIONS = [
 
 /** WHERE row popover — same values as {@link CONTACT_STATUS_FORM_OPTIONS}, with accent stripes. */
 export const QUICK_STATUS_EDIT_OPTIONS = [
-  { value: 'prospect', label: 'Not contacted', accent: '#78716C' },
-  { value: 'contacted', label: 'In conversation', accent: '#185FA5' },
-  { value: 'meeting_scheduled', label: 'Meeting set', accent: '#0F6E56' },
-  { value: 'committed', label: 'Committed', accent: '#7C3AED' },
-  { value: 'partner', label: 'Partner', accent: '#185FA5' },
+  { value: 'prospect', label: 'Not contacted', accent: '#9C8C78' },
+  { value: 'contacted', label: 'In conversation', accent: '#6B5D50' },
+  { value: 'meeting_scheduled', label: 'Meeting set', accent: '#181208' },
+  { value: 'committed', label: 'Committed', accent: '#6B5D50' },
+  { value: 'partner', label: 'Partner', accent: '#181208' },
   { value: 'declined', label: 'Not interested', accent: '#A32D2D' },
 ];
 
@@ -35,13 +35,19 @@ const LABEL_BY_VALUE = CONTACT_STATUS_FORM_OPTIONS.reduce((acc, { value, label }
   return acc;
 }, {});
 
-/** Pill colors for WHERE (status) tags on contact rows — aligns with pipeline strip palette. */
+const STONE = '#9C8C78';
+const BROWN = '#6B5D50';
+const INK = '#181208';
+const TAN_BG = '#EAE3D8';
+const TAN_DEEP = '#D4C9BA';
+
+/** Pill colors for WHERE (status) tags — tan / stone palette (Theme 3). */
 export const STATUS_TAG_COLORS = {
-  prospect: { bg: '#F4F4F5', text: '#52525B', border: 'rgba(82, 82, 91, 0.25)' },
-  contacted: { bg: '#E8F4FC', text: '#185FA5', border: 'rgba(24, 95, 165, 0.35)' },
-  meeting_scheduled: { bg: '#ECFDF5', text: '#0F6E56', border: 'rgba(15, 110, 86, 0.3)' },
-  committed: { bg: '#F5F3FF', text: '#7C3AED', border: 'rgba(124, 58, 237, 0.3)' },
-  partner: { bg: '#E8F4FC', text: '#185FA5', border: 'rgba(24, 95, 165, 0.35)' },
+  prospect: { bg: '#F2EDE4', text: STONE, border: 'rgba(156, 140, 120, 0.35)' },
+  contacted: { bg: TAN_BG, text: BROWN, border: 'rgba(107, 93, 80, 0.35)' },
+  meeting_scheduled: { bg: TAN_DEEP, text: INK, border: 'rgba(24, 18, 8, 0.22)' },
+  committed: { bg: TAN_BG, text: BROWN, border: 'rgba(107, 93, 80, 0.35)' },
+  partner: { bg: TAN_DEEP, text: INK, border: 'rgba(24, 18, 8, 0.25)' },
   declined: { bg: '#FEF2F2', text: '#A32D2D', border: 'rgba(163, 45, 45, 0.25)' },
 };
 

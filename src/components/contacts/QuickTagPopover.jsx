@@ -6,21 +6,21 @@ import { QUICK_STATUS_EDIT_OPTIONS, STATUS_TAG_COLORS, normalizeStatusFromDb, st
 
 const PANEL_STYLE = {
   backgroundColor: '#ffffff',
-  border: '1px solid #E5E2DD',
-  borderRadius: 10,
-  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
+  border: '0.5px solid #E2DAD0',
+  borderRadius: 8,
+  boxShadow: '0 2px 12px rgba(24, 18, 8, 0.06)',
   zIndex: 260,
   padding: 6,
   minWidth: 150,
 };
 
 export const QUICK_CATEGORY_EDIT_OPTIONS = [
-  { value: 'supporter', label: 'Partner', accent: '#0F6E56' },
-  { value: 'church', label: 'Church / Org', accent: '#7C3AED' },
-  { value: 'former', label: 'Previous Partner', accent: '#A32D2D' },
-  { value: 'connector', label: 'Connector', accent: '#C2410C' },
-  { value: 'individual', label: 'Individual', accent: '#0369A1' },
-  { value: 'none', label: 'None', accent: '#78716C' },
+  { value: 'supporter', label: 'Partner', accent: '#181208' },
+  { value: 'church', label: 'Church / Org', accent: '#6B5D50' },
+  { value: 'former', label: 'Previous Partner', accent: '#6B5D50' },
+  { value: 'connector', label: 'Connector', accent: '#6B5D50' },
+  { value: 'individual', label: 'Individual', accent: '#6B5D50' },
+  { value: 'none', label: 'None', accent: '#9C8C78' },
 ];
 
 export const QUICK_RELATIONSHIP_EDIT_OPTIONS = [
@@ -77,7 +77,7 @@ export function QuickTagPopover({ open, onClose, items, onPick, children }) {
                 key={item.value}
                 type="button"
                 role="menuitem"
-                className="w-full rounded-md px-2 py-1.5 text-left text-sm font-medium text-ink transition hover:bg-neutral-50"
+                className="w-full rounded-md px-2 py-1.5 text-left text-sm font-medium text-ink transition hover:bg-[#F2EDE4]"
                 style={
                   item.accent
                     ? { borderLeft: `3px solid ${item.accent}`, marginLeft: 0, paddingLeft: 9 }
@@ -99,14 +99,14 @@ export function QuickTagPopover({ open, onClose, items, onPick, children }) {
 }
 
 const PILL_DEFAULT =
-  'inline-flex max-w-full cursor-pointer items-center truncate rounded-full border px-2.5 py-0.5 text-left text-[11px] font-semibold transition';
+  'inline-flex max-w-full cursor-pointer items-center truncate rounded-[2px] border px-2.5 py-0.5 text-left text-[9px] font-semibold uppercase tracking-[0.05em] transition';
 const PILL_COMPACT =
-  'inline-flex max-w-full cursor-pointer items-center truncate rounded-full border px-2 py-0.5 text-left text-[9px] font-semibold leading-tight transition';
+  'inline-flex max-w-full cursor-pointer items-center truncate rounded-[2px] border px-2 py-0.5 text-left text-[9px] font-semibold uppercase tracking-[0.05em] leading-tight transition';
 
 const PH_DEFAULT =
-  'inline-flex min-h-[28px] cursor-pointer items-center rounded-full border border-dashed border-neutral-200 bg-transparent px-2.5 py-0.5 text-[11px] font-medium text-neutral-400';
+  'inline-flex min-h-[28px] cursor-pointer items-center rounded-[2px] border border-dashed border-[#E2DAD0] bg-transparent px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em] text-[#9C8C78]';
 const PH_COMPACT =
-  'inline-flex min-h-[24px] cursor-pointer items-center rounded-full border border-dashed border-neutral-200 bg-transparent px-2 py-0.5 text-[9px] font-medium text-neutral-400';
+  'inline-flex min-h-[24px] cursor-pointer items-center rounded-[2px] border border-dashed border-[#E2DAD0] bg-transparent px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em] text-[#9C8C78]';
 
 /**
  * Three stacked rows: WHO (category), RELATIONSHIP, WHERE (status). Placeholders always visible when unset.

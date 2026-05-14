@@ -39,13 +39,19 @@ export const CATEGORY_LABELS = {
   individual: 'Individual',
 };
 
-/** Tailwind-friendly pill styles — uncategorized contacts have no entry on purpose. */
+const INK = '#181208';
+const ON_INK = '#F9F7F2';
+const TAN_BG = '#EAE3D8';
+const TAN_TEXT = '#6B5D50';
+const TAN_BORDER = 'rgba(107, 93, 80, 0.35)';
+
+/** Pill styles — Partner = ink on cream; other categories = tan field + brown text (Theme 3). */
 export const CATEGORY_TAG_COLORS = {
-  supporter: { bg: '#ECFDF5', text: '#0F6E56', border: 'rgba(15, 110, 86, 0.3)' },
-  church: { bg: '#F5F3FF', text: '#7C3AED', border: 'rgba(124, 58, 237, 0.3)' },
-  former: { bg: '#FEF2F2', text: '#A32D2D', border: 'rgba(163, 45, 45, 0.25)' },
-  connector: { bg: '#FFF7ED', text: '#C2410C', border: 'rgba(194, 65, 12, 0.35)' },
-  individual: { bg: '#F0F9FF', text: '#0369A1', border: 'rgba(3, 105, 161, 0.3)' },
+  supporter: { bg: INK, text: ON_INK, border: 'rgba(24, 18, 8, 0.35)' },
+  church: { bg: TAN_BG, text: TAN_TEXT, border: TAN_BORDER },
+  former: { bg: TAN_BG, text: TAN_TEXT, border: TAN_BORDER },
+  connector: { bg: TAN_BG, text: TAN_TEXT, border: TAN_BORDER },
+  individual: { bg: TAN_BG, text: TAN_TEXT, border: TAN_BORDER },
 };
 
 const ALLOWED = new Set(CONTACT_CATEGORY_VALUES);

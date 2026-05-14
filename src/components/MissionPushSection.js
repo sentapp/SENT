@@ -245,7 +245,7 @@ export default function MissionPushSection({ missionaryId }) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-ink">Mission push</p>
-              <p className="mt-1 text-xs text-neutral-500">Fundraising goal supporters see on their feed.</p>
+              <p className="mt-1 text-xs text-muted">Fundraising goal supporters see on their feed.</p>
             </div>
             <Button type="button" variant="secondary" onClick={openCreate}>
               Start new push
@@ -257,26 +257,26 @@ export default function MissionPushSection({ missionaryId }) {
               <div>
                 <p className="text-lg font-semibold text-ink">{active.title}</p>
                 {active.description ? (
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{active.description}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-ink/90">{active.description}</p>
                 ) : null}
               </div>
               <div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-neutral-600">
+                  <span className="text-muted">
                     ${Number(active.raised_amount || 0).toLocaleString()} raised of $
                     {Number(active.goal_amount || 0).toLocaleString()}
                   </span>
-                  <span className="font-semibold text-mission-blue">{pct}%</span>
+                  <span className="font-semibold text-mission-ink">{pct}%</span>
                 </div>
-                <div className="mt-2 h-3 w-full rounded-full bg-neutral-200">
-                  <div className="h-3 rounded-full bg-mission-blue" style={{ width: `${pct}%` }} />
+                <div className="mt-2 h-[2px] w-full rounded-none bg-[#E2DAD0]">
+                  <div className="h-[2px] rounded-none bg-[#181208]" style={{ width: `${pct}%` }} />
                 </div>
               </div>
-              {daysLine ? <p className="text-sm font-medium text-neutral-700">{daysLine}</p> : null}
+              {daysLine ? <p className="text-sm font-medium text-ink/90">{daysLine}</p> : null}
               {active.deadline ? (
-                <p className="text-xs text-neutral-500">Deadline: {new Date(`${active.deadline}T12:00:00`).toLocaleDateString()}</p>
+                <p className="text-xs text-muted">Deadline: {new Date(`${active.deadline}T12:00:00`).toLocaleDateString()}</p>
               ) : null}
-              <div className="flex flex-wrap items-end gap-2 border-t border-neutral-100 pt-4">
+              <div className="flex flex-wrap items-end gap-2 border-t border-mission-line pt-4">
                 <Label title="Update amount raised ($)">
                   <Input
                     inputMode="decimal"
@@ -296,7 +296,7 @@ export default function MissionPushSection({ missionaryId }) {
               </div>
             </div>
           ) : (
-            <p className="mt-4 text-sm text-neutral-500">Loading…</p>
+            <p className="mt-4 text-sm text-muted">Loading…</p>
           )}
         </Card>
       ) : null}
@@ -305,7 +305,7 @@ export default function MissionPushSection({ missionaryId }) {
         <Card className="p-5">
           <div className="mb-4">
             <p className="text-sm font-semibold text-ink">Mission push</p>
-            <p className="mt-1 text-xs text-neutral-500">Fundraising goal supporters see on their feed.</p>
+            <p className="mt-1 text-xs text-muted">Fundraising goal supporters see on their feed.</p>
           </div>
           {loading ? (
             <p className="text-sm text-neutral-500">Loading…</p>

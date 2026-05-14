@@ -115,7 +115,7 @@ export function ImportPreviewPanel({
                   <td className="px-3 py-2">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-[#185FA5]"
+                      className="h-4 w-4 accent-[#181208]"
                       checked={d.selected}
                       onChange={() => onToggleRow(d.id)}
                       aria-label={`Select ${d.full_name}`}

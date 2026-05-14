@@ -21,7 +21,7 @@ function Progress({ step }) {
         <span
           key={n}
           className={`h-2 w-10 rounded-full transition-colors ${
-            n <= step ? 'bg-mission-blue' : 'bg-neutral-200'
+            n <= step ? 'bg-mission-ink' : 'bg-neutral-200'
           }`}
         />
       ))}
@@ -36,7 +36,7 @@ function RoleCard({ title, subtitle, selected, onSelect }) {
       onClick={onSelect}
       className={`flex w-full flex-col items-start rounded-card border px-5 py-4 text-left shadow-sm transition ${
         selected
-          ? 'border-mission-blue ring-2 ring-mission-blue/25'
+          ? 'border-mission-ink ring-2 ring-mission-ink/25'
           : 'border-neutral-200 hover:border-neutral-300'
       }`}
     >
@@ -291,9 +291,9 @@ function SignUp() {
         </header>
 
         {alreadyRegistered ? (
-          <div className="mb-4 rounded-btn border border-mission-blue/25 bg-mission-blue/5 px-4 py-4 text-center text-sm text-neutral-800">
+          <div className="mb-4 rounded-btn border border-mission-ink/25 bg-mission-ink/5 px-4 py-4 text-center text-sm text-neutral-800">
             <p className="font-medium">This email is already registered. Try signing in instead.</p>
-            <Link className="mt-3 inline-block font-semibold text-mission-blue underline-offset-2 hover:underline" to="/signin">
+            <Link className="mt-3 inline-block font-semibold text-mission-ink underline-offset-2 hover:underline" to="/signin">
               Sign in
             </Link>
           </div>
@@ -340,7 +340,7 @@ function SignUp() {
               </button>
               <p className="mt-6 text-center text-sm text-neutral-600">
                 Already have an account?{' '}
-                <Link className="font-medium text-mission-blue underline-offset-2 hover:underline" to="/signin">
+                <Link className="font-medium text-mission-ink underline-offset-2 hover:underline" to="/signin">
                   Sign in
                 </Link>
               </p>

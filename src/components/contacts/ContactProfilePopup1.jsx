@@ -22,7 +22,7 @@ function cleanDisplayNotesBody(rawNotes) {
 }
 
 const COMM_TYPE_META = {
-  call: { label: 'Call', badge: 'bg-blue-100 text-blue-900 ring-1 ring-blue-200/80' },
+  call: { label: 'Call', badge: 'bg-[#EAE3D8] text-[#6B5D50] ring-1 ring-[#E2DAD0]/90' },
   text: { label: 'Text', badge: 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80' },
   meeting: { label: 'Meeting', badge: 'bg-purple-100 text-purple-900 ring-1 ring-purple-200/80' },
   note: { label: 'Note', badge: 'bg-neutral-100 text-neutral-800 ring-1 ring-neutral-200/80' },
@@ -115,7 +115,7 @@ function InfoRow({ label, value, href, valueClassName = 'text-sm font-medium tex
   const body =
     children ??
     (href && text ? (
-      <a href={href} className={`mt-0.5 inline-block ${valueClassName} text-mission-blue underline`}>
+      <a href={href} className={`mt-0.5 inline-block ${valueClassName} text-mission-ink underline`}>
         {text}
       </a>
     ) : (
@@ -133,7 +133,7 @@ const SECTION_STRIP =
   'rounded-md bg-[#F4F2EE] px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-600';
 
 const BTN_BORDERED =
-  'flex min-h-[44px] items-center justify-center border border-[#E5E2DD] bg-white text-sm font-semibold text-mission-blue hover:bg-mission-blue/5';
+  'flex min-h-[44px] items-center justify-center border border-[#E5E2DD] bg-white text-sm font-semibold text-mission-ink hover:bg-mission-ink/5';
 
 /**
  * Full profile-style popup for the Contacts page (Layout A).
@@ -391,7 +391,7 @@ export function ContactProfilePopup1({
         <div className="border-b border-[#E5E2DD] p-4">
           <div className="flex gap-3">
             <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-sm font-semibold text-mission-blue"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-sm font-semibold text-mission-ink"
               aria-hidden
             >
               {initialsFromDisplayName(contact.fullName || '')}
@@ -468,7 +468,7 @@ export function ContactProfilePopup1({
             <div className={`${SECTION_STRIP} flex-1 min-w-[8rem]`}>Tasks</div>
             <button
               type="button"
-              className="shrink-0 rounded-md border border-[#E5E2DD] bg-white px-3 py-1.5 text-xs font-semibold text-mission-blue hover:bg-mission-blue/5"
+              className="shrink-0 rounded-md border border-[#E5E2DD] bg-white px-3 py-1.5 text-xs font-semibold text-mission-ink hover:bg-mission-ink/5"
               onClick={() => {
                 resetTaskModal();
                 setTaskModalOpen(true);
@@ -541,7 +541,7 @@ export function ContactProfilePopup1({
                               <button
                                 type="button"
                                 disabled={activityMutating}
-                                className="rounded-md bg-mission-blue px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                                className="rounded-md bg-mission-ink px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                                 onClick={() => void saveEditLog()}
                               >
                                 Save
@@ -587,7 +587,7 @@ export function ContactProfilePopup1({
           </button>
           <button
             type="button"
-            className="flex min-h-[44px] items-center justify-center bg-mission-blue text-sm font-semibold text-white hover:opacity-90"
+            className="flex min-h-[44px] items-center justify-center bg-mission-ink text-sm font-semibold text-white hover:opacity-90"
             onClick={onLog}
           >
             Log

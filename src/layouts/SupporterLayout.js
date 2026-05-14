@@ -70,7 +70,7 @@ function IconProfile({ className }) {
 function BottomNav() {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-mission-line bg-surface pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t-[0.5px] border-t-[#E2DAD0] bg-[#F2EDE4] pb-[env(safe-area-inset-bottom)]"
       aria-label="Supporter navigation"
     >
       <ul className="mx-auto grid h-14 max-w-6xl grid-cols-5 items-stretch px-1">
@@ -83,13 +83,13 @@ function BottomNav() {
                 end={t.to === '/supporter'}
                 aria-label={t.ariaLabel}
                 className={({ isActive }) =>
-                  `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-tight transition-colors duration-200 active:bg-[color:var(--color-bg)] ${
+                  `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 transition-colors duration-200 active:bg-[color:var(--color-bg)] ${
                     isActive ? 'text-[color:var(--sent-nav-active)]' : 'text-[color:var(--sent-nav-inactive)]'
                   }`
                 }
               >
                 <Icon className="h-[20px] w-[20px] shrink-0" />
-                <span className="max-w-full truncate text-center">{t.label}</span>
+                <span className="sent-nav-label max-w-full truncate text-center">{t.label}</span>
               </NavLink>
             </li>
           );

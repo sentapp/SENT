@@ -26,7 +26,7 @@ function MetricCard({ label, value, onActivate, ariaLabel, tint, Icon }) {
           onActivate?.();
         }
       }}
-      className={`relative cursor-pointer overflow-hidden transition-colors duration-200 ease-out hover:bg-mission-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 ${tint}`}
+      className={`relative cursor-pointer overflow-hidden transition-colors duration-200 ease-out hover:bg-mission-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-ink/20 ${tint}`}
     >
       <div className="pointer-events-none absolute right-4 top-4 opacity-95 [&>svg]:h-6 [&>svg]:w-6">{Icon}</div>
       <p className="sent-section-label relative max-w-[70%]">{label}</p>
@@ -327,8 +327,8 @@ export default function MissionaryOverview() {
           value={`${partners.length}`}
           ariaLabel="Partners — open partners list"
           onActivate={() => navigate('/missionary/partners')}
-          tint="bg-mission-blue/[0.07]"
-          Icon={<span className="text-mission-blue">{metricIconPeople}</span>}
+          tint="bg-mission-ink/[0.06]"
+          Icon={<span className="text-mission-ink">{metricIconPeople}</span>}
         />
         <MetricCard
           label="Gap to Goal"
@@ -352,14 +352,14 @@ export default function MissionaryOverview() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold">Funding progress</p>
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="mt-1 text-xs text-muted">
               {goal > 0 ? `$${monthlySupport.toFixed(0)} of $${goal.toFixed(0)}` : 'Set your monthly goal in Settings'}
             </p>
           </div>
-          <p className="text-sm font-semibold text-mission-blue">{pct}%</p>
+          <p className="text-sm font-semibold text-mission-ink">{pct}%</p>
         </div>
-        <div className="mt-4 h-3 w-full rounded-full bg-neutral-200">
-          <div className="h-3 rounded-full bg-mission-blue" style={{ width: `${pct}%` }} />
+        <div className="mt-4 h-[2px] w-full rounded-none bg-[#E2DAD0]">
+          <div className="h-[2px] rounded-none bg-[#181208]" style={{ width: `${pct}%` }} />
         </div>
       </Card>
 
@@ -367,7 +367,7 @@ export default function MissionaryOverview() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-semibold">Tasks</p>
-            <p className="mt-1 text-xs text-neutral-500">Due dates, contacts, and one-tap completion.</p>
+            <p className="mt-1 text-xs text-muted">Due dates, contacts, and one-tap completion.</p>
           </div>
           <Button type="button" variant="accent" onClick={() => setAddTaskOpen(true)}>
             + Add task
@@ -375,7 +375,7 @@ export default function MissionaryOverview() {
         </div>
 
         {tasksLoading ? (
-          <p className="mt-4 text-sm text-neutral-500">Loading tasks…</p>
+          <p className="mt-4 text-sm text-muted">Loading tasks…</p>
         ) : incompleteTasks.length === 0 ? (
           <div className="mt-5">
             <EmptyState
@@ -393,7 +393,7 @@ export default function MissionaryOverview() {
           <div className="mt-5 space-y-5">
             {overdueTasks.length > 0 || dueTodayTasks.length > 0 ? (
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Due today & overdue</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Due today & overdue</p>
                 <ul className="mt-2 space-y-2">
                   {overdueTasks.map((t) => (
                     <li
@@ -404,7 +404,7 @@ export default function MissionaryOverview() {
                         type="checkbox"
                         checked={false}
                         onChange={() => void toggleTaskComplete(t)}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--color-accent)]"
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-[#181208]"
                         aria-label={`Complete ${t.title}`}
                       />
                       <div className="min-w-0 flex-1">
@@ -425,7 +425,7 @@ export default function MissionaryOverview() {
                         type="checkbox"
                         checked={false}
                         onChange={() => void toggleTaskComplete(t)}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--color-accent)]"
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-[#181208]"
                         aria-label={`Complete ${t.title}`}
                       />
                       <div className="min-w-0 flex-1">
@@ -451,7 +451,7 @@ export default function MissionaryOverview() {
                         type="checkbox"
                         checked={false}
                         onChange={() => void toggleTaskComplete(t)}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--color-accent)]"
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-[#181208]"
                         aria-label={`Complete ${t.title}`}
                       />
                       <div className="min-w-0 flex-1">
@@ -526,7 +526,7 @@ export default function MissionaryOverview() {
               <span className="font-medium text-ink">{contactNameById.get(addTaskContactId) || 'Contact'}</span>{' '}
               <button
                 type="button"
-                className="font-semibold text-mission-blue hover:underline"
+                className="font-semibold text-mission-ink hover:underline"
                 onClick={() => setAddTaskContactId('')}
               >
                 Clear
@@ -569,7 +569,7 @@ export default function MissionaryOverview() {
       <Modal open={oneTimeModalOpen} title="One-time gifts" onClose={() => setOneTimeModalOpen(false)}>
         <p className="text-base font-semibold text-ink">
           Total one-time gifts:{' '}
-          <span className="text-mission-blue">${oneTimeModalTotal.toFixed(2)}</span>
+          <span className="text-mission-ink">${oneTimeModalTotal.toFixed(2)}</span>
         </p>
         {oneTimeModalLoading ? (
           <p className="mt-4 text-sm text-neutral-500">Loading…</p>

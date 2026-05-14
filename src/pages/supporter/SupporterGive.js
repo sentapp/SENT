@@ -3,7 +3,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPublicProfile } from '../../hooks/useMissionaryPublicProfile';
 import { fetchActiveMissionPushForMissionary } from '../../lib/missionPushesRepository';
 import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
-import { initialsFromDisplayName, normalizeProfileAccent } from '../../lib/profileAppearance';
+import { DEFAULT_PROFILE_ACCENT, initialsFromDisplayName, normalizeProfileAccent } from '../../lib/profileAppearance';
 import { Card, EmptyState } from '../../components/ui';
 
 function normalizeUrl(url) {
@@ -71,7 +71,7 @@ export default function SupporterGive() {
     return (
       <div className="space-y-6">
         <header className="space-y-1 text-center sm:text-left">
-          <p className="text-sm font-medium text-mission-blue">Give</p>
+          <p className="text-sm font-medium text-mission-ink">Give</p>
           <h1 className="text-2xl font-semibold tracking-tight">Support the mission</h1>
         </header>
         <EmptyState
@@ -86,7 +86,7 @@ export default function SupporterGive() {
   const name = missionary?.full_name?.trim() || 'Missionary';
   const photoUrl = missionary?.photo_url || '';
   const location = missionary?.location_name?.trim() || 'the field';
-  const feedAccent = missionaryId ? normalizeProfileAccent(missionary?.accent_color) : '#185FA5';
+  const feedAccent = missionaryId ? normalizeProfileAccent(missionary?.accent_color) : DEFAULT_PROFILE_ACCENT;
   const avatarInitials = initialsFromDisplayName(name);
 
   const taxUrl = normalizeUrl(missionary?.tax_deductible_url || givingFromRpc?.tax_deductible_url || '');
@@ -108,7 +108,7 @@ export default function SupporterGive() {
 
       <Card className="overflow-hidden border border-neutral-200/80 bg-gradient-to-b from-white to-neutral-50/80 p-6 shadow-sm">
         <div className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:gap-5 sm:text-left">
-          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-md ring-2 ring-[color:color-mix(in_srgb,var(--feed-accent,#185FA5)_18%,transparent)]">
+          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-md ring-2 ring-[color:color-mix(in_srgb,var(--feed-accent,#181208)_18%,transparent)]">
             {photoUrl ? (
               <img src={photoUrl} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -149,7 +149,7 @@ export default function SupporterGive() {
               href={nonTaxUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex flex-1 items-center justify-center rounded-btn border-2 border-[color:var(--feed-accent,#185FA5)] bg-white px-5 py-3.5 text-center text-[17px] font-semibold text-[color:var(--feed-accent,#185FA5)] shadow-sm transition hover:bg-[color:color-mix(in_srgb,var(--feed-accent,#185FA5)_8%,white)] sm:max-w-xs sm:flex-none sm:min-w-[200px]"
+              className="inline-flex flex-1 items-center justify-center rounded-btn border-2 border-[color:var(--feed-accent,#181208)] bg-white px-5 py-3.5 text-center text-[17px] font-semibold text-[color:var(--feed-accent,#181208)] shadow-sm transition hover:bg-[color:color-mix(in_srgb,var(--feed-accent,#181208)_8%,white)] sm:max-w-xs sm:flex-none sm:min-w-[200px]"
             >
               One-time gift
             </a>
@@ -176,8 +176,8 @@ export default function SupporterGive() {
               </span>
               <span className="feed-accent-text">{pushPct}%</span>
             </div>
-            <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-neutral-200">
-              <div className="feed-accent-bg h-3 rounded-full transition-all" style={{ width: `${pushPct}%` }} />
+            <div className="mt-2 h-[2px] w-full overflow-hidden rounded-none bg-[#E2DAD0]">
+              <div className="h-[2px] rounded-none bg-[#181208] transition-all" style={{ width: `${pushPct}%` }} />
             </div>
           </div>
           {daysLeft != null ? (

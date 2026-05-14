@@ -72,7 +72,7 @@ export default function ContactEditFormLayout({
       ) : null}
       <div className="flex gap-3 border-b border-mission-line pb-4">
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#185FA5] text-[15px] font-medium leading-none text-white"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-[15px] font-medium leading-none text-[#181208]"
           aria-hidden
         >
           {initials}
@@ -107,7 +107,7 @@ export default function ContactEditFormLayout({
                 A contact with this phone number already exists — {phoneDupWarn.fullName || 'Unnamed'}{' '}
                 <button
                   type="button"
-                  className="font-semibold text-mission-blue underline"
+                  className="font-semibold text-mission-ink underline"
                   onClick={() => scrollToContact(phoneDupWarn.id)}
                 >
                   View contact
@@ -128,7 +128,7 @@ export default function ContactEditFormLayout({
                 A contact with this email already exists — {emailDupWarn.fullName || 'Unnamed'}{' '}
                 <button
                   type="button"
-                  className="font-semibold text-mission-blue underline"
+                  className="font-semibold text-mission-ink underline"
                   onClick={() => scrollToContact(emailDupWarn.id)}
                 >
                   View contact
@@ -188,7 +188,7 @@ export default function ContactEditFormLayout({
         <label className="flex cursor-pointer items-center gap-3 rounded-btn border border-neutral-200 bg-white px-3 py-2">
           <input
             type="checkbox"
-            className="h-5 w-5 shrink-0 accent-[#185FA5]"
+            className="h-5 w-5 shrink-0 accent-[#181208]"
             checked={form.isOneTimeDonor}
             onChange={(e) =>
               setForm((f) => ({

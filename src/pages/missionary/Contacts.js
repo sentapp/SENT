@@ -50,7 +50,7 @@ function isPipelineStripContact(c) {
   return PIPELINE_STRIP_SET.has(st) && normalizeCategory(c.category) !== 'supporter';
 }
 const STRIP_DOT = {
-  contacted: '#185FA5',
+  contacted: '#181208',
   meeting_scheduled: '#0F6E56',
   committed: '#7C3AED',
 };
@@ -162,13 +162,13 @@ function ImportBlockingOverlay({ open, progress, onCancel }) {
               ) : null}
             </div>
             <div className="w-full space-y-2">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200">
+              <div className="h-[2px] w-full overflow-hidden rounded-none bg-[#E2DAD0]">
                 <div
-                  className="h-full rounded-full bg-mission-blue transition-[width] duration-200"
+                  className="h-full rounded-none bg-[#181208] transition-[width] duration-200"
                   style={{ width: `${pct}%` }}
                 />
               </div>
-              {progress?.note ? <p className="text-xs text-neutral-500">{progress.note}</p> : null}
+              {progress?.note ? <p className="text-xs text-muted">{progress.note}</p> : null}
             </div>
             <Button type="button" variant="secondary" className="mt-1 w-full text-sm" onClick={onCancel}>
               Cancel
@@ -1209,7 +1209,7 @@ export default function MissionaryContacts() {
       ) : null}
 
       {oneTimeDonorFilter ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-btn border border-mission-blue/20 bg-mission-blue/5 px-4 py-3 text-sm text-neutral-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-btn border border-mission-ink/20 bg-mission-ink/5 px-4 py-3 text-sm text-neutral-800">
           <p>
             <span className="font-semibold">One-time donors</span> — showing contacts marked as one-time givers.
           </p>
@@ -1254,7 +1254,7 @@ export default function MissionaryContacts() {
                 onClick={() => setActiveFilter(t.value)}
                 className={`min-h-[44px] rounded-md px-1 py-2 text-center text-xs font-semibold leading-tight transition sm:px-2 sm:text-sm ${
                   active
-                    ? 'border-b-2 border-[#185FA5] bg-white text-[#185FA5] shadow-sm'
+                    ? 'border-b-2 border-[#181208] bg-white text-[#181208] shadow-sm'
                     : 'border-b-2 border-transparent text-neutral-600 hover:bg-white/70'
                 }`}
               >
@@ -1341,7 +1341,7 @@ export default function MissionaryContacts() {
                           type="checkbox"
                           checked={selectedIds.has(c.id)}
                           onChange={() => toggleContactSelected(c.id)}
-                          className="h-6 w-6 min-h-[24px] min-w-[24px] shrink-0 cursor-pointer rounded border-neutral-300 accent-mission-blue"
+                          className="h-6 w-6 min-h-[24px] min-w-[24px] shrink-0 cursor-pointer rounded border-neutral-300 accent-mission-ink"
                           aria-label={`Select ${c.fullName || 'contact'}`}
                         />
                       </label>
@@ -1367,7 +1367,7 @@ export default function MissionaryContacts() {
                     {c.email ? <p className="text-sm text-neutral-700">{c.email}</p> : null}
                     {c.address ? <p className="text-sm text-neutral-700">{c.address}</p> : null}
                     {c.isOneTimeDonor ? (
-                      <p className="text-sm font-medium text-mission-blue">
+                      <p className="text-sm font-medium text-mission-ink">
                         One-time gift
                         {Number(c.oneTimeDonationAmount) > 0
                           ? `: $${Number(c.oneTimeDonationAmount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
@@ -1576,7 +1576,7 @@ export default function MissionaryContacts() {
                   setImportMsg('');
                 }}
                 className={`rounded-btn border px-3 py-3 text-left text-sm font-semibold capitalize ${
-                  importTab === tab ? 'border-mission-blue ring-2 ring-mission-blue/20' : 'border-neutral-200 hover:border-neutral-300'
+                  importTab === tab ? 'border-mission-ink ring-2 ring-mission-ink/20' : 'border-neutral-200 hover:border-neutral-300'
                 }`}
               >
                 {tab === 'excel' ? 'Excel / CSV' : tab === 'sheet' ? 'Google Sheets' : tab === 'phone' ? 'Phone' : 'PDF'}

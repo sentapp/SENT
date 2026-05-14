@@ -37,7 +37,7 @@ export default function MissionaryPipelineSection({
         <button
           type="button"
           onClick={goPipeline}
-          className="shrink-0 text-sm font-semibold text-mission-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 focus-visible:ring-offset-2"
+          className="shrink-0 text-sm font-semibold text-mission-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-ink/25 focus-visible:ring-offset-2"
         >
           Open pipeline →
         </button>
@@ -71,7 +71,7 @@ export default function MissionaryPipelineSection({
               <button
                 type="button"
                 onClick={goPipeline}
-                className="text-sm font-semibold text-mission-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-blue/25 focus-visible:ring-offset-2"
+                className="text-sm font-semibold text-mission-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-ink/25 focus-visible:ring-offset-2"
               >
                 See all →
               </button>

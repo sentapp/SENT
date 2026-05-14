@@ -33,7 +33,7 @@ export default function SupporterMap() {
     return (
       <div className="space-y-4">
         <header className="space-y-1">
-          <p className="text-sm font-medium text-mission-blue">Map</p>
+          <p className="text-sm font-medium text-mission-ink">Map</p>
           <h1 className="text-2xl font-semibold tracking-tight">Mission map</h1>
           <p className="text-sm text-neutral-600">Connect to your missionary with their SENT invite code to see pins.</p>
         </header>
@@ -49,7 +49,7 @@ export default function SupporterMap() {
   return (
     <div className="space-y-4">
       <header className="space-y-1 text-center md:text-left">
-        <p className="text-sm font-medium text-mission-blue">Map</p>
+        <p className="text-sm font-medium text-mission-ink">Map</p>
         <h1 className="text-2xl font-semibold tracking-tight">Mission map</h1>
         <p className="text-sm text-neutral-600">Your missionary&apos;s home base and update locations.</p>
       </header>

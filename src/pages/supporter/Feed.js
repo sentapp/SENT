@@ -5,7 +5,7 @@ import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
 import { useMissionaryPublicProfile } from '../../hooks/useMissionaryPublicProfile';
 import { useMissionaryMapPoints } from '../../hooks/useMissionaryMapPoints';
 import { fetchActiveMissionPushForMissionary } from '../../lib/missionPushesRepository';
-import { initialsFromDisplayName, normalizeProfileAccent } from '../../lib/profileAppearance';
+import { DEFAULT_PROFILE_ACCENT, initialsFromDisplayName, normalizeProfileAccent } from '../../lib/profileAppearance';
 import MapView from '../../components/MapView';
 import {
   fetchReactionCountsForPosts,
@@ -291,7 +291,7 @@ export default function SupporterFeed() {
   const displayName = missionaryDb?.full_name?.trim() || 'Missionary';
   const orgLine = (missionaryDb?.organization || '').trim();
   const photoUrl = missionaryDb?.photo_url || '';
-  const feedAccent = missionaryId ? normalizeProfileAccent(missionaryDb?.accent_color) : '#185FA5';
+  const feedAccent = missionaryId ? normalizeProfileAccent(missionaryDb?.accent_color) : DEFAULT_PROFILE_ACCENT;
   const avatarInitials = initialsFromDisplayName(displayName);
 
   const pushGoal = missionPush ? Number(missionPush.goal_amount || 0) : 0;
@@ -303,7 +303,7 @@ export default function SupporterFeed() {
   return (
     <div className="space-y-6" style={missionaryId ? { '--feed-accent': feedAccent } : undefined}>
       <header className="space-y-1 text-center sm:text-left">
-        <h1 className={`sent-page-title ${missionaryId ? 'feed-accent-text' : 'text-mission-blue'}`}>Feed</h1>
+        <h1 className={`sent-page-title ${missionaryId ? 'feed-accent-text' : 'text-mission-ink'}`}>Feed</h1>
         <p className="sent-body text-mission-muted">Map, giving, and updates from your missionary.</p>
       </header>
 
@@ -377,8 +377,8 @@ export default function SupporterFeed() {
                   </span>
                   <span className="feed-accent-text">{pushPct}%</span>
                 </div>
-                <div className="mt-2 h-3 w-full rounded-full bg-neutral-200">
-                  <div className="feed-accent-bg h-3 rounded-full" style={{ width: `${pushPct}%` }} />
+                <div className="mt-2 h-[2px] w-full rounded-none bg-[#E2DAD0]">
+                  <div className="h-[2px] rounded-none bg-[#181208]" style={{ width: `${pushPct}%` }} />
                 </div>
               </div>
               {daysLeft != null ? (

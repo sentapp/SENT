@@ -201,7 +201,7 @@ export default function SupporterPrayer() {
   return (
     <div className="space-y-6">
       <header className="space-y-1 text-center md:text-left">
-        <p className="text-sm font-medium text-mission-blue">Prayer</p>
+        <p className="text-sm font-medium text-mission-ink">Prayer</p>
         <h1 className="text-2xl font-semibold tracking-tight">Prayer wall</h1>
         <p className="text-sm text-neutral-600">Share a request and pray together.</p>
       </header>
@@ -226,7 +226,7 @@ export default function SupporterPrayer() {
                   type="checkbox"
                   checked={anonymous}
                   onChange={(e) => setAnonymous(e.target.checked)}
-                  className="h-4 w-4 accent-[#185FA5]"
+                  className="h-4 w-4 accent-[#181208]"
                 />
                 Submit anonymously
               </label>
@@ -311,7 +311,7 @@ export default function SupporterPrayer() {
                 type="checkbox"
                 checked={editAnonymous}
                 onChange={(e) => setEditAnonymous(e.target.checked)}
-                className="h-4 w-4 accent-[#185FA5]"
+                className="h-4 w-4 accent-[#181208]"
               />
               Submit anonymously
             </label>

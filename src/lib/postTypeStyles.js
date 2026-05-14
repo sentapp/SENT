@@ -29,7 +29,7 @@ export function postTypeBadgeClass(type) {
     case 'field_story':
       return 'bg-[#DCFCE7] text-[#15803D]';
     case 'prayer':
-      return 'bg-[#DBEAFE] text-[#1D4ED8]';
+      return 'bg-[#EAE3D8] text-[#6B5D50]';
     case 'monthly':
       return 'bg-[#F3F4F6] text-[#57534E]';
     case 'win':

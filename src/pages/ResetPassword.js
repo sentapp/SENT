@@ -151,7 +151,7 @@ export default function ResetPassword() {
           <p className="mb-6 rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{initError}</p>
           <Link
             to="/signin"
-            className="text-center text-sm font-semibold text-mission-blue hover:underline"
+            className="text-center text-sm font-semibold text-mission-ink hover:underline"
           >
             Back to Sign in
           </Link>
@@ -195,7 +195,7 @@ export default function ResetPassword() {
         </form>
 
         <p className="mt-8 text-center text-sm text-neutral-600">
-          <Link className="font-semibold text-mission-blue hover:underline" to="/signin">
+          <Link className="font-semibold text-mission-ink hover:underline" to="/signin">
             Cancel and return to Sign in
           </Link>
         </p>

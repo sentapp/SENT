@@ -3,7 +3,7 @@ import React from 'react';
 export function Card({ className = '', children, ...props }) {
   return (
     <div
-      className={`rounded-card border border-mission-line bg-surface p-5 transition-colors duration-200 ease-out md:p-5 ${className}`}
+      className={`rounded-[12px] border-[0.5px] border-[#E2DAD0] bg-white p-5 shadow-none transition-colors duration-200 ease-out md:p-5 ${className}`}
       {...props}
     >
       {children}
@@ -13,19 +13,20 @@ export function Card({ className = '', children, ...props }) {
 
 export function Button({ className = '', variant = 'primary', ...props }) {
   const base =
-    'inline-flex min-h-[44px] items-center justify-center rounded-btn px-4 py-2.5 text-sm font-medium transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60';
+    'inline-flex min-h-[44px] items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60';
   const variants = {
     primary:
-      'border border-transparent bg-mission-ink text-white hover:bg-mission-ink/90 active:bg-mission-ink/85',
+      'border border-transparent bg-[#181208] text-[#F9F7F2] hover:bg-[#181208]/90 active:bg-[#181208]/85',
     accent:
-      'border border-transparent bg-accent text-white hover:bg-accent/95 active:bg-accent/90',
+      'border border-transparent bg-[#181208] text-[#F9F7F2] hover:bg-[#181208]/90 active:bg-[#181208]/85',
     secondary:
-      'border border-mission-line bg-surface text-mission-ink hover:bg-[color:var(--color-bg)] active:bg-mission-line/40',
+      'border-[0.5px] border-[#E2DAD0] bg-transparent text-[#181208] hover:bg-[#F9F7F2] active:bg-[#EAE3D8]/80',
     ghost:
-      'min-h-0 border-transparent bg-transparent px-3 py-2 text-mission-ink hover:bg-[color:var(--color-bg)] active:bg-mission-line/50',
+      'min-h-0 border-transparent bg-transparent px-3 py-2 text-[#181208] hover:bg-[#F2EDE4] active:bg-[#E2DAD0]/50',
     outlineBlue:
-      'border border-accent bg-surface text-accent hover:bg-accent/[0.06] active:bg-accent/[0.1]',
-    danger: 'border border-transparent bg-mission-danger text-white hover:bg-mission-danger/95 active:bg-mission-danger/90',
+      'border-[0.5px] border-[#181208] bg-surface text-[#181208] hover:bg-[#F2EDE4] active:bg-[#EAE3D8]/60',
+    danger:
+      'border border-transparent bg-[#181208] text-[#F9F7F2] hover:bg-[#181208]/90 active:bg-[#181208]/85',
   };
   return <button className={`${base} ${variants[variant] ?? variants.primary} ${className}`} {...props} />;
 }
@@ -34,7 +35,7 @@ export const Input = React.forwardRef(function Input({ className = '', ...props 
   return (
     <input
       ref={ref}
-      className={`w-full rounded-btn border border-mission-line bg-surface px-4 py-[14px] text-[14px] font-normal text-mission-ink outline-none ring-accent/25 transition-colors duration-200 focus:border-accent focus:ring ${className}`}
+      className={`w-full rounded-lg border-[0.5px] border-[#E2DAD0] bg-[#F2EDE4] px-4 py-[14px] text-[14px] font-normal text-[#181208] placeholder:text-[#9C8C78] outline-none ring-[#181208]/20 transition-colors duration-200 focus:border-[#181208] focus:ring ${className}`}
       {...props}
     />
   );
@@ -43,7 +44,7 @@ export const Input = React.forwardRef(function Input({ className = '', ...props 
 export function Textarea({ className = '', ...props }) {
   return (
     <textarea
-      className={`w-full rounded-btn border border-mission-line bg-surface px-4 py-3 text-[14px] font-normal text-mission-ink outline-none ring-accent/25 transition-colors duration-200 focus:border-accent focus:ring ${className}`}
+      className={`w-full rounded-lg border-[0.5px] border-[#E2DAD0] bg-[#F2EDE4] px-4 py-3 text-[14px] font-normal text-[#181208] placeholder:text-[#9C8C78] outline-none ring-[#181208]/20 transition-colors duration-200 focus:border-[#181208] focus:ring ${className}`}
       {...props}
     />
   );
@@ -62,7 +63,7 @@ export function LoadingSpinner({ className = '', label }) {
   return (
     <div className={`flex flex-col items-center justify-center gap-3 ${className}`}>
       <svg
-        className="h-9 w-9 animate-spin text-accent"
+        className="h-9 w-9 animate-spin text-[#181208]"
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
@@ -75,7 +76,7 @@ export function LoadingSpinner({ className = '', label }) {
           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
         />
       </svg>
-      {label ? <p className="sent-body max-w-[260px] text-center font-medium text-mission-muted">{label}</p> : null}
+      {label ? <p className="sent-body max-w-[260px] text-center font-medium text-muted">{label}</p> : null}
     </div>
   );
 }
@@ -131,9 +132,9 @@ export function EmptyState({ title, subtitle, action, icon }) {
   const graphic = icon ? EMPTY_ICON_MAP[icon] : null;
   return (
     <div className="rounded-card border border-dashed border-mission-line bg-surface p-8 text-center">
-      {graphic ? <div className="mb-4 flex justify-center text-accent/80">{graphic}</div> : null}
+      {graphic ? <div className="mb-4 flex justify-center text-[#181208]/80">{graphic}</div> : null}
       <p className="sent-card-title">{title}</p>
-      {subtitle ? <p className="sent-body mt-2 text-mission-muted">{subtitle}</p> : null}
+      {subtitle ? <p className="sent-body mt-2 text-muted">{subtitle}</p> : null}
       {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
     </div>
   );
@@ -174,7 +175,7 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label={closeBtnIsIcon ? 'Close' : undefined}
-            className={`rounded-btn text-mission-muted transition hover:bg-[color:var(--color-bg)] ${
+            className={`rounded-btn text-muted transition hover:bg-[color:var(--color-bg)] ${
               closeBtnIsIcon ? 'px-3 py-2 text-xl font-light leading-none' : 'px-3 py-2 text-sm font-medium'
             }`}
           >

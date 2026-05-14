@@ -242,14 +242,14 @@ function SignIn() {
                 />
               </label>
               <div className="mb-8 text-right">
-                <button type="button" onClick={onForgotPassword} className="text-sm font-medium text-mission-blue hover:underline">
+                <button type="button" onClick={onForgotPassword} className="text-sm font-medium text-mission-ink hover:underline">
                   Forgot password?
                 </button>
               </div>
               <button
                 type="submit"
                 disabled={submitting}
-                className="mb-6 w-full rounded-btn bg-mission-blue py-[14px] text-center text-[17px] font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+                className="mb-6 w-full rounded-btn bg-mission-ink py-[14px] text-center text-[17px] font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
               >
                 {submitting ? 'Signing in…' : 'Sign in'}
               </button>
@@ -263,7 +263,7 @@ function SignIn() {
                   href="https://supabase.com/dashboard"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-mission-blue underline-offset-2 hover:underline"
+                  className="font-medium text-mission-ink underline-offset-2 hover:underline"
                 >
                   Supabase Dashboard
                 </a>
@@ -274,7 +274,7 @@ function SignIn() {
 
             <p className="mt-auto text-center text-sm text-neutral-600">
               Don&apos;t have an account?{' '}
-              <Link className="font-medium text-mission-blue underline-offset-2 hover:underline" to="/signup">
+              <Link className="font-medium text-mission-ink underline-offset-2 hover:underline" to="/signup">
                 Sign up
               </Link>
             </p>
@@ -296,7 +296,7 @@ function SignIn() {
             <button
               type="button"
               onClick={switchToEmailPassword}
-              className="mt-8 text-center text-sm font-semibold text-mission-blue hover:underline"
+              className="mt-8 text-center text-sm font-semibold text-mission-ink hover:underline"
             >
               Use email &amp; password instead
             </button>

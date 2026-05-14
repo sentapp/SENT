@@ -513,7 +513,7 @@ export default function MissionaryPartners() {
                 onClick={() => setPartnerViewFilter(f.value)}
                 className={`min-h-[40px] flex-1 rounded-md px-3 py-2 text-center text-xs font-semibold transition sm:text-sm ${
                   active
-                    ? 'border-b-2 border-[#185FA5] bg-white text-[#185FA5] shadow-sm'
+                    ? 'border-b-2 border-[#181208] bg-white text-[#181208] shadow-sm'
                     : 'border-b-2 border-transparent text-neutral-600 hover:bg-white/70'
                 }`}
               >
@@ -563,7 +563,7 @@ export default function MissionaryPartners() {
                         <div
                           role="button"
                           tabIndex={0}
-                          className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-mission-blue/30"
+                          className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-mission-ink/30"
                           onClick={() => {
                             setCommActionError('');
                             setPopupPartner(p);
@@ -576,7 +576,7 @@ export default function MissionaryPartners() {
                             }
                           }}
                         >
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-sm font-semibold text-mission-blue">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-sm font-semibold text-mission-ink">
                             {partnerInitials(p.fullName)}
                           </span>
                           <div className="min-w-0 flex-1">
@@ -657,7 +657,7 @@ export default function MissionaryPartners() {
                       <div
                         role="button"
                         tabIndex={0}
-                        className="flex w-full cursor-pointer flex-col gap-1.5 p-3 text-left outline-none transition-colors hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-mission-blue/30"
+                        className="flex w-full cursor-pointer flex-col gap-1.5 p-3 text-left outline-none transition-colors hover:bg-[#F2EDE4] focus-visible:ring-2 focus-visible:ring-mission-ink/30"
                         onClick={() => {
                           setCommActionError('');
                           setPopupPartner(p);
@@ -686,7 +686,7 @@ export default function MissionaryPartners() {
                           />
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-sm font-semibold text-mission-blue">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-sm font-semibold text-mission-ink">
                             {partnerInitials(p.fullName)}
                           </span>
                           <span className="min-w-0 flex-1">

@@ -89,7 +89,7 @@ export default function MissionaryOnboarding() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <header className="space-y-1">
-        <p className="text-sm font-medium text-mission-blue">Welcome to SENT</p>
+        <p className="text-sm font-medium text-mission-ink">Welcome to SENT</p>
         <h1 className="text-2xl font-semibold">Finish your profile</h1>
         <p className="text-sm text-neutral-600">
           For missionaries and the people who send them. Add a few details so supporters know who you are.

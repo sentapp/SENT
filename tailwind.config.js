@@ -4,17 +4,30 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: '#F7F5F2',
+        background: '#F9F7F2',
         surface: '#FFFFFF',
-        border: '#E5E2DD',
-        ink: '#1C1917',
-        muted: '#78716C',
-        accent: '#185FA5',
+        border: '#E2DAD0',
+        ink: '#181208',
+        muted: '#9C8C78',
+        accent: '#181208',
+        primary: '#181208',
         warm: '#C2410C',
         success: '#15803D',
-        subtle: '#F3F2EF',
+        subtle: '#F2EDE4',
+        sent: {
+          bg: '#F9F7F2',
+          surface: '#F9F7F2',
+          card: '#FFFFFF',
+          ink: '#181208',
+          stone: '#9C8C78',
+          border: '#E2DAD0',
+          brown: '#6B5D50',
+          nav: '#F2EDE4',
+          tan: '#EAE3D8',
+        },
         mission: {
-          blue: '#185FA5',
+          /** Legacy name — Theme 3 primary / ink (was blue #185FA5). */
+          blue: '#181208',
           green: '#15803D',
           amber: '#A16207',
           canvas: 'var(--color-bg)',
@@ -31,8 +44,8 @@ module.exports = {
         mobile: '390px',
       },
       borderRadius: {
-        card: '14px',
-        btn: '10px',
+        card: '12px',
+        btn: '6px',
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],

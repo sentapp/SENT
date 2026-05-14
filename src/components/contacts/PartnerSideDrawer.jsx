@@ -13,7 +13,7 @@ const SECTION_STRIP =
   'rounded-md bg-[#F4F2EE] px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-600';
 
 const COMM_DOT = {
-  call: 'bg-blue-500',
+  call: 'bg-[#6B5D50]',
   text: 'bg-emerald-500',
   meeting: 'bg-purple-500',
   note: 'bg-neutral-500',
@@ -26,7 +26,7 @@ function InfoRow({ label, value, href, valueClassName = 'text-sm font-medium tex
   const text = value ?? '';
   const body =
     href && text ? (
-      <a href={href} className={`mt-0.5 inline-block ${valueClassName} text-mission-blue underline`}>
+      <a href={href} className={`mt-0.5 inline-block ${valueClassName} text-mission-ink underline`}>
         {text}
       </a>
     ) : (
@@ -207,7 +207,7 @@ export function PartnerSideDrawer({
         <div className="z-10 shrink-0 border-b border-[#E5E2DD] bg-white px-4 pb-3 pt-4">
           <div className="flex gap-3">
             <div
-              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-mission-blue/10 text-xs font-semibold text-mission-blue"
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#EAE3D8] text-xs font-semibold text-mission-ink"
               aria-hidden
             >
               {initialsFromDisplayName(partner.fullName || '')}
@@ -282,21 +282,21 @@ export function PartnerSideDrawer({
           <div className="grid grid-cols-3 gap-px border-y border-[#E5E2DD] bg-[#E5E2DD] px-0">
             <button
               type="button"
-              className="min-h-[44px] bg-white text-center text-sm font-semibold text-mission-blue hover:bg-mission-blue/5"
+              className="min-h-[44px] bg-white text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
               onClick={onCall}
             >
               Call
             </button>
             <button
               type="button"
-              className="min-h-[44px] bg-white text-center text-sm font-semibold text-mission-blue hover:bg-mission-blue/5"
+              className="min-h-[44px] bg-white text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
               onClick={onText}
             >
               Text
             </button>
             <button
               type="button"
-              className="min-h-[44px] bg-white text-center text-sm font-semibold text-mission-blue hover:bg-mission-blue/5"
+              className="min-h-[44px] bg-white text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
               onClick={onLog}
             >
               Log
@@ -353,7 +353,7 @@ export function PartnerSideDrawer({
         <div className="shrink-0 border-t border-[#E5E2DD] bg-white p-3">
           <button
             type="button"
-            className="w-full rounded-md border border-[#E5E2DD] bg-white py-2.5 text-center text-sm font-semibold text-mission-blue hover:bg-mission-blue/5"
+            className="w-full rounded-md border border-[#E5E2DD] bg-white py-2.5 text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
             onClick={onEditFullProfile}
           >
             Edit full profile
