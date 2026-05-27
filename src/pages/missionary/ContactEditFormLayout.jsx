@@ -3,6 +3,7 @@ import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { getContactAvatarStyle } from '../../lib/contactAvatarStyles';
 import { Input, Label, Textarea } from '../../components/ui';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
+import { CURRENCIES, getCurrencySymbol, normalizeCurrencyCode } from '../../lib/currencies';
 
 /**
  * Layout A: avatar + name header, sectioned fields (add + edit).
@@ -29,6 +30,8 @@ export default function ContactEditFormLayout({
   const initials = initialsFromDisplayName(name);
   const oneTimeNum = Number.parseFloat(String(form.oneTimeDonationAmount ?? '').replace(/,/g, ''));
   const showOneTimeDate = Number.isFinite(oneTimeNum) && oneTimeNum > 0;
+  const currencyCode = normalizeCurrencyCode(form.currency);
+  const currencySymbol = getCurrencySymbol(currencyCode);
 
   const quickTagContact = useMemo(
     () => ({
@@ -38,6 +41,7 @@ export default function ContactEditFormLayout({
       email: form.email ?? '',
       address: form.address ?? '',
       monthlyAmount: form.monthlyAmount ?? '',
+      currency: form.currency ?? 'USD',
       notes: form.notes ?? '',
       category: form.category,
       status: form.status,
@@ -53,6 +57,7 @@ export default function ContactEditFormLayout({
       form.email,
       form.address,
       form.monthlyAmount,
+      form.currency,
       form.notes,
       form.category,
       form.status,
@@ -157,36 +162,55 @@ export default function ContactEditFormLayout({
 
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-mission-muted">Support</h3>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Label title="Monthly amount ($)">
-            <Input
-              inputMode="decimal"
-              value={form.monthlyAmount}
-              onChange={(e) => setForm((f) => ({ ...f, monthlyAmount: e.target.value }))}
-              placeholder="0"
-            />
-          </Label>
-          <Label title="One-time amount ($)">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500">$</span>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <Label title="Monthly amount">
               <Input
                 inputMode="decimal"
-                value={form.oneTimeDonationAmount}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setForm((f) => {
-                    const n = Number.parseFloat(String(v).replace(/,/g, ''));
-                    const next = { ...f, oneTimeDonationAmount: v };
-                    if (Number.isFinite(n) && n > 0) next.isOneTimeDonor = true;
-                    return next;
-                  });
-                }}
+                value={form.monthlyAmount}
+                onChange={(e) => setForm((f) => ({ ...f, monthlyAmount: e.target.value }))}
                 placeholder="0"
-                className="pl-8"
               />
-            </div>
-          </Label>
+            </Label>
+          </div>
+          <div className="w-full shrink-0 sm:w-44">
+            <Label title="Currency">
+              <select
+                className="w-full rounded-btn border border-neutral-200 bg-white px-3 py-2.5 text-sm text-ink"
+                value={currencyCode}
+                onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.symbol} {c.label} ({c.code})
+                  </option>
+                ))}
+              </select>
+            </Label>
+          </div>
         </div>
+        <Label title={`One-time amount (${currencySymbol})`}>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500">
+              {currencySymbol}
+            </span>
+            <Input
+              inputMode="decimal"
+              value={form.oneTimeDonationAmount}
+              onChange={(e) => {
+                const v = e.target.value;
+                setForm((f) => {
+                  const n = Number.parseFloat(String(v).replace(/,/g, ''));
+                  const next = { ...f, oneTimeDonationAmount: v };
+                  if (Number.isFinite(n) && n > 0) next.isOneTimeDonor = true;
+                  return next;
+                });
+              }}
+              placeholder="0"
+              className="pl-8"
+            />
+          </div>
+        </Label>
         <label className="flex cursor-pointer items-center gap-3 rounded-btn border border-neutral-200 bg-white px-3 py-2">
           <input
             type="checkbox"

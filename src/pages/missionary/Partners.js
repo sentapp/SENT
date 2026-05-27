@@ -23,6 +23,12 @@ import { phoneDigits } from '../../lib/phoneFormat';
 import { supabase } from '../../lib/supabaseClient';
 import { getContactAvatarStyle } from '../../lib/contactAvatarStyles';
 import ContactEditFormLayout from './ContactEditFormLayout';
+import {
+  computePartnerCurrencyTotals,
+  formatMonthlyAmount,
+  formatOtherCurrenciesLine,
+  normalizeCurrencyCode,
+} from '../../lib/currencies';
 
 const partnerFilters = [
   { label: 'All', value: 'all' },
@@ -49,11 +55,6 @@ function partnerInitials(fullName) {
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function formatMonthly(amount) {
-  const n = Number(amount);
-  return Number.isFinite(n) && n > 0 ? `$${n.toFixed(0)}/mo` : '$0/mo';
 }
 
 /** Label for urgent rows — days since last `communication_logs` entry. */
@@ -83,6 +84,7 @@ const emptyForm = {
   status: 'prospect',
   relationship: '',
   monthlyAmount: '',
+  currency: 'USD',
   isOneTimeDonor: false,
   oneTimeDonationAmount: '',
   oneTimeDonationDate: '',
@@ -100,6 +102,7 @@ function contactFormSnapshot(f) {
     status: f.status ?? '',
     relationship: f.relationship ?? '',
     monthlyAmount: f.monthlyAmount ?? '',
+    currency: f.currency ?? 'USD',
     isOneTimeDonor: Boolean(f.isOneTimeDonor),
     oneTimeDonationAmount: f.oneTimeDonationAmount ?? '',
     oneTimeDonationDate: f.oneTimeDonationDate ?? '',
@@ -120,6 +123,7 @@ function contactRowToForm(c) {
     status: normalizeStatusFromDb(c.status),
     relationship: c.relationship != null && String(c.relationship).trim() !== '' ? String(c.relationship).trim() : '',
     monthlyAmount: c.monthlyAmount ? String(c.monthlyAmount) : '',
+    currency: normalizeCurrencyCode(c.currency),
     isOneTimeDonor: Boolean(c.isOneTimeDonor),
     oneTimeDonationAmount:
       c.oneTimeDonationAmount != null && Number(c.oneTimeDonationAmount) > 0
@@ -131,7 +135,8 @@ function contactRowToForm(c) {
 
 export default function MissionaryPartners() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+  const homeCurrency = normalizeCurrencyCode(profile?.home_currency);
   const { contacts, refetch, updateContact, saveQuickTag, patchContactInList } = useSupabaseContacts(user?.id, {
     authLoading,
   });
@@ -251,12 +256,14 @@ export default function MissionaryPartners() {
     };
   }, []);
 
-  const totalMonthly = useMemo(() => {
-    return partners.reduce((sum, p) => {
-      const n = Number(p.monthlyAmount);
-      return sum + (Number.isFinite(n) && n > 0 ? n : 0);
-    }, 0);
-  }, [partners]);
+  const { homeCurrencyTotal, otherCurrencies } = useMemo(
+    () => computePartnerCurrencyTotals(partners, homeCurrency),
+    [partners, homeCurrency],
+  );
+  const partnersOtherCurrenciesLine = useMemo(
+    () => formatOtherCurrenciesLine(otherCurrencies),
+    [otherCurrencies],
+  );
 
   const needsContact = useMemo(() => {
     return partners.filter((p) => daysSince(lastContactMap[p.id]) >= 30);
@@ -459,6 +466,7 @@ export default function MissionaryPartners() {
       status: normalizeStatusForSave(fullProfileForm.status),
       relationship: normalizeRelationshipForSave(fullProfileForm.relationship) ?? '',
       monthlyAmount: fullProfileForm.monthlyAmount,
+      currency: fullProfileForm.currency,
       isOneTimeDonor: isOneTimeDonorEffective,
       oneTimeDonationAmount: fullProfileForm.oneTimeDonationAmount,
       oneTimeDonationDate: fullProfileForm.oneTimeDonationDate,
@@ -492,7 +500,14 @@ export default function MissionaryPartners() {
           <p className="sent-body text-mission-muted">
             {partners.length === 0
               ? 'Monthly partners are derived from your contacts.'
-              : `${formatMonthly(totalMonthly)} · ${partnerCountLabel}`}
+              : (
+                  <>
+                    {formatMonthlyAmount(homeCurrencyTotal, homeCurrency)} · {partnerCountLabel}
+                    {partnersOtherCurrenciesLine ? (
+                      <span className="mt-0.5 block text-xs text-neutral-500">{partnersOtherCurrenciesLine}</span>
+                    ) : null}
+                  </>
+                )}
           </p>
         </div>
         {needsContact.length > 0 ? (
@@ -589,7 +604,9 @@ export default function MissionaryPartners() {
                                   <span className="text-xs font-semibold text-emerald-700">Saved</span>
                                 ) : null}
                               </span>
-                              <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
+                              <span className="mt-0.5 block text-xs text-neutral-600">
+                                {formatMonthlyAmount(p.monthlyAmount, p.currency)}
+                              </span>
                               <span className="mt-0.5 block text-xs font-medium text-[#A32D2D]">{daysSinceContactLabel(last)}</span>
                               <div className="mt-2">
                                 <ContactThreeQuickTagRows
@@ -697,7 +714,9 @@ export default function MissionaryPartners() {
                                 <span className="text-xs font-semibold text-emerald-700">Saved</span>
                               ) : null}
                             </span>
-                            <span className="mt-0.5 block text-xs text-neutral-600">{formatMonthly(p.monthlyAmount)}</span>
+                            <span className="mt-0.5 block text-xs text-neutral-600">
+                              {formatMonthlyAmount(p.monthlyAmount, p.currency)}
+                            </span>
                           </span>
                           <span className={`shrink-0 text-xs ${badge.className}`}>{badge.label}</span>
                         </div>

@@ -5,9 +5,11 @@ import { normalizeFullName } from './contactDuplicates';
 import {
   applyImportRowSemantics,
   findBestCategoryColumnIndex,
+  findBestCurrencyColumnIndex,
   findBestMonthlyAmountColumnIndex,
   findBestStatusColumnIndex,
 } from './importRowSemantics';
+import { normalizeCurrencyCode } from './currencies';
 import { cleanNotes, cleanPhone, separatePhoneFromName } from './importCleaners';
 import {
   importNameFieldShouldSkip,
@@ -327,7 +329,8 @@ function findBestNameColumnIndex(dataRows, headerCells, width) {
 /**
  * @returns {{ sheetName: string, validNameCount: number, drafts: object[] } | null}
  */
-export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
+export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet', options = {}) {
+  const defaultCurrency = normalizeCurrencyCode(options.defaultCurrency);
   const padded = padRawRows(rawRows);
   if (!padded.length) return null;
 
@@ -366,6 +369,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
         category: null,
         status: 'prospect',
         monthly_amount: 0,
+        currency: defaultCurrency,
         notes: '',
       });
     }
@@ -421,6 +425,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
   const monthlyImportIdx = findBestMonthlyAmountColumnIndex(headerCells);
   const statusImportIdx = findBestStatusColumnIndex(headerCells);
   const categoryImportIdx = findBestCategoryColumnIndex(headerCells);
+  const currencyImportIdx = findBestCurrencyColumnIndex(headerCells);
 
   const drafts = [];
   for (let i = 0; i < dataRows.length; i += 1) {
@@ -448,6 +453,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
       if (monthlyImportIdx >= 0 && j === monthlyImportIdx) continue;
       if (statusImportIdx >= 0 && j === statusImportIdx) continue;
       if (categoryImportIdx >= 0 && j === categoryImportIdx) continue;
+      if (currencyImportIdx >= 0 && j === currencyImportIdx) continue;
       const cell = String(row[j] ?? '').trim();
       if (cell) notesParts.push(cell);
     }
@@ -461,6 +467,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
       category: null,
       status: 'prospect',
       monthly_amount: 0,
+      currency: defaultCurrency,
       notes,
     };
     drafts.push(
@@ -468,6 +475,8 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
         statusIdx: statusImportIdx,
         monthlyIdx: monthlyImportIdx,
         categoryIdx: categoryImportIdx,
+        currencyIdx: currencyImportIdx,
+        defaultCurrency,
         width,
       }),
     );
@@ -480,7 +489,7 @@ export function flexibleImportEvaluateRawSheet(rawRows, sheetName = 'Sheet') {
 /**
  * Build a raw grid from `{ headers, rows }` (e.g. Google Sheets API) and run flexible import.
  */
-export function flexibleImportFromSplitMatrix(matrix, sheetName = 'Sheet') {
+export function flexibleImportFromSplitMatrix(matrix, sheetName = 'Sheet', options = {}) {
   const headers = matrix?.headers || [];
   const rows = matrix?.rows || [];
   if (!headers.length && !rows.length) return [];
@@ -490,14 +499,14 @@ export function flexibleImportFromSplitMatrix(matrix, sheetName = 'Sheet') {
   for (const r of rows) {
     rawGrid.push(padRowToWidth(r, width));
   }
-  const evaluated = flexibleImportEvaluateRawSheet(rawGrid, sheetName);
+  const evaluated = flexibleImportEvaluateRawSheet(rawGrid, sheetName, options);
   return evaluated?.drafts ?? [];
 }
 
 /**
  * Parse CSV / Excel to contact drafts: raw grids, flexible columns, multi-sheet Excel (skip dashboard tabs).
  */
-export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}) {
+export async function parseSpreadsheetFlexible(file, { onProgress, signal, defaultCurrency } = {}) {
   const name = (file?.name || '').toLowerCase();
   const ext = name.split('.').pop() || '';
 
@@ -535,7 +544,7 @@ export async function parseSpreadsheetFlexible(file, { onProgress, signal } = {}
     return [];
   }
 
-  const ev = flexibleImportEvaluateRawSheet(best.rawRows, best.name);
+  const ev = flexibleImportEvaluateRawSheet(best.rawRows, best.name, { defaultCurrency });
   if (!ev?.drafts?.length) {
     console.log('[import] Flexible spreadsheet: total contacts to insert: 0');
     return [];
@@ -587,9 +596,19 @@ export function rowsToContacts(rows, headers) {
       category: null,
       status: 'prospect',
       monthly_amount: 0,
+      currency: 'USD',
       notes: '',
     };
-    out.push(applyImportRowSemantics(base, arr, { statusIdx, monthlyIdx, categoryIdx, width }));
+    out.push(
+      applyImportRowSemantics(base, arr, {
+        statusIdx,
+        monthlyIdx,
+        categoryIdx,
+        currencyIdx: findBestCurrencyColumnIndex(headerCells),
+        defaultCurrency: 'USD',
+        width,
+      }),
+    );
   }
   return out;
 }
@@ -684,7 +703,7 @@ const PDF_PHONE_RE = /(\+?1?\s?)?(\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/g;
  */
 const NETCAST_PHONE_RE = /\b\d{10}\b|\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/g;
 
-function draftFromParts(full_name, phone, email) {
+function draftFromParts(full_name, phone, email, defaultCurrency = 'USD') {
   return {
     full_name: full_name || email || phone || 'Imported contact',
     phone: cleanPhone(phone),
@@ -692,6 +711,7 @@ function draftFromParts(full_name, phone, email) {
     category: null,
     status: 'prospect',
     monthly_amount: 0,
+    currency: normalizeCurrencyCode(defaultCurrency),
     notes: '',
   };
 }

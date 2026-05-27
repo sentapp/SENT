@@ -25,6 +25,7 @@ import {
   isContactPickerSupported,
 } from '../../lib/phoneContacts';
 import { supabase } from '../../lib/supabaseClient';
+import { formatAmount, formatMonthlyAmount, normalizeCurrencyCode } from '../../lib/currencies';
 import {
   CONTACT_CATEGORY_FILTER_TABS,
   normalizeCategory,
@@ -100,6 +101,7 @@ const emptyForm = {
   status: 'prospect',
   relationship: '',
   monthlyAmount: '',
+  currency: 'USD',
   isOneTimeDonor: false,
   oneTimeDonationAmount: '',
   oneTimeDonationDate: '',
@@ -125,6 +127,7 @@ function contactFormSnapshot(f) {
     status: f.status ?? '',
     relationship: f.relationship ?? '',
     monthlyAmount: f.monthlyAmount ?? '',
+    currency: f.currency ?? 'USD',
     isOneTimeDonor: Boolean(f.isOneTimeDonor),
     oneTimeDonationAmount: f.oneTimeDonationAmount ?? '',
     oneTimeDonationDate: f.oneTimeDonationDate ?? '',
@@ -193,7 +196,8 @@ export default function MissionaryContacts() {
     return { id, forceEdit: Boolean(edit) };
   }, [searchParams]);
 
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+  const defaultContactCurrency = normalizeCurrencyCode(profile?.home_currency);
   const {
     contacts,
     loading,
@@ -398,6 +402,7 @@ export default function MissionaryContacts() {
           status: normalizeStatusForSave(d.status),
           notes,
           monthly_amount: Number.isFinite(Number(d.monthly_amount)) ? Number(d.monthly_amount) : 0,
+          currency: normalizeCurrencyCode(d.currency ?? defaultContactCurrency),
           is_one_time_donor: Boolean(d.is_one_time_donor ?? d.isOneTimeDonor),
           one_time_donation_amount: Number.isFinite(Number(d.one_time_donation_amount))
             ? Number(d.one_time_donation_amount)
@@ -438,7 +443,7 @@ export default function MissionaryContacts() {
       }
       return { inserted, skippedDuplicates };
     },
-    [schemaPartial],
+    [schemaPartial, defaultContactCurrency],
   );
 
   const finalizeImportSuccess = async (imported, skippedDuplicates = 0) => {
@@ -475,7 +480,7 @@ export default function MissionaryContacts() {
       });
       if (sessionId !== sessionRef.current) return;
       console.log('[import] Google Sheet matrix loaded');
-      const drafts = flexibleImportFromSplitMatrix(m, 'Google Sheet');
+      const drafts = flexibleImportFromSplitMatrix(m, 'Google Sheet', { defaultCurrency: defaultContactCurrency });
       if (!drafts.length) {
         setImportMsg(NO_CONTACTS_IN_SHEET_MSG);
         return;
@@ -513,6 +518,7 @@ export default function MissionaryContacts() {
     setImportMsg('');
     try {
       const drafts = await parseSpreadsheetFlexible(file, {
+        defaultCurrency: defaultContactCurrency,
         signal,
         onProgress: ({ pct, note, processed, total }) => {
           if (sessionId !== sessionRef.current) return;
@@ -633,8 +639,9 @@ export default function MissionaryContacts() {
 
   const openAdd = () => {
     setEditingId(null);
-    setForm(emptyForm);
-    originalFormSnapshotRef.current = contactFormSnapshot(emptyForm);
+    const next = { ...emptyForm, currency: defaultContactCurrency };
+    setForm(next);
+    originalFormSnapshotRef.current = contactFormSnapshot(next);
     setSaveError('');
     setContactSaveSuccess('');
     setDiscardConfirmOpen(false);
@@ -658,6 +665,7 @@ export default function MissionaryContacts() {
       status: normalizeStatusFromDb(c.status),
       relationship: c.relationship != null && String(c.relationship).trim() !== '' ? String(c.relationship).trim() : '',
       monthlyAmount: c.monthlyAmount ? String(c.monthlyAmount) : '',
+      currency: normalizeCurrencyCode(c.currency),
       isOneTimeDonor: Boolean(c.isOneTimeDonor),
       oneTimeDonationAmount:
         c.oneTimeDonationAmount != null && Number(c.oneTimeDonationAmount) > 0
@@ -746,6 +754,7 @@ export default function MissionaryContacts() {
         status: normalizeStatusForSave(form.status),
         relationship: normalizeRelationshipForSave(form.relationship) ?? '',
         monthlyAmount: form.monthlyAmount,
+        currency: form.currency,
         isOneTimeDonor: isOneTimeDonorEffective,
         oneTimeDonationAmount: form.oneTimeDonationAmount,
         oneTimeDonationDate: form.oneTimeDonationDate,
@@ -775,6 +784,7 @@ export default function MissionaryContacts() {
       status: statusSaved,
       relationship: normalizeRelationshipForSave(form.relationship) ?? '',
       monthlyAmount: form.monthlyAmount,
+      currency: form.currency,
       isOneTimeDonor: isOneTimeDonorEffective,
       oneTimeDonationAmount: form.oneTimeDonationAmount,
       oneTimeDonationDate: form.oneTimeDonationDate,
@@ -1348,7 +1358,9 @@ export default function MissionaryContacts() {
                       className="flex flex-col gap-1"
                     />
                     {Number(c.monthlyAmount) > 0 ? (
-                      <p className="text-xs text-neutral-500">${Number(c.monthlyAmount).toFixed(0)}/mo</p>
+                      <p className="text-xs text-neutral-500">
+                        {formatMonthlyAmount(c.monthlyAmount, c.currency)}
+                      </p>
                     ) : null}
                     {c.phone ? <p className="text-sm text-neutral-700">{formatPhone(c.phone)}</p> : null}
                     {c.email ? <p className="text-sm text-neutral-700">{c.email}</p> : null}
@@ -1357,7 +1369,7 @@ export default function MissionaryContacts() {
                       <p className="text-sm font-medium text-mission-ink">
                         One-time gift
                         {Number(c.oneTimeDonationAmount) > 0
-                          ? `: $${Number(c.oneTimeDonationAmount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+                          ? `: ${formatAmount(c.oneTimeDonationAmount, c.currency)}`
                           : ''}
                         {c.oneTimeDonationDate
                           ? ` · ${new Date(`${c.oneTimeDonationDate}T12:00:00`).toLocaleDateString()}`

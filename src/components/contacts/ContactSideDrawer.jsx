@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { categoryLabel, normalizeCategory } from '../../lib/contactCategories';
 import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
+import { formatMonthlyAmount } from '../../lib/currencies';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { relationshipLabel } from '../../lib/contactRelationships';
 import { notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
@@ -275,7 +276,7 @@ export function ContactSideDrawer({
   const monthlyLine =
     Number.isFinite(monthly) && monthly > 0 ? (
       <p className="mt-0.5 text-sm font-semibold" style={{ color: '#2A9A58' }}>
-        ${monthly.toFixed(0)}/mo
+        {formatMonthlyAmount(monthly, contact.currency)}
       </p>
     ) : null;
 

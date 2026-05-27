@@ -11,6 +11,7 @@ import { ProfileAvatarAccentSection } from '../../components/ProfileAvatarAccent
 import { Button, Card, Input, Label, Textarea } from '../../components/ui';
 import FeedbackSection from '../../components/FeedbackSection';
 import LocalPinSettingsSection from '../../components/LocalPinSettingsSection';
+import { CURRENCIES, getCurrencySymbol, normalizeCurrencyCode } from '../../lib/currencies';
 
 function applyRowToForm(row, setters) {
   if (!row) return;
@@ -23,6 +24,7 @@ function applyRowToForm(row, setters) {
     setNonTaxUrl,
     setMonthlyGoal,
     setPartnerGoal,
+    setHomeCurrency,
   } = setters;
   setFullName(row.full_name || '');
   setOrganization(row.organization || '');
@@ -32,6 +34,7 @@ function applyRowToForm(row, setters) {
   setNonTaxUrl(row.non_tax_deductible_url || '');
   setMonthlyGoal(Number(row.monthly_goal ?? 0) || 0);
   setPartnerGoal(Number(row.partner_goal ?? 0) || 0);
+  setHomeCurrency(normalizeCurrencyCode(row.home_currency));
 }
 
 /**
@@ -56,6 +59,7 @@ export default function MissionarySettings() {
   const [nonTaxUrl, setNonTaxUrl] = useState('');
   const [monthlyGoal, setMonthlyGoal] = useState(0);
   const [partnerGoal, setPartnerGoal] = useState(0);
+  const [homeCurrency, setHomeCurrency] = useState('USD');
 
   const [accentColor, setAccentColor] = useState(DEFAULT_PROFILE_ACCENT);
   const [locSaving, setLocSaving] = useState(false);
@@ -72,6 +76,7 @@ export default function MissionarySettings() {
     setNonTaxUrl,
     setMonthlyGoal,
     setPartnerGoal,
+    setHomeCurrency,
   };
 
   useEffect(() => {
@@ -211,6 +216,7 @@ export default function MissionarySettings() {
         non_tax_deductible_url: nonTaxUrl.trim(),
         monthly_goal: monthlyGoal,
         partner_goal: partnerGoal,
+        home_currency: normalizeCurrencyCode(homeCurrency),
         accent_color: normalizeProfileAccent(accentColor),
       };
 
@@ -240,6 +246,7 @@ export default function MissionarySettings() {
       }
 
       setProfileMsg('Profile saved.');
+      await refreshProfile();
     } catch (e) {
       setProfileErr(e?.message || 'Could not save.');
     } finally {
@@ -381,9 +388,36 @@ export default function MissionarySettings() {
         </Card>
 
         <Card className="p-5">
+          <p className="text-sm font-semibold">Home currency</p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Used for dashboard monthly totals and as the default when you add or import contacts.
+          </p>
+          <div className="mt-4 max-w-md">
+            <Label title="Currency">
+              <select
+                className="w-full rounded-btn border border-neutral-200 bg-white px-3 py-2.5 text-sm text-ink"
+                value={homeCurrency}
+                onChange={(e) => setHomeCurrency(e.target.value)}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.symbol} {c.label} ({c.code})
+                  </option>
+                ))}
+              </select>
+            </Label>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
+              Save currency
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-5">
           <p className="text-sm font-semibold">Goals</p>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Label title="Monthly goal">
+            <Label title={`Monthly goal (${getCurrencySymbol(homeCurrency)})`}>
               <Input inputMode="numeric" value={monthlyGoal} onChange={(e) => setMonthlyGoal(Number(e.target.value || 0))} placeholder="0" />
             </Label>
             <Label title="Partner goal">

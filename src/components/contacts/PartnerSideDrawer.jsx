@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
+import { formatMonthlyAmount } from '../../lib/currencies';
 import { categoryLabel, normalizeCategory } from '../../lib/contactCategories';
 import { ContactThreeQuickTagRows } from './QuickTagPopover';
 import { PARTNER_DRAWER_BACKDROP_Z, PARTNER_DRAWER_PANEL_Z } from './quickViewOverlayZIndex';
@@ -39,11 +40,6 @@ function InfoRow({ label, value, href, valueClassName = 'text-sm font-medium tex
       {body}
     </div>
   );
-}
-
-function formatMonthly(amount) {
-  const n = Number(amount);
-  return Number.isFinite(n) && n > 0 ? `$${n.toFixed(0)}/mo` : '$0/mo';
 }
 
 function useDrawerNarrow() {
@@ -218,7 +214,9 @@ export function PartnerSideDrawer({
               <p id="partner-drawer-name" className="truncate text-base font-semibold text-ink">
                 {partner.fullName || 'Unnamed'}
               </p>
-              <p className="mt-0.5 truncate text-xs text-neutral-600">{formatMonthly(partner.monthlyAmount)}</p>
+              <p className="mt-0.5 truncate text-xs text-neutral-600">
+                {formatMonthlyAmount(partner.monthlyAmount, partner.currency)}
+              </p>
             </div>
             <button
               type="button"
@@ -253,7 +251,9 @@ export function PartnerSideDrawer({
             </div>
             <div>
               <p className="font-semibold uppercase tracking-wide text-mission-muted">Monthly</p>
-              <p className="mt-1 text-sm font-medium text-ink">{formatMonthly(partner.monthlyAmount)}</p>
+              <p className="mt-1 text-sm font-medium text-ink">
+                {formatMonthlyAmount(partner.monthlyAmount, partner.currency)}
+              </p>
             </div>
             <div>
               <p className="font-semibold uppercase tracking-wide text-mission-muted">Logged</p>

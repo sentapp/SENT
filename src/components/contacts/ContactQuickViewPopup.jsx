@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
+import { formatMonthlyAmount } from '../../lib/currencies';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { Textarea } from '../../components/ui';
 import { ContactThreeQuickTagRows } from './QuickTagPopover';
@@ -52,11 +53,6 @@ export function lastContactBadgeFromIso(lastIso) {
     return { label: dayLabel, className: 'text-neutral-500 font-medium' };
   }
   return { label: dayLabel, className: 'text-emerald-700 font-medium' };
-}
-
-function formatMonthly(amount) {
-  const n = Number(amount);
-  return Number.isFinite(n) && n > 0 ? `$${n.toFixed(0)}/mo` : '$0/mo';
 }
 
 function InfoRow({ label, children }) {
@@ -141,7 +137,9 @@ export function ContactQuickViewPopup({
                   {contact.fullName || 'Unnamed'}
                 </p>
                 {showMonthly ? (
-                  <p className="mt-0.5 truncate text-xs text-neutral-600">{formatMonthly(contact.monthlyAmount)}</p>
+                  <p className="mt-0.5 truncate text-xs text-neutral-600">
+                    {formatMonthlyAmount(contact.monthlyAmount, contact.currency)}
+                  </p>
                 ) : null}
               </div>
               <button

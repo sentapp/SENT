@@ -5,6 +5,7 @@ import { safeCategoryValue } from '../lib/safeCategory';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../lib/contactStatuses';
 import { isImportDuplicateByPhoneOrName, removeDuplicateContacts as removeDuplicateContactsFromDb } from '../lib/contactDuplicates';
 import { saveQuickTagToSupabase } from '../lib/contactQuickTagSave';
+import { normalizeCurrencyCode } from '../lib/currencies';
 
 /** Columns present in the original schema — safe before optional migrations. */
 const CONTACT_SELECT_MINIMAL =
@@ -12,7 +13,7 @@ const CONTACT_SELECT_MINIMAL =
 
 /** Optional CRM columns — only used when they exist in the database. */
 const CONTACT_SELECT_OPTIONAL_SUFFIX =
-  'address, is_one_time_donor, one_time_donation_amount, one_time_donation_date, relationship';
+  'address, is_one_time_donor, one_time_donation_amount, one_time_donation_date, relationship, currency';
 
 const CONTACT_SELECT_FULL = `${CONTACT_SELECT_MINIMAL}, ${CONTACT_SELECT_OPTIONAL_SUFFIX}`;
 
@@ -43,6 +44,7 @@ export function stripOptionalContactColumnsFromRow(row, schemaPartial) {
   delete out.one_time_donation_amount;
   delete out.one_time_donation_date;
   delete out.relationship;
+  delete out.currency;
   return out;
 }
 
@@ -86,6 +88,7 @@ function mapRow(row) {
     category: normalizeCategoryFromDb(row.category),
     status: normalizeStatusFromDb(row.status),
     monthlyAmount: row.monthly_amount != null ? Number(row.monthly_amount) : 0,
+    currency: normalizeCurrencyCode(row.currency),
     isOneTimeDonor: Boolean(row.is_one_time_donor),
     oneTimeDonationAmount:
       row.one_time_donation_amount != null ? Number(row.one_time_donation_amount) : 0,
@@ -123,6 +126,8 @@ function toRow(payload, missionaryId) {
   if (status === 'partner') category = 'supporter';
   category = safeCategoryValue(category);
   const monthlyNum = Number.isFinite(Number(monthly)) ? Number(monthly) : 0;
+  const currencyRaw = payload.currency ?? payload.contact_currency;
+  const currency = normalizeCurrencyCode(currencyRaw);
 
   const relRaw = payload.relationship ?? payload.relationship_label;
   const relationship =
@@ -137,6 +142,7 @@ function toRow(payload, missionaryId) {
     status,
     relationship,
     monthly_amount: monthlyNum,
+    currency,
     notes: String(payload.notes ?? '').trim(),
     address: String(payload.address ?? '').trim(),
     ...(() => {

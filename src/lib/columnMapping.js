@@ -1,4 +1,5 @@
 import { cleanPhone, separatePhoneFromName } from './importCleaners';
+import { normalizeCurrencyCode } from './currencies';
 import { isJunkRow } from './spreadsheetSheetPick';
 
 /**
@@ -121,7 +122,8 @@ export function inferColumnMapping(headers) {
   };
 }
 
-export function buildContactDrafts(rows, mapping) {
+export function buildContactDrafts(rows, mapping, options = {}) {
+  const defaultCurrency = normalizeCurrencyCode(options.defaultCurrency);
   const fullNameIdx = mapping.fullNameIdx ?? mapping.nameIdx ?? 0;
   const { phoneIdx, emailIdx } = mapping;
   const out = [];
@@ -144,6 +146,7 @@ export function buildContactDrafts(rows, mapping) {
       category: null,
       status: 'prospect',
       monthly_amount: 0,
+      currency: defaultCurrency,
       notes: '',
     });
   });

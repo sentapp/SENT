@@ -1,4 +1,5 @@
 import { normalizeCategoryForSave } from './contactCategories';
+import { normalizeCurrencyCode, parseCurrencyFromCell } from './currencies';
 import { safeCategoryValue } from './safeCategory';
 import { CONTACT_STATUS_VALUES, normalizeStatusForSave } from './contactStatuses';
 
@@ -38,6 +39,26 @@ export function findBestMonthlyAmountColumnIndex(headerCells) {
     }
   });
   return bestScore >= 60 ? best : -1;
+}
+
+/** @returns {number} column index or -1 */
+export function findBestCurrencyColumnIndex(headerCells) {
+  if (!headerCells?.length) return -1;
+  let best = -1;
+  let bestScore = 0;
+  headerCells.forEach((raw, i) => {
+    const c = compactHeader(raw);
+    const n = normHeader(raw);
+    let score = 0;
+    if (c === 'currency' || c === 'curr') score = 100;
+    else if (n.includes('currency code') || n.includes('currency')) score = 95;
+    else if (c.includes('currency')) score = 88;
+    if (score > bestScore) {
+      bestScore = score;
+      best = i;
+    }
+  });
+  return bestScore >= 85 ? best : -1;
 }
 
 /** @returns {number} column index or -1 */
@@ -212,12 +233,13 @@ export function determineCategory(row, monthlyAmount) {
  * Merge parsed name/phone/email row with optional status + monthly + category columns.
  * @param {object} draft base draft (uncategorized + prospect defaults are fine)
  * @param {unknown[]} row
- * @param {{ statusIdx: number, monthlyIdx: number, categoryIdx: number, width: number }} ctx
+ * @param {{ statusIdx: number, monthlyIdx: number, categoryIdx?: number, currencyIdx?: number, width: number, defaultCurrency?: string }} ctx
  */
 export function applyImportRowSemantics(draft, row, ctx) {
-  const { statusIdx, monthlyIdx, categoryIdx = -1, width } = ctx;
+  const { statusIdx, monthlyIdx, categoryIdx = -1, currencyIdx = -1, width, defaultCurrency = 'USD' } = ctx;
   let status = normalizeStatusForSave(draft.status);
   let monthly_amount = Number.isFinite(Number(draft.monthly_amount)) ? Number(draft.monthly_amount) : 0;
+  let currency = normalizeCurrencyCode(draft.currency ?? defaultCurrency);
 
   let statusCell = '';
   let categoryCell = '';
@@ -247,6 +269,11 @@ export function applyImportRowSemantics(draft, row, ctx) {
     }
   }
 
+  if (currencyIdx >= 0 && currencyIdx < width) {
+    const parsed = parseCurrencyFromCell(row[currencyIdx]);
+    if (parsed) currency = parsed;
+  }
+
   let finalStatus = normalizeStatusForSave(status);
   const inferredCategory = determineCategory(
     { statusText: statusCell, categoryText: categoryCell },
@@ -262,5 +289,6 @@ export function applyImportRowSemantics(draft, row, ctx) {
     category: safeCategoryValue(finalCategory),
     status: finalStatus,
     monthly_amount,
+    currency,
   };
 }

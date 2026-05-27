@@ -13,6 +13,12 @@ import { daysOverdue, formatDate, isDueToday, isOverdue } from '../../lib/taskDa
 import MissionPushSection from '../../components/MissionPushSection';
 import MissionaryPipelineSection from '../../components/MissionaryPipelineSection';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
+import {
+  computePartnerCurrencyTotals,
+  formatAmount,
+  formatOtherCurrenciesLine,
+  normalizeCurrencyCode,
+} from '../../lib/currencies';
 
 function MetricCard({ label, value, onActivate, ariaLabel, tint, Icon, labelColor }) {
   return (
@@ -196,20 +202,35 @@ export default function MissionaryOverview() {
       ),
     [contacts],
   );
-  const monthlySupport = useMemo(
-    () => partners.reduce((sum, p) => sum + (Number(p.monthlyAmount) || 0), 0),
-    [partners],
+  const homeCurrency = normalizeCurrencyCode(profile?.home_currency);
+
+  const { homeCurrencyTotal, otherCurrencies } = useMemo(
+    () => computePartnerCurrencyTotals(partners, homeCurrency),
+    [partners, homeCurrency],
   );
+
+  const otherCurrenciesLine = useMemo(() => formatOtherCurrenciesLine(otherCurrencies), [otherCurrencies]);
 
   const oneTimeDonors = useMemo(() => contacts.filter((c) => c.isOneTimeDonor), [contacts]);
   const totalOneTimeGifts = useMemo(
-    () => oneTimeDonors.reduce((sum, c) => sum + (Number(c.oneTimeDonationAmount) || 0), 0),
-    [oneTimeDonors],
+    () =>
+      oneTimeDonors.reduce((sum, c) => {
+        if (normalizeCurrencyCode(c.currency) !== homeCurrency) return sum;
+        return sum + (Number(c.oneTimeDonationAmount) || 0);
+      }, 0),
+    [oneTimeDonors, homeCurrency],
   );
 
   const oneTimeModalTotal = useMemo(
-    () => oneTimeModalRows.reduce((sum, r) => sum + (Number(r.one_time_donation_amount) || 0), 0),
-    [oneTimeModalRows],
+    () =>
+      oneTimeModalRows.reduce((sum, r) => {
+        const cur = normalizeCurrencyCode(
+          r.currency ?? contacts.find((c) => String(c.id) === String(r.id))?.currency,
+        );
+        if (cur !== homeCurrency) return sum;
+        return sum + (Number(r.one_time_donation_amount) || 0);
+      }, 0),
+    [oneTimeModalRows, homeCurrency, contacts],
   );
 
   useEffect(() => {
@@ -221,6 +242,7 @@ export default function MissionaryOverview() {
         full_name: c.fullName,
         one_time_donation_amount: c.oneTimeDonationAmount,
         one_time_donation_date: c.oneTimeDonationDate || null,
+        currency: c.currency,
       }));
 
     if (!supabase) {
@@ -233,7 +255,7 @@ export default function MissionaryOverview() {
     (async () => {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, full_name, one_time_donation_amount, one_time_donation_date')
+        .select('id, full_name, one_time_donation_amount, one_time_donation_date, currency')
         .eq('missionary_id', user.id)
         .eq('is_one_time_donor', true)
         .order('one_time_donation_date', { ascending: false });
@@ -252,8 +274,8 @@ export default function MissionaryOverview() {
   }, [oneTimeModalOpen, user?.id, oneTimeDonors]);
 
   const goal = Number(profile?.monthly_goal ?? state.missionary.profile.monthlyGoal ?? 0) || 0;
-  const gap = Math.max(goal - monthlySupport, 0);
-  const pct = goal > 0 ? Math.min(100, Math.round((monthlySupport / goal) * 100)) : 0;
+  const gap = Math.max(goal - homeCurrencyTotal, 0);
+  const pct = goal > 0 ? Math.min(100, Math.round((homeCurrencyTotal / goal) * 100)) : 0;
 
   const todayStr = localDateStr();
   const incompleteTasks = useMemo(() => tasks.filter((t) => !t.isComplete), [tasks]);
@@ -341,7 +363,14 @@ export default function MissionaryOverview() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <MetricCard
           label="Monthly Support"
-          value={`$${monthlySupport.toFixed(0)}`}
+          value={
+            <span>
+              {formatAmount(homeCurrencyTotal, homeCurrency)}
+              {otherCurrenciesLine ? (
+                <span className="mt-1 block text-sm font-normal text-neutral-500">{otherCurrenciesLine}</span>
+              ) : null}
+            </span>
+          }
           ariaLabel="Monthly support — open partners"
           onActivate={() => navigate('/missionary/partners')}
           tint="bg-green-light"
@@ -350,7 +379,7 @@ export default function MissionaryOverview() {
         />
         <MetricCard
           label="One-time gifts"
-          value={`$${totalOneTimeGifts.toFixed(0)}`}
+          value={formatAmount(totalOneTimeGifts, homeCurrency)}
           ariaLabel="One-time gifts — open details"
           onActivate={() => setOneTimeModalOpen(true)}
           tint="bg-[color:var(--amber-light)]"
@@ -368,7 +397,7 @@ export default function MissionaryOverview() {
         />
         <MetricCard
           label="Gap to Goal"
-          value={`$${gap.toFixed(0)}`}
+          value={formatAmount(gap, homeCurrency)}
           ariaLabel="Gap to goal — open partners"
           onActivate={() => navigate('/missionary/partners')}
           tint="bg-rose-light"
@@ -391,7 +420,9 @@ export default function MissionaryOverview() {
           <div>
             <p className="text-sm font-semibold">Funding progress</p>
             <p className="mt-1 text-xs text-muted">
-              {goal > 0 ? `$${monthlySupport.toFixed(0)} of $${goal.toFixed(0)}` : 'Set your monthly goal in Settings'}
+              {goal > 0
+                ? `${formatAmount(homeCurrencyTotal, homeCurrency)} of ${formatAmount(goal, homeCurrency)}`
+                : 'Set your monthly goal in Settings'}
             </p>
           </div>
           <p className="garden-progress-pct">{pct}%</p>
@@ -603,7 +634,7 @@ export default function MissionaryOverview() {
       <Modal open={oneTimeModalOpen} title="One-time gifts" onClose={() => setOneTimeModalOpen(false)}>
         <p className="text-base font-semibold text-ink">
           Total one-time gifts:{' '}
-          <span className="text-mission-ink">${oneTimeModalTotal.toFixed(2)}</span>
+          <span className="text-mission-ink">{formatAmount(oneTimeModalTotal, homeCurrency)}</span>
         </p>
         {oneTimeModalLoading ? (
           <p className="mt-4 text-sm text-neutral-500">Loading…</p>
@@ -617,11 +648,10 @@ export default function MissionaryOverview() {
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
                 <span className="font-medium text-ink">{r.full_name || 'Unnamed'}</span>
                 <span className="shrink-0 text-right font-semibold text-neutral-800">
-                  $
-                  {Number(r.one_time_donation_amount || 0).toLocaleString(undefined, {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatAmount(
+                    r.one_time_donation_amount,
+                    r.currency ?? contacts.find((c) => c.id === r.id)?.currency,
+                  )}
                   {r.one_time_donation_date ? (
                     <span className="ml-2 block font-normal text-neutral-500 sm:ml-2 sm:inline">
                       · {new Date(`${String(r.one_time_donation_date).slice(0, 10)}T12:00:00`).toLocaleDateString()}
