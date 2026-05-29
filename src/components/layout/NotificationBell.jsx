@@ -167,7 +167,7 @@ export default function NotificationBell() {
 
       {open ? (
         <div
-          className="absolute right-0 top-[calc(100%+8px)] z-[100] w-[290px] overflow-hidden rounded-xl border border-[#E0E0E0] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
+          className="absolute left-0 top-[calc(100%+8px)] z-[100] w-[290px] overflow-hidden rounded-xl border border-[#E0E0E0] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
           role="dialog"
           aria-label="Notifications panel"
         >
