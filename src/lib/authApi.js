@@ -104,7 +104,8 @@ export async function upsertOwnProfile({ userId, email, fullName, role, inviteCo
   if (!supabase || !userId) {
     return { ok: false, error: 'Supabase is not configured.' };
   }
-  const r = role === 'missionary' || role === 'supporter' ? role : 'supporter';
+  const r =
+    role === 'missionary' || role === 'supporter' || role === 'admin' ? role : 'supporter';
   const invite =
     inviteCodeUsed && String(inviteCodeUsed).trim() ? String(inviteCodeUsed).trim() : null;
 
@@ -139,6 +140,7 @@ export async function ensureProfileRole(user) {
   }
 
   const meta = user.user_metadata || {};
+  // Admin is assigned in the database only; never inferred from signup metadata.
   let r = meta.role === 'missionary' || meta.role === 'supporter' ? meta.role : null;
   if (!r) r = 'supporter';
 

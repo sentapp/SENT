@@ -7,6 +7,7 @@ import { ensureMissionarySupporterCode, repairSupporterMissionaryLink } from '..
 import { hasLocalPin, verifyLocalPin } from '../lib/localPin';
 import { PinDots, PinKeypad } from '../components/PinEntry';
 import AuthSplitShell from '../components/AuthSplitShell';
+import { homePathForRole } from '../lib/roles';
 
 function SignIn() {
   const navigate = useNavigate();
@@ -43,11 +44,13 @@ function SignIn() {
       }
       await refreshProfile();
 
-      if (typeof from === 'string' && from.startsWith('/') && !from.startsWith('//')) {
-        navigate(from, { replace: true });
-      } else {
-        navigate(role === 'missionary' ? '/missionary' : '/supporter', { replace: true });
-      }
+      const home = homePathForRole(role);
+      const canUseFrom =
+        typeof from === 'string' &&
+        from.startsWith('/') &&
+        !from.startsWith('//') &&
+        (from === home || from.startsWith(`${home}/`));
+      navigate(canUseFrom ? from : home, { replace: true });
       return true;
     },
     [from, navigate, refreshProfile],

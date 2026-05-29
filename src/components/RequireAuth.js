@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { homePathForRole } from '../lib/roles';
 
 function FullPageLoading() {
   return (
@@ -10,7 +11,7 @@ function FullPageLoading() {
 }
 
 /**
- * @param {{ children: React.ReactNode; role?: 'missionary' | 'supporter' }} props
+ * @param {{ children: React.ReactNode; role?: 'missionary' | 'supporter' | 'admin' }} props
  */
 export default function RequireAuth({ children, role }) {
   const { supabaseReady, user, profile, loading } = useAuth();
@@ -36,8 +37,7 @@ export default function RequireAuth({ children, role }) {
   }
 
   if (role && profile && profile.role !== role) {
-    const fallback = profile.role === 'missionary' ? '/missionary' : '/supporter';
-    return <Navigate to={fallback} replace />;
+    return <Navigate to={homePathForRole(profile.role)} replace />;
   }
 
   if (role && !profile) {

@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { supabase } from '../lib/supabaseClient';
 import { repairSupporterMissionaryLink } from '../lib/supporterConnection';
 import { applyAccentColor, clearAccentColor } from '../lib/applyAccentTheme';
+import { isAdminRole } from '../lib/roles';
 
 const AuthContext = createContext(null);
 
@@ -107,17 +108,21 @@ export function AuthProvider({ children }) {
     if (uid) await loadProfile(uid, { silent: true });
   }, [session?.user?.id, loadProfile]);
 
+  const role = profile?.role ?? null;
+
   const value = useMemo(
     () => ({
       supabaseReady: Boolean(supabase),
       session,
       user: session?.user ?? null,
       profile,
+      role,
+      isAdmin: isAdminRole(role),
       loading,
       signOut,
       refreshProfile,
     }),
-    [session, profile, loading, signOut, refreshProfile],
+    [session, profile, role, loading, signOut, refreshProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -6,6 +6,7 @@ import SignIn from './pages/SignIn';
 import ResetPassword from './pages/ResetPassword';
 import MissionaryLayout from './layouts/MissionaryLayout';
 import SupporterLayout from './layouts/SupporterLayout';
+import AdminLayout from './layouts/AdminLayout';
 
 import MissionaryOverview from './pages/missionary/Overview';
 import MissionaryContacts from './pages/missionary/Contacts';
@@ -22,6 +23,13 @@ import SupporterPrayer from './pages/supporter/Prayer';
 import SupporterRefer from './pages/supporter/Refer';
 import SupporterGive from './pages/supporter/SupporterGive';
 import SupporterProfile from './pages/supporter/Profile';
+
+import AdminOverview from './pages/admin/Overview';
+import AdminMissionaries from './pages/admin/Missionaries';
+import AdminSupporters from './pages/admin/Supporters';
+import AdminFeedback from './pages/admin/Feedback';
+import AdminBlast from './pages/admin/Blast';
+
 import RequireAuth from './components/RequireAuth';
 import { ContactDrawerProvider } from './context/ContactDrawerContext';
 import GlobalContactDrawer from './components/contacts/GlobalContactDrawer';
@@ -56,6 +64,22 @@ function App() {
         <Route path="updates" element={<MissionaryUpdates />} />
         <Route path="map" element={<Navigate to="/missionary/updates" replace />} />
         <Route path="settings" element={<MissionarySettings />} />
+      </Route>
+
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth role="admin">
+            <AdminLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<Navigate to="/admin/overview" replace />} />
+        <Route path="overview" element={<AdminOverview />} />
+        <Route path="missionaries" element={<AdminMissionaries />} />
+        <Route path="supporters" element={<AdminSupporters />} />
+        <Route path="feedback" element={<AdminFeedback />} />
+        <Route path="blast" element={<AdminBlast />} />
       </Route>
 
       <Route
