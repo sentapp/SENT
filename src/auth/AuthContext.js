@@ -28,6 +28,7 @@ export function AuthProvider({ children }) {
     const silent = Boolean(options.silent);
     if (!userId) {
       setProfile(null);
+      clearAccentColor();
       setLoading(false);
       return;
     }
