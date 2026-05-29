@@ -13,9 +13,10 @@ module.exports = {
         border: '#EEEEEE',
         green: {
           ...colors.green,
-          DEFAULT: '#2A9A58',
-          light: '#E8F5ED',
-          border: '#B8E0C8',
+          DEFAULT: 'var(--accent)',
+          light: 'var(--accent-light)',
+          border: 'var(--accent-border)',
+          dark: 'var(--accent-dark)',
         },
         rose: {
           ...colors.rose,
@@ -24,10 +25,10 @@ module.exports = {
           border: '#F5C4D4',
         },
         background: '#FFFFFF',
-        accent: '#2A9A58',
-        primary: '#2A9A58',
+        accent: 'var(--accent)',
+        primary: 'var(--accent)',
         warm: '#C17A00',
-        success: '#2A9A58',
+        success: 'var(--accent)',
         subtle: '#FAFAFA',
         sent: {
           bg: '#FFFFFF',
@@ -42,8 +43,8 @@ module.exports = {
         },
         mission: {
           /** Legacy name — Garden primary accent (was Theme 3 ink / blue). */
-          blue: '#2A9A58',
-          green: '#2A9A58',
+          blue: 'var(--accent)',
+          green: 'var(--accent)',
           amber: '#C17A00',
           canvas: 'var(--color-bg)',
           muted: 'var(--color-muted)',

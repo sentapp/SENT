@@ -21,13 +21,14 @@ export const CONTACT_STATUS_FORM_OPTIONS = [
 ];
 
 const MUTED = '#888888';
-const GREEN = '#2A9A58';
+const GREEN = 'var(--accent)';
 const AMBER = '#C17A00';
 const AMBER_LIGHT = '#FDF6E8';
-const GREEN_LIGHT = '#E8F5ED';
+const GREEN_LIGHT = 'var(--accent-light)';
 const SURFACE = '#FAFAFA';
 const ROSE = '#C43D5E';
 const ROSE_LIGHT = '#FDE8EE';
+const ACCENT_BORDER_MIX = 'color-mix(in srgb, var(--accent) 35%, transparent)';
 
 /** WHERE row popover — same values as {@link CONTACT_STATUS_FORM_OPTIONS}, with accent stripes. */
 export const QUICK_STATUS_EDIT_OPTIONS = [
@@ -48,9 +49,9 @@ const LABEL_BY_VALUE = CONTACT_STATUS_FORM_OPTIONS.reduce((acc, { value, label }
 export const STATUS_TAG_COLORS = {
   prospect: { bg: SURFACE, text: MUTED, border: 'rgba(136, 136, 136, 0.35)' },
   contacted: { bg: AMBER_LIGHT, text: AMBER, border: 'rgba(193, 122, 0, 0.35)' },
-  meeting_scheduled: { bg: GREEN_LIGHT, text: GREEN, border: 'rgba(42, 154, 88, 0.35)' },
+  meeting_scheduled: { bg: GREEN_LIGHT, text: GREEN, border: ACCENT_BORDER_MIX },
   committed: { bg: AMBER_LIGHT, text: AMBER, border: 'rgba(193, 122, 0, 0.3)' },
-  partner: { bg: GREEN, text: '#FFFFFF', border: 'rgba(42, 154, 88, 0.35)' },
+  partner: { bg: GREEN, text: '#FFFFFF', border: ACCENT_BORDER_MIX },
   declined: { bg: ROSE_LIGHT, text: ROSE, border: 'rgba(196, 61, 94, 0.28)' },
 };
 

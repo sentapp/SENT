@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { repairSupporterMissionaryLink } from '../lib/supporterConnection';
+import { applyAccentColor, clearAccentColor } from '../lib/applyAccentTheme';
 
 const AuthContext = createContext(null);
 
@@ -40,6 +41,11 @@ export function AuthProvider({ children }) {
         }
       }
       setProfile(row);
+      if (row?.role === 'missionary') {
+        applyAccentColor(row.accent_color);
+      } else {
+        clearAccentColor();
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -61,6 +67,7 @@ export function AuthProvider({ children }) {
         await loadProfile(data.session.user.id);
       } else {
         setProfile(null);
+        clearAccentColor();
         setLoading(false);
       }
     })();
@@ -75,6 +82,7 @@ export function AuthProvider({ children }) {
         void loadProfile(nextSession.user.id, { silent });
       } else {
         setProfile(null);
+        clearAccentColor();
         setLoading(false);
       }
     });
@@ -90,6 +98,7 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
+    clearAccentColor();
   }, []);
 
   const refreshProfile = useCallback(async () => {

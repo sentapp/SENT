@@ -16,7 +16,7 @@ function Landing() {
           <div className="mt-16 w-full max-w-md space-y-3 md:mt-20">
             <Link
               to="/signup"
-              className="flex h-[50px] w-full items-center justify-center rounded-lg bg-[#2A9A58] text-center text-[15px] font-medium text-white transition duration-200 ease-out hover:bg-[#2A9A58]/90 active:scale-[0.99]"
+              className="flex h-[50px] w-full items-center justify-center rounded-lg bg-accent text-center text-[15px] font-medium text-white transition duration-200 ease-out hover:bg-accent/90 active:scale-[0.99]"
             >
               Create an account
             </Link>

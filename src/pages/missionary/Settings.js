@@ -6,6 +6,7 @@ import { geocodePlaceName } from '../../lib/geocoding';
 import { supabase } from '../../lib/supabaseClient';
 import { ensureMissionarySupporterCode } from '../../lib/supporterConnection';
 import { DEFAULT_PROFILE_ACCENT, normalizeProfileAccent } from '../../lib/profileAppearance';
+import { applyAccentColor } from '../../lib/applyAccentTheme';
 import { isProfilesAccentColumnUnavailable } from '../../lib/profileAccentPersistence';
 import { ProfileAvatarAccentSection } from '../../components/ProfileAvatarAccentSection';
 import { Button, Card, Input, Label, Textarea } from '../../components/ui';
@@ -243,6 +244,7 @@ export default function MissionarySettings() {
       if (latest) {
         setProfile(latest);
         applyRowToForm(latest, formSetters);
+        applyAccentColor(latest.accent_color);
       }
 
       setProfileMsg('Profile saved.');
@@ -257,6 +259,7 @@ export default function MissionarySettings() {
   const persistAccent = async (hex) => {
     const h = normalizeProfileAccent(hex);
     setAccentColor(h);
+    applyAccentColor(h);
     setProfileErr('');
     setProfileMsg('');
     if (!supabase || !profile?.id) return;

@@ -15,7 +15,7 @@ const PANEL_STYLE = {
 };
 
 export const QUICK_CATEGORY_EDIT_OPTIONS = [
-  { value: 'supporter', label: 'Partner', accent: '#2A9A58' },
+  { value: 'supporter', label: 'Partner', accent: 'var(--accent)' },
   { value: 'church', label: 'Church / Org', accent: '#C43D5E' },
   { value: 'former', label: 'Previous Partner', accent: '#C17A00' },
   { value: 'connector', label: 'Connector', accent: '#1060A0' },

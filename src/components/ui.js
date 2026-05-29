@@ -16,9 +16,9 @@ export function Button({ className = '', variant = 'primary', ...props }) {
     'inline-flex min-h-[44px] items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60';
   const variants = {
     primary:
-      'border border-transparent bg-[#2A9A58] text-white hover:bg-[#2A9A58]/90 active:bg-[#2A9A58]/85',
+      'border border-transparent bg-accent text-white hover:bg-accent/90 active:bg-accent/85',
     accent:
-      'border border-transparent bg-[#2A9A58] text-white hover:bg-[#2A9A58]/90 active:bg-[#2A9A58]/85',
+      'border border-transparent bg-accent text-white hover:bg-accent/90 active:bg-accent/85',
     secondary:
       'border-[0.5px] border-[#111111] bg-white text-[#111111] hover:bg-[#FAFAFA] active:bg-[#EEEEEE]/80',
     ghost:
@@ -35,7 +35,7 @@ export const Input = React.forwardRef(function Input({ className = '', ...props 
   return (
     <input
       ref={ref}
-      className={`w-full rounded-lg border-[0.5px] border-[#EEEEEE] bg-[#FAFAFA] px-4 py-[14px] text-[14px] font-normal text-ink placeholder:text-[#AAAAAA] outline-none ring-[#2A9A58]/25 transition-colors duration-200 focus:border-[#2A9A58] focus:ring ${className}`}
+      className={`w-full rounded-lg border-[0.5px] border-[#EEEEEE] bg-[#FAFAFA] px-4 py-[14px] text-[14px] font-normal text-ink placeholder:text-[#AAAAAA] outline-none ring-accent/25 transition-colors duration-200 focus:border-accent focus:ring ${className}`}
       {...props}
     />
   );
@@ -44,7 +44,7 @@ export const Input = React.forwardRef(function Input({ className = '', ...props 
 export function Textarea({ className = '', ...props }) {
   return (
     <textarea
-      className={`w-full rounded-lg border-[0.5px] border-[#EEEEEE] bg-[#FAFAFA] px-4 py-3 text-[14px] font-normal text-ink placeholder:text-[#AAAAAA] outline-none ring-[#2A9A58]/25 transition-colors duration-200 focus:border-[#2A9A58] focus:ring ${className}`}
+      className={`w-full rounded-lg border-[0.5px] border-[#EEEEEE] bg-[#FAFAFA] px-4 py-3 text-[14px] font-normal text-ink placeholder:text-[#AAAAAA] outline-none ring-accent/25 transition-colors duration-200 focus:border-accent focus:ring ${className}`}
       {...props}
     />
   );

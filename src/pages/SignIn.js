@@ -255,23 +255,6 @@ function SignIn() {
               </button>
             </form>
 
-            <details className="mb-8 rounded-card border border-border bg-neutral-50/80 px-4 py-3 text-sm text-neutral-600">
-              <summary className="cursor-pointer font-semibold text-neutral-800">Testing: remove a test account</summary>
-              <p className="mt-2 leading-relaxed">
-                In the{' '}
-                <a
-                  href="https://supabase.com/dashboard"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-mission-ink underline-offset-2 hover:underline"
-                >
-                  Supabase Dashboard
-                </a>
-                , open your project → <strong>Authentication</strong> → <strong>Users</strong> → select the user → delete.
-                There is no safe way to delete another user’s auth record from this app without a server admin key.
-              </p>
-            </details>
-
             <p className="mt-auto text-center text-sm text-neutral-600">
               Don&apos;t have an account?{' '}
               <Link className="font-medium text-mission-ink underline-offset-2 hover:underline" to="/signup">

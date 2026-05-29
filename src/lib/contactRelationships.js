@@ -7,7 +7,7 @@
  */
 const MUTED = '#888888';
 const INK = '#111111';
-const GREEN = '#2A9A58';
+const GREEN = 'var(--accent)';
 const AMBER = '#C17A00';
 
 export const RELATIONSHIP_TAG_OPTIONS = [
@@ -29,7 +29,10 @@ const REL_COLORS = Object.fromEntries(
     {
       bg: '#FAFAFA',
       text: o.accent,
-      border: `${o.accent}44`,
+      border:
+        o.accent === GREEN
+          ? 'color-mix(in srgb, var(--accent) 27%, transparent)'
+          : `${o.accent}44`,
     },
   ]),
 );

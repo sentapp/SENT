@@ -27,9 +27,13 @@
     --ink: #111111;
     --muted: #888888;
     --border: #eeeeee;
-    --green: #2a9a58;
-    --green-light: #e8f5ed;
-    --green-border: #b8e0c8;
+    --accent: #2a9a58;
+    --accent-light: #edfaf2;
+    --accent-border: #a8e0c0;
+    --accent-dark: #1a7a40;
+    --green: var(--accent);
+    --green-light: var(--accent-light);
+    --green-border: var(--accent-border);
     --amber: #c17a00;
     --amber-light: #fdf6e8;
     --amber-border: #e8d4a8;
@@ -53,7 +57,7 @@
     --color-border: var(--border);
     --color-text: var(--ink);
     --color-muted: var(--muted);
-    --color-accent: var(--green);
+    --color-accent: var(--accent);
     --color-warm: var(--amber);
     --color-success: var(--green);
     --sent-nav-active: var(--green);
@@ -221,13 +225,13 @@
   .garden-progress-fill {
     height: 4px;
     border-radius: 2px;
-    background-color: var(--green);
+    background-color: var(--accent);
     transition: width 0.2s ease-out;
   }
   .garden-progress-pct {
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--green);
+    color: var(--accent);
   }
 }
 

@@ -39,8 +39,9 @@ export const CATEGORY_LABELS = {
   individual: 'Individual',
 };
 
-const GREEN = '#2A9A58';
+const GREEN = 'var(--accent)';
 const ON_GREEN = '#FFFFFF';
+const ACCENT_BORDER_MIX = 'color-mix(in srgb, var(--accent) 35%, transparent)';
 const ROSE_LIGHT = '#FDE8EE';
 const ROSE_TEXT = '#C43D5E';
 const AMBER_LIGHT = '#FDF6E8';
@@ -52,7 +53,7 @@ const IND_TEXT = '#6040B0';
 
 /** Pill styles — Garden multicolor. */
 export const CATEGORY_TAG_COLORS = {
-  supporter: { bg: GREEN, text: ON_GREEN, border: 'rgba(42, 154, 88, 0.35)' },
+  supporter: { bg: GREEN, text: ON_GREEN, border: ACCENT_BORDER_MIX },
   church: { bg: ROSE_LIGHT, text: ROSE_TEXT, border: 'rgba(196, 61, 94, 0.28)' },
   former: { bg: AMBER_LIGHT, text: AMBER_TEXT, border: 'rgba(193, 122, 0, 0.3)' },
   connector: { bg: CONN_BG, text: CONN_TEXT, border: 'rgba(16, 96, 160, 0.25)' },

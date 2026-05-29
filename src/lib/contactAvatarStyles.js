@@ -5,7 +5,7 @@ export function getContactAvatarStyle(category) {
   const id = normalizeCategoryFromDb(category);
   switch (id) {
     case 'supporter':
-      return { backgroundColor: '#2A9A58', color: '#FFFFFF' };
+      return { backgroundColor: 'var(--accent)', color: '#FFFFFF' };
     case 'church':
       return { backgroundColor: '#FDE8EE', color: '#C43D5E' };
     case 'former':
