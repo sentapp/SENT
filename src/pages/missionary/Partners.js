@@ -472,7 +472,7 @@ export default function MissionaryPartners() {
 
   return (
     <div className="space-y-6">
-      <header className="sticky top-0 z-30 -mx-5 -mt-5 border-b border-[#222] bg-[#111] px-5 py-4 text-white md:-mx-8 md:-mt-8 md:px-8">
+      <header className="sticky top-0 z-10 -mx-5 -mt-5 border-b border-[#222] bg-[#111] px-5 py-4 text-white md:-mx-8 md:-mt-8 md:px-8">
         <h1 className="font-display text-[26px] leading-none tracking-wide">Partners</h1>
         <div className="mt-4 grid grid-cols-3 gap-2">
           <div className="rounded-lg border border-[#333] bg-[#1a1a1a] px-2.5 py-2.5">

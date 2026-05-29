@@ -292,8 +292,8 @@ export default function MissionaryOverview() {
   };
 
   return (
-    <div className="space-y-6">
-      <header className="sticky top-0 z-30 -mx-5 -mt-5 border-b border-[#222] bg-[#111] px-5 py-5 text-white md:-mx-8 md:-mt-8 md:px-8">
+    <div className="flex flex-col gap-6">
+      <header className="sticky top-0 z-10 -mx-5 -mt-5 border-b border-[#222] bg-[#111] px-5 py-5 text-white md:-mx-8 md:-mt-8 md:px-8">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
             <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-white/20 bg-[#222]">
@@ -330,24 +330,37 @@ export default function MissionaryOverview() {
         </div>
         {goal > 0 ? (
           <div
-            className="mt-2 flex items-center justify-between gap-2"
+            className="mt-2 flex items-center justify-between gap-3"
             style={{ fontSize: 10, color: '#555' }}
           >
-            <span>
+            <span className="min-w-0">
               {gap.toLocaleString()} to {goal.toLocaleString()} goal
+              {oneTimeTotal > 0 ? (
+                <>
+                  {' · '}
+                  <span style={{ color: '#4CAF7D' }}>One-time: ${oneTimeTotal.toLocaleString()}</span>
+                </>
+              ) : null}
             </span>
-            {oneTimeTotal > 0 ? (
-              <span className="flex items-center gap-2">
-                <span className="h-3 w-px shrink-0 bg-[#555]" aria-hidden />
-                <span>
-                  One-time gifts:{' '}
-                  <span style={{ color: '#4CAF7D' }}>${oneTimeTotal.toLocaleString()}</span>
-                </span>
-              </span>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => setShowStats(true)}
+              className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888] transition-colors hover:text-white"
+            >
+              Stats →
+            </button>
           </div>
         ) : (
-          <p className="mt-2 text-xs text-white/60">Set your monthly goal in Settings</p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="text-xs text-white/60">Set your monthly goal in Settings</p>
+            <button
+              type="button"
+              onClick={() => setShowStats(true)}
+              className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888] transition-colors hover:text-white"
+            >
+              Stats →
+            </button>
+          </div>
         )}
       </header>
 
@@ -639,15 +652,6 @@ export default function MissionaryOverview() {
         </div>
       </Card>
 
-      <div className="flex justify-center pb-2 pt-1">
-        <button
-          type="button"
-          onClick={() => setShowStats(true)}
-          className="text-sm font-medium text-muted transition-colors hover:text-ink"
-        >
-          View full stats →
-        </button>
-      </div>
     </div>
   );
 }
