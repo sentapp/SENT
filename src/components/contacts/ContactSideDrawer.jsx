@@ -9,7 +9,7 @@ import { formatMonthlyAmount } from '../../lib/currencies';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { relationshipLabel } from '../../lib/contactRelationships';
 import { notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
-import { statusLabel } from '../../lib/contactStatuses';
+import { normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { calcCareFlags, calcPriorityScore, CARE_LETTERS, getPriorityStyle } from '../../lib/priorityScore';
 import { completeTask as completeTaskRepo, createTask, mapTaskRow } from '../../lib/tasksRepository';
 import { ContactThreeQuickTagRows } from './QuickTagPopover';
@@ -109,6 +109,7 @@ function previewNotes(text, max = 140) {
  *   onText: () => void,
  *   onLog: () => void,
  *   onScheduleMeeting?: (contact: Record<string, unknown>) => void,
+ *   onViewInPartners?: () => void,
  *   actionError?: string,
  *   logs?: unknown[],
  *   tasks?: unknown[],
@@ -132,6 +133,7 @@ export function ContactSideDrawer({
   onText,
   onLog,
   onScheduleMeeting,
+  onViewInPartners,
   actionError = '',
   logs: logsProp,
   tasks: tasksProp,
@@ -150,7 +152,6 @@ export function ContactSideDrawer({
   const [internalTasksLoading, setInternalTasksLoading] = useState(false);
   const dataFromParent = logsProp !== undefined;
   const logs = dataFromParent ? logsProp : internalLogs;
-  const setLogs = dataFromParent ? () => {} : setInternalLogs;
   const logsLoading = dataFromParent ? Boolean(logsLoadingProp) : internalLogsLoading;
   const tasks = dataFromParent ? tasksProp || [] : internalTasks;
   const tasksLoading = dataFromParent ? Boolean(tasksLoadingProp) : internalTasksLoading;
@@ -297,6 +298,11 @@ export function ContactSideDrawer({
   const statusDisp = statusLabel(contact.status);
   const rel = contact.relationship != null && String(contact.relationship).trim() !== '';
   const relationshipDisp = rel ? relationshipLabel(contact.relationship) : '—';
+
+  const isPartnerContact =
+    normalizeCategory(contact.category) === 'supporter' ||
+    normalizeStatusFromDb(contact.status) === 'partner' ||
+    Number(contact.monthlyAmount) > 0;
 
   const monthly = Number(contact.monthlyAmount);
   const monthlyLine =
@@ -591,6 +597,24 @@ export function ContactSideDrawer({
         </div>
 
         <div className="sticky bottom-0 z-10 shrink-0 border-t border-[#EEEEEE] bg-white p-3">
+          {isPartnerContact && onViewInPartners ? (
+            <button
+              type="button"
+              className="mb-2 w-full rounded-lg border py-2 text-center text-xs font-medium hover:opacity-90"
+              style={{
+                padding: '8px',
+                borderRadius: 8,
+                border: '0.5px solid var(--accent-border)',
+                background: 'var(--accent-light)',
+                color: 'var(--accent-dark)',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+              onClick={onViewInPartners}
+            >
+              View in Partners →
+            </button>
+          ) : null}
           <button
             type="button"
             className="w-full rounded-md border border-[#EEEEEE] bg-white py-2.5 text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"

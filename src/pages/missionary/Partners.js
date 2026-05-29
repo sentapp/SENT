@@ -17,7 +17,7 @@ import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { findEmailConflict, findPhoneConflict } from '../../lib/contactDuplicates';
 import { normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
 import { safeCategoryValue } from '../../lib/safeCategory';
-import { mergeNotesWithSocial, notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
+import { mergeNotesWithSocial } from '../../lib/contactSocialInNotes';
 import { normalizeRelationshipForSave } from '../../lib/contactRelationships';
 import { normalizeStatusForSave, normalizeStatusFromDb } from '../../lib/contactStatuses';
 import { phoneDigits } from '../../lib/phoneFormat';
@@ -67,14 +67,6 @@ function daysSinceContactLabel(lastIso) {
   return `${d} days since contact`;
 }
 
-function cleanDisplayNotes(notes) {
-  const body = notesWithoutSocialBlock(notes);
-  if (!body) return '';
-  const trimmed = body.toString().trim();
-  if (/^\d+$/.test(trimmed)) return '';
-  return trimmed;
-}
-
 const emptyForm = {
   fullName: '',
   phone: '',
@@ -111,30 +103,8 @@ function contactFormSnapshot(f) {
   });
 }
 
-function contactRowToForm(c) {
-  const { social, bodyNotes } = splitSocialFromNotes(c.notes);
-  return {
-    fullName: c.fullName,
-    phone: c.phone,
-    email: c.email,
-    address: c.address || '',
-    social,
-    notes: cleanDisplayNotes(bodyNotes),
-    category: normalizeCategoryForSave(c.category),
-    status: normalizeStatusFromDb(c.status),
-    relationship: c.relationship != null && String(c.relationship).trim() !== '' ? String(c.relationship).trim() : '',
-    monthlyAmount: c.monthlyAmount ? String(c.monthlyAmount) : '',
-    currency: normalizeCurrencyCode(c.currency),
-    isOneTimeDonor: Boolean(c.isOneTimeDonor),
-    oneTimeDonationAmount:
-      c.oneTimeDonationAmount != null && Number(c.oneTimeDonationAmount) > 0
-        ? String(c.oneTimeDonationAmount)
-        : '',
-    oneTimeDonationDate: c.oneTimeDonationDate || '',
-  };
-}
-
 export default function MissionaryPartners() {
+  const { openDrawer } = useContactDrawer();
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
   const homeCurrency = normalizeCurrencyCode(profile?.home_currency);
@@ -406,14 +376,8 @@ export default function MissionaryPartners() {
     const p = popupPartner;
     setPopupPartner(null);
     setCommActionError('');
-    setFullProfileId(p.id);
-    const next = contactRowToForm(p);
-    fullProfileSnapshotRef.current = contactFormSnapshot(next);
-    setFullProfileForm(next);
-    setFullProfileSaveError('');
-    setFullProfileDiscardOpen(false);
-    setFullProfileOpen(true);
-  }, [popupPartner]);
+    openDrawer(p);
+  }, [popupPartner, openDrawer]);
 
   const phoneDupWarn = useMemo(
     () => findPhoneConflict(fullProfileForm.phone, contacts, { excludeId: fullProfileId }),

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useContactDrawer } from '../../context/ContactDrawerContext';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
@@ -49,7 +49,6 @@ function todayStr() {
 }
 
 export default function MissionaryMeetings() {
-  const navigate = useNavigate();
   const { openDrawer } = useContactDrawer();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();

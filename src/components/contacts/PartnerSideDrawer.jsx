@@ -358,7 +358,7 @@ export function PartnerSideDrawer({
             className="w-full rounded-md border border-[#EEEEEE] bg-white py-2.5 text-center text-sm font-semibold text-mission-ink hover:bg-mission-ink/5"
             onClick={onEditFullProfile}
           >
-            Edit full profile
+            View full profile →
           </button>
         </div>
       </aside>

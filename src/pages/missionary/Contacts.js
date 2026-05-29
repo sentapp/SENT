@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import {
@@ -12,7 +12,7 @@ import {
 import { fetchGoogleSheetMatrix, userMessageForGoogleSheetImportFailure } from '../../lib/googleSheetsApi';
 import { cleanEmail, extrasFromRejectedContactFields, mergeImportNotes } from '../../lib/contactImportClean';
 import { cleanNotes, cleanPhone } from '../../lib/importCleaners';
-import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
+import { formatPhone } from '../../lib/phoneFormat';
 import { phaseLabelFromPct } from '../../lib/importProgressText';
 import {
   findEmailConflict,
@@ -41,15 +41,8 @@ import {
   CARE_LETTERS,
   getPriorityStyle,
 } from '../../lib/priorityScore';
-import {
-  ContactQuickLogPopup,
-} from '../../components/contacts/ContactQuickViewPopup';
-import { ContactSideDrawer } from '../../components/contacts/ContactSideDrawer';
-import {
-  DRAWER_STACK_QUICK_LOG_BACKDROP_Z,
-  DRAWER_STACK_QUICK_LOG_MODAL_Z,
-} from '../../components/contacts/quickViewOverlayZIndex';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
+import { useContactDrawer } from '../../context/ContactDrawerContext';
 import { Button, EmptyState, Input, LoadingSpinner, Modal } from '../../components/ui';
 import ContactEditFormLayout from './ContactEditFormLayout';
 
@@ -78,13 +71,6 @@ function filterContacts(contacts, activeFilter) {
   switch (activeFilter) {
     case 'all':
       return contacts;
-    case 'supporter':
-      return contacts.filter(
-        (c) =>
-          normalizeCategory(c.category) === 'supporter' ||
-          normalizeStatusFromDb(c.status) === 'partner' ||
-          (c.monthlyAmount != null && Number(c.monthlyAmount) > 0),
-      );
     case 'church':
       return contacts.filter((c) => normalizeCategory(c.category) === 'church');
     case 'former':
@@ -284,17 +270,8 @@ export default function MissionaryContacts() {
   const [dedupeLoading, setDedupeLoading] = useState(false);
   const [dedupeBanner, setDedupeBanner] = useState(null);
 
-  const [drawerContact, setDrawerContact] = useState(null);
-  const [showLogModal, setShowLogModal] = useState(false);
-  const [logType, setLogType] = useState('call');
-  const [logText, setLogText] = useState('');
-  const [logSaving, setLogSaving] = useState(false);
-  const [logError, setLogError] = useState('');
-  const [loggedSuccess, setLoggedSuccess] = useState(false);
-  const [activityLogRefreshKey, setActivityLogRefreshKey] = useState(0);
   const [missionaryLogs, setMissionaryLogs] = useState([]);
-  const [commActionError, setCommActionError] = useState('');
-  const navigate = useNavigate();
+  const { openDrawer, closeDrawer, contactListDataKey } = useContactDrawer();
 
   const sessionRef = useRef(0);
   const contactUrlHandledRef = useRef(null);
@@ -320,26 +297,19 @@ export default function MissionaryContacts() {
 
   const closeDetail = useCallback(
     ({ restoreScroll = true } = {}) => {
-      setDrawerContact(null);
-      setShowLogModal(false);
-      setLogText('');
-      setLogError('');
-      setLoggedSuccess(false);
-      setCommActionError('');
+      closeDrawer();
       if (restoreScroll) restoreListScroll();
     },
-    [restoreListScroll],
+    [closeDrawer, restoreListScroll],
   );
 
   const handleOpenContact = useCallback(
     (c) => {
       if (!c) return;
       captureListScroll();
-      setCommActionError('');
-      setLoggedSuccess(false);
-      setDrawerContact(c);
+      openDrawer(c);
     },
-    [captureListScroll],
+    [captureListScroll, openDrawer],
   );
 
   const beginImportSession = useCallback(() => {
@@ -398,7 +368,7 @@ export default function MissionaryContacts() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, activityLogRefreshKey]);
+  }, [user?.id, contactListDataKey]);
 
   const logsByContactId = useMemo(() => {
     const map = new Map();
@@ -796,12 +766,6 @@ export default function MissionaryContacts() {
     handleOpenContact,
   ]);
 
-  useEffect(() => {
-    if (!drawerContact?.id) return;
-    const fresh = contacts.find((x) => String(x.id) === String(drawerContact.id));
-    if (fresh) setDrawerContact(fresh);
-  }, [contacts, drawerContact?.id]);
-
   const saveContact = async () => {
     setSaveError('');
     setContactSaveSuccess('');
@@ -1036,109 +1000,6 @@ export default function MissionaryContacts() {
     [closeDetail],
   );
 
-  useEffect(() => {
-    if (!loggedSuccess) return undefined;
-    const t = setTimeout(() => setLoggedSuccess(false), 4000);
-    return () => clearTimeout(t);
-  }, [loggedSuccess]);
-
-  const logCommunication = useCallback(
-    async (type, notes = '') => {
-      if (!supabase || !drawerContact?.id) {
-        return { ok: false, error: 'No contact selected.' };
-      }
-      const {
-        data: { user: authUser },
-        error: userErr,
-      } = await supabase.auth.getUser();
-      const mid = !userErr && authUser?.id ? authUser.id : null;
-      if (!mid) return { ok: false, error: 'Not signed in.' };
-      const created_at = new Date().toISOString();
-      const { error } = await supabase.from('communication_logs').insert({
-        missionary_id: mid,
-        contact_id: drawerContact.id,
-        comm_type: type,
-        notes: notes ?? '',
-        created_at,
-      });
-      if (error) return { ok: false, error: error.message || 'Could not save log.' };
-      setActivityLogRefreshKey((k) => k + 1);
-      await refetch();
-      return { ok: true, created_at };
-    },
-    [drawerContact?.id, refetch],
-  );
-
-  const handleCall = useCallback(() => {
-    const phone = drawerContact?.phone;
-    if (!phone) {
-      alert('No phone number on file');
-      return;
-    }
-    const digits = phoneDigits(phone);
-    if (!digits) {
-      alert('No phone number on file');
-      return;
-    }
-    setCommActionError('');
-    window.open(`tel:${digits}`, '_self');
-    void (async () => {
-      const res = await logCommunication('call', '');
-      if (!res.ok) {
-        setCommActionError(res.error || 'Could not log call.');
-      }
-    })();
-  }, [drawerContact?.phone, logCommunication]);
-
-  const handleText = useCallback(() => {
-    const phone = drawerContact?.phone;
-    if (!phone) {
-      alert('No phone number on file');
-      return;
-    }
-    const digits = phoneDigits(phone);
-    if (!digits) {
-      alert('No phone number on file');
-      return;
-    }
-    setCommActionError('');
-    window.open(`sms:${digits}`, '_self');
-    void (async () => {
-      const res = await logCommunication('text', '');
-      if (!res.ok) {
-        setCommActionError(res.error || 'Could not log text.');
-      }
-    })();
-  }, [drawerContact?.phone, logCommunication]);
-
-  const openQuickLogFromDetail = useCallback(() => {
-    setLogType('call');
-    setLogText('');
-    setLogError('');
-    setShowLogModal(true);
-  }, []);
-
-  const submitQuickLog = useCallback(async () => {
-    if (!logType) return;
-    setLogError('');
-    setLogSaving(true);
-    try {
-      const res = await logCommunication(logType, logText.trim());
-      if (!res.ok) {
-        setLogError(res.error || 'Could not save log.');
-        return;
-      }
-      setShowLogModal(false);
-      setLogText('');
-      setLoggedSuccess(true);
-      setActivityLogRefreshKey((k) => k + 1);
-    } catch (e) {
-      setLogError(e?.message || 'Could not save log.');
-    } finally {
-      setLogSaving(false);
-    }
-  }, [logCommunication, logType, logText]);
-
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
 
   return (
@@ -1233,12 +1094,6 @@ export default function MissionaryContacts() {
       {contactSaveSuccess ? (
         <div className="rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
           {contactSaveSuccess}
-        </div>
-      ) : null}
-
-      {loggedSuccess ? (
-        <div className="rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900" role="status">
-          Logged successfully
         </div>
       ) : null}
 
@@ -1474,49 +1329,6 @@ export default function MissionaryContacts() {
           </div>
         )}
       </div>
-
-      <ContactSideDrawer
-        contact={drawerContact}
-        onClose={closeDetail}
-        saveQuickTag={saveQuickTag}
-        patchContactInList={patchContactInList}
-        onAfterQuickTagSave={() => void refetch()}
-        onPatchContact={(next) =>
-          setDrawerContact((prev) =>
-            prev && String(prev.id) === String(next.id) ? { ...prev, ...next } : prev,
-          )
-        }
-        openEditForm={openEdit}
-        onCall={handleCall}
-        onText={handleText}
-        onLog={openQuickLogFromDetail}
-        onScheduleMeeting={(c) =>
-          navigate(`/missionary/meetings?add=1&contact=${encodeURIComponent(c.id)}`)
-        }
-        actionError={commActionError}
-        activityLogsRefreshKey={activityLogRefreshKey}
-        suppressEscape={showLogModal}
-      />
-
-      <ContactQuickLogPopup
-        open={showLogModal}
-        backdropZIndex={DRAWER_STACK_QUICK_LOG_BACKDROP_Z}
-        panelZIndex={DRAWER_STACK_QUICK_LOG_MODAL_Z}
-        title={drawerContact ? `Quick log — ${drawerContact.fullName || 'Contact'}` : 'Quick log'}
-        selectedType={logType}
-        onSelectType={setLogType}
-        notes={logText}
-        onNotesChange={setLogText}
-        error={logError}
-        saving={logSaving}
-        onSave={() => void submitQuickLog()}
-        onClose={() => {
-          if (logSaving) return;
-          setShowLogModal(false);
-          setLogText('');
-          setLogError('');
-        }}
-      />
 
       <Modal
         open={modalOpen}

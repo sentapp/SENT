@@ -154,6 +154,11 @@ export default function GlobalContactDrawer() {
     [closeDrawer, navigate],
   );
 
+  const handleViewInPartners = useCallback(() => {
+    closeDrawer();
+    navigate('/missionary/partners');
+  }, [closeDrawer, navigate]);
+
   return (
     <>
       <ContactSideDrawer
@@ -169,6 +174,7 @@ export default function GlobalContactDrawer() {
         onAfterQuickTagSave={() => void refetch()}
         onPatchContact={patchOpenContact}
         openEditForm={openEditForm}
+        onViewInPartners={handleViewInPartners}
         onCall={handleCall}
         onText={handleText}
         onLog={openQuickLog}
