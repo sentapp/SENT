@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { maybeLinkSupporterContactAfterLink } from './supporterContactLink';
+import { addSupporterAsContact, maybeLinkSupporterContactAfterLink } from './supporterContactLink';
 
 function parseLinkInviteRpcPayload(payload) {
   if (payload == null) return null;
@@ -51,7 +51,28 @@ export async function lookupMissionaryBySupporterCode(rawCode) {
     return null;
   }
   const rows = Array.isArray(data) ? data : data != null ? [data] : [];
-  if (rows.length === 0 || !rows[0]?.id) return null;
+  if (rows.length === 0 || !rows[0]?.id) {
+    const { data: candidates, error: profErr } = await supabase
+      .from('profiles')
+      .select('id, full_name, organization, supporter_code')
+      .eq('role', 'missionary')
+      .not('supporter_code', 'is', null);
+
+    if (profErr) {
+      console.warn('profiles supporter_code lookup', profErr);
+      return null;
+    }
+    const prof = (candidates || []).find(
+      (p) => normalizeMissionaryInviteCode(p.supporter_code) === cleanCode,
+    );
+    if (!prof?.id) return null;
+    return {
+      id: prof.id,
+      full_name: String(prof.full_name ?? ''),
+      organization: String(prof.organization ?? ''),
+      supporter_code: String(prof.supporter_code ?? cleanCode),
+    };
+  }
   const missionary = rows[0];
   return {
     id: missionary.id,
@@ -59,6 +80,25 @@ export async function lookupMissionaryBySupporterCode(rawCode) {
     organization: String(missionary.organization ?? ''),
     supporter_code: cleanCode,
   };
+}
+
+async function loadSupporterProfileForContact(supporterUserId) {
+  if (!supabase || !supporterUserId) return null;
+  const { data: p } = await supabase
+    .from('profiles')
+    .select('email, full_name')
+    .eq('id', supporterUserId)
+    .maybeSingle();
+  return p;
+}
+
+async function afterSupporterLinked(missionaryId, supporterUserId) {
+  const p = await loadSupporterProfileForContact(supporterUserId);
+  if (p) {
+    await addSupporterAsContact(missionaryId, p);
+  } else {
+    void maybeLinkSupporterContactAfterLink(missionaryId, supporterUserId);
+  }
 }
 
 /** @deprecated use lookupMissionaryBySupporterCode */
@@ -138,7 +178,7 @@ export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed)
       if (rpc.skipped) return { ok: true, skipped: true };
       const m = rpc.missionary;
       if (m?.id) {
-        void maybeLinkSupporterContactAfterLink(m.id, supporterUserId);
+        void afterSupporterLinked(m.id, supporterUserId);
         return {
           ok: true,
           missionary: {
@@ -171,7 +211,7 @@ export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed)
     .eq('id', supporterUserId);
 
   if (error) return { ok: false, error: error.message };
-  void maybeLinkSupporterContactAfterLink(missionary.id, supporterUserId);
+  void afterSupporterLinked(missionary.id, supporterUserId);
   return {
     ok: true,
     missionary: {
@@ -230,7 +270,7 @@ export async function relinkSupporterToMissionary(supporterUserId, inviteCodeUse
     .eq('id', supporterUserId);
 
   if (error) return { ok: false, error: error.message };
-  void maybeLinkSupporterContactAfterLink(missionary.id, supporterUserId);
+  void afterSupporterLinked(missionary.id, supporterUserId);
   return {
     ok: true,
     missionary: {

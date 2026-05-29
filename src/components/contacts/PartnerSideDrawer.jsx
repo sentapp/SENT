@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
 import { formatMonthlyAmount } from '../../lib/currencies';
-import { categoryLabel, normalizeCategory } from '../../lib/contactCategories';
+import { normalizeCategory } from '../../lib/contactCategories';
 import { ContactThreeQuickTagRows } from './QuickTagPopover';
 import { PARTNER_DRAWER_BACKDROP_Z, PARTNER_DRAWER_PANEL_Z } from './quickViewOverlayZIndex';
 import { lastContactBadgeFromIso } from './ContactQuickViewPopup';
@@ -153,9 +153,6 @@ export function PartnerSideDrawer({
   const telHref = partner.phone ? `tel:${phoneDigits(partner.phone) || ''}` : null;
   const emailStr = partner.email ? String(partner.email).trim() : '';
   const emailHref = emailStr ? `mailto:${emailStr}` : '';
-  const cat = normalizeCategory(partner.category);
-  const categoryDisp = cat ? categoryLabel(partner.category) : '—';
-
   const deleteLog = async (logId) => {
     if (!window.confirm('Delete this activity log?')) return;
     if (!supabase || !user?.id) return;

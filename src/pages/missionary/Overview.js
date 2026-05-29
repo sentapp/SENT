@@ -22,6 +22,8 @@ import { daysUntilFollowUp } from '../../lib/dateHelpers';
 import { fetchMeetingsForMissionary } from '../../lib/meetingsRepository';
 import { formatMeetingDate, formatTime } from '../../lib/meetingDateUtils';
 import { normalizeStatusFromDb } from '../../lib/contactStatuses';
+import { usePendingMeetingRequestsCount } from '../../hooks/usePendingMeetingRequestsCount';
+import PendingMeetingRequestsBanner from '../../components/meetings/PendingMeetingRequestsBanner';
 
 function MissionaryPrayerRequestMenu({ open, onOpenChange, onDelete }) {
   const wrapRef = useRef(null);
@@ -120,6 +122,7 @@ export default function MissionaryOverview() {
   } = useMissionaryPrayerRequests(user?.id);
   const { state } = useAppState();
   const { tasks, loading: tasksLoading, refetch: refetchTasks, completeTask } = useMissionaryTasks(user?.id);
+  const { pending: pendingMeetingRequests } = usePendingMeetingRequestsCount(user?.id);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addTaskTitle, setAddTaskTitle] = useState('');
   const [addTaskContactId, setAddTaskContactId] = useState('');
@@ -337,7 +340,7 @@ export default function MissionaryOverview() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="sticky top-0 z-10 -mx-5 -mt-5 border-b border-[#222] bg-[#111] px-5 py-5 text-white md:-mx-8 md:-mt-8 md:px-8">
+      <header className="-mx-5 -mt-5 shrink-0 border-b border-[#222] bg-[#111] px-5 py-5 text-white md:-mx-8 md:-mt-8 md:px-8">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
             <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-white/20 bg-[#222]">
@@ -409,6 +412,8 @@ export default function MissionaryOverview() {
           </div>
         )}
       </header>
+
+      <PendingMeetingRequestsBanner pending={pendingMeetingRequests} />
 
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3">

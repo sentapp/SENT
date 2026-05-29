@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { categoryLabel, getCategoryTagColors, shouldShowCategoryTag } from '../../lib/contactCategories';
+import { categoryLabel, getCategoryTagColors } from '../../lib/contactCategories';
 import { getRelationshipTagColors, relationshipLabel, RELATIONSHIP_TAG_OPTIONS } from '../../lib/contactRelationships';
 import { fullContactPayloadFromQuickTag, mergeContactAfterQuickTag } from '../../lib/contactQuickTagSave';
+import { getVisibleTags } from '../../lib/contactVisibleTags';
 import { QUICK_STATUS_EDIT_OPTIONS, STATUS_TAG_COLORS, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { addDaysFromNow } from '../../lib/dateHelpers';
 
@@ -196,12 +197,12 @@ export function ContactThreeQuickTagRows({
     }
   };
 
-  const st = normalizeStatusFromDb(contact.status);
-  const hasRel = Boolean(contact.relationship && String(contact.relationship).trim());
+  const visible = getVisibleTags(contact);
+  const hasRel = visible.showRelationship;
   const relSt = hasRel ? getRelationshipTagColors(contact.relationship) : null;
-  const showCatPill = shouldShowCategoryTag(contact.category);
+  const showCatPill = visible.showCategory;
   const catSt = showCatPill ? getCategoryTagColors(contact.category) : null;
-  const showWherePill = st !== 'prospect';
+  const showWherePill = visible.showStatus;
 
   const whoTrigger = showCatPill ? (
     <QuickTagPopover

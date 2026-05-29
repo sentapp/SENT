@@ -7,7 +7,8 @@ import {
   useMissionaryPipelineContacts,
 } from '../../hooks/useMissionaryPipelineContacts';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
-import { categoryLabel, shouldShowCategoryTag } from '../../lib/contactCategories';
+import { categoryLabel } from '../../lib/contactCategories';
+import { getVisibleTags } from '../../lib/contactVisibleTags';
 import { normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { getDateFromNow, localDateStr } from '../../lib/dateHelpers';
 import { formatPhone } from '../../lib/phoneFormat';
@@ -234,7 +235,7 @@ export default function MissionaryPipeline({ embedded = false }) {
                     >
                       <p className="text-sm font-bold text-ink">{c.fullName || 'Unnamed'}</p>
                       <p className="mt-1 text-xs text-neutral-600">{formatPhone(c.phone) || '—'}</p>
-                      {shouldShowCategoryTag(c.category) ? (
+                      {getVisibleTags(c).showCategory ? (
                         <p className="mt-2">
                           <span className={CATEGORY_BADGE}>{categoryLabel(c.category)}</span>
                         </p>

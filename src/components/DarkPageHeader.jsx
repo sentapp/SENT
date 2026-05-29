@@ -1,10 +1,11 @@
 /**
- * Sticky dark page header for missionary screens (Circuit Riders movement design).
+ * Dark page header for missionary screens (Circuit Riders movement design).
+ * Lives in the layout scroll container — not sticky, so content is not covered underneath.
  */
 export default function DarkPageHeader({ title, subtitle, children, className = '' }) {
   return (
     <header
-      className={`sticky top-0 z-10 -mx-5 -mt-5 border-b border-[#222] bg-[#111] px-5 py-4 text-white md:-mx-8 md:-mt-8 md:px-8 ${className}`}
+      className={`-mx-5 -mt-5 shrink-0 border-b border-[#222] bg-[#111] px-5 py-4 text-white md:-mx-8 md:-mt-8 md:px-8 ${className}`}
     >
       <h1 className="font-display text-[26px] leading-none tracking-wide">{title}</h1>
       {subtitle ? (

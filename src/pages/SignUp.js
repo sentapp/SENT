@@ -45,7 +45,7 @@ function RoleCard({ title, subtitle, selected, onSelect }) {
   );
 }
 
-function SignUp() {
+function SignUp({ prefilledCode = '' }) {
   const navigate = useNavigate();
   const { refreshProfile } = useAuth();
   const [step, setStep] = useState(1);
@@ -53,7 +53,7 @@ function SignUp() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
+  const [inviteCode, setInviteCode] = useState(() => String(prefilledCode || '').trim());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -87,6 +87,13 @@ function SignUp() {
     name.trim() && email.trim() && password.length >= 6 && (role !== 'supporter' || inviteCode.trim());
 
   const confirmSubmitLock = useRef(false);
+
+  useEffect(() => {
+    const code = String(prefilledCode || '').trim();
+    if (!code) return;
+    setInviteCode(code);
+    setRole((r) => r ?? 'supporter');
+  }, [prefilledCode]);
 
   const completeSignup = useCallback(async (pinToSave = null) => {
     setError('');

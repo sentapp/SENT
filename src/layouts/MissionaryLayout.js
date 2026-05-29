@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { usePendingMeetingRequestsCount } from '../hooks/usePendingMeetingRequestsCount';
 import { MISSIONARY_HOME_PATH, missionaryNavItems } from '../lib/missionaryNav';
 
 function navLinkClass(isActive) {
@@ -18,7 +19,19 @@ function FullPageLoading() {
   );
 }
 
-function SideNav() {
+function MeetingNavBadge({ count }) {
+  if (!count) return null;
+  return (
+    <span
+      className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white"
+      aria-label={`${count} pending meeting requests`}
+    >
+      {count > 9 ? '9+' : count}
+    </span>
+  );
+}
+
+function SideNav({ pendingMeetingCount }) {
   return (
     <aside className="hidden w-[240px] shrink-0 border-r border-[#222] bg-[#111] text-white md:flex md:flex-col">
       <div className="border-b border-[#222] px-6 py-5">
@@ -32,9 +45,10 @@ function SideNav() {
               <NavLink
                 to={it.to}
                 end={it.to === MISSIONARY_HOME_PATH}
-                className={({ isActive }) => navLinkClass(isActive)}
+                className={({ isActive }) => `${navLinkClass(isActive)} flex items-center gap-2`}
               >
-                {it.label}
+                <span>{it.label}</span>
+                {it.to === '/missionary/meetings' ? <MeetingNavBadge count={pendingMeetingCount} /> : null}
               </NavLink>
             </li>
           ))}
@@ -44,7 +58,7 @@ function SideNav() {
   );
 }
 
-function BottomNav() {
+function BottomNav({ pendingMeetingCount }) {
   const location = useLocation();
 
   return (
