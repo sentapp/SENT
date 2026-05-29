@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { linkSupporterToMissionary } from '../../lib/supporterConnection';
+import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
 import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
 import { useMissionaryPublicProfile } from '../../hooks/useMissionaryPublicProfile';
 import { useMissionaryMapPoints } from '../../hooks/useMissionaryMapPoints';
@@ -173,7 +174,24 @@ export default function SupporterFeed() {
   }, [user?.id, missionaryId, inviteCodeUsed, refreshProfile]);
 
   const { profile: missionaryDb } = useMissionaryPublicProfile(missionaryId);
+  const [connectedMissionary, setConnectedMissionary] = useState(null);
   const { posts } = useMissionaryPosts(missionaryId || null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!missionaryId) {
+      setConnectedMissionary(null);
+      return undefined;
+    }
+    (async () => {
+      const rpc = await fetchConnectedMissionaryPublic();
+      if (cancelled) return;
+      setConnectedMissionary(rpc?.id === missionaryId ? rpc : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [missionaryId]);
 
   const mapProfile = useMemo(() => mapProfileForPins(missionaryDb), [missionaryDb]);
   const mapPoints = useMissionaryMapPoints(mapProfile, posts);
@@ -298,7 +316,8 @@ export default function SupporterFeed() {
   const primaryGiveHref = taxUrl ? normalizeUrl(taxUrl) : normalizeUrl(nonTaxUrl);
   const showOtherGiving = Boolean(taxUrl && nonTaxUrl);
 
-  const displayName = missionaryDb?.full_name?.trim() || 'Missionary';
+  const displayName =
+    connectedMissionary?.full_name?.trim() || missionaryDb?.full_name?.trim() || 'Missionary';
   const orgLine = (missionaryDb?.organization || '').trim();
   const photoUrl = missionaryDb?.photo_url || '';
   const feedAccent = missionaryId ? normalizeProfileAccent(missionaryDb?.accent_color) : DEFAULT_PROFILE_ACCENT;

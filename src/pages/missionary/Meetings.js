@@ -26,6 +26,8 @@ import {
 } from '../../lib/meetingDateUtils';
 import AddMeetingModal from '../../components/meetings/AddMeetingModal';
 import DarkPageHeader from '../../components/DarkPageHeader';
+import MissionaryPageShell from '../../components/MissionaryPageShell';
+import PendingMeetingRequestsBanner from '../../components/meetings/PendingMeetingRequestsBanner';
 import { Button, LoadingSpinner, Modal } from '../../components/ui';
 
 export default function MissionaryMeetings() {
@@ -211,8 +213,10 @@ export default function MissionaryMeetings() {
   const monthLabel = `${MONTHS_FULL[calendarMonth]} ${calendarYear}`;
 
   return (
-    <div className="space-y-4">
+    <MissionaryPageShell>
+    <div className="space-y-4 pb-5 md:pb-8">
       <DarkPageHeader title="Meetings" subtitle={`${upcomingMeetings.length} upcoming`} />
+      <PendingMeetingRequestsBanner pending={pendingRequests} className="mb-1" />
       <div className="space-y-0 overflow-hidden rounded-card border border-mission-line bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EEEEEE] px-4 py-3">
         <div className="sr-only">
@@ -234,10 +238,8 @@ export default function MissionaryMeetings() {
       </div>
 
       {pendingRequests.length > 0 ? (
-        <div className="border-b border-[#EEEEEE] bg-[color:var(--accent-light,#E8F5EE)] px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-            Meeting requests ({pendingRequests.length})
-          </p>
+        <div className="border-b border-[#EEEEEE] px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink">Respond to requests</p>
           <ul className="mt-2 space-y-2">
             {pendingRequests.map((req) => (
               <li
@@ -518,6 +520,7 @@ export default function MissionaryMeetings() {
         ) : null}
       </Modal>
     </div>
+    </MissionaryPageShell>
   );
 }
 

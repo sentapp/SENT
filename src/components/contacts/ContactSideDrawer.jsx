@@ -3,13 +3,13 @@ import { createPortal } from 'react-dom';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
-import { normalizeCategory } from '../../lib/contactCategories';
+import { categoryLabel, normalizeCategory } from '../../lib/contactCategories';
 import { formatPhone, phoneDigits } from '../../lib/phoneFormat';
 import { formatMonthlyAmount } from '../../lib/currencies';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { relationshipLabel } from '../../lib/contactRelationships';
 import { notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
-import { normalizeStatusFromDb } from '../../lib/contactStatuses';
+import { normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import FollowUpDateField from './FollowUpDateField';
 import { calcCareFlags, calcPriorityScore, CARE_LETTERS, getPriorityStyle } from '../../lib/priorityScore';
 import { completeTask as completeTaskRepo, createTask, mapTaskRow } from '../../lib/tasksRepository';
@@ -322,6 +322,9 @@ export function ContactSideDrawer({
   const emailStr = contact.email ? String(contact.email).trim() : '';
   const emailHref = emailStr ? `mailto:${emailStr}` : undefined;
 
+  const cat = normalizeCategory(contact.category);
+  const categoryDisp = cat ? categoryLabel(contact.category) : '—';
+  const statusDisp = statusLabel(contact.status);
   const rel = contact.relationship != null && String(contact.relationship).trim() !== '';
   const relationshipDisp = rel ? relationshipLabel(contact.relationship) : '—';
 

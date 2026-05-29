@@ -6,6 +6,7 @@ import MapView from '../../components/MapView';
 import { postTypeBadgeClass, postTypePostCardClass } from '../../lib/postTypeStyles';
 import { Button, Card, EmptyState, Input, Label, Modal, Textarea } from '../../components/ui';
 import DarkPageHeader from '../../components/DarkPageHeader';
+import MissionaryPageShell from '../../components/MissionaryPageShell';
 import ReactionButton from '../../components/ReactionButton';
 
 const POST_TYPES = ['Field story 🔥', 'Prayer 🙏', 'Monthly update 📊', 'Win ✨'];
@@ -203,7 +204,8 @@ export default function MissionaryUpdates() {
   };
 
   return (
-    <div className="space-y-6">
+    <MissionaryPageShell>
+    <div className="space-y-6 pb-5 md:pb-8">
       <DarkPageHeader title="Updates" subtitle="Stories for your send team" />
 
       {flashSuccess ? (
@@ -422,5 +424,6 @@ export default function MissionaryUpdates() {
         <p className="text-sm text-neutral-700">Are you sure you want to delete this post? This cannot be undone.</p>
       </Modal>
     </div>
+    </MissionaryPageShell>
   );
 }

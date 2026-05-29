@@ -79,12 +79,22 @@ function BottomNav({ pendingMeetingCount }) {
                 end={it.to === MISSIONARY_HOME_PATH}
                 aria-label={it.ariaLabel}
                 className={() =>
-                  `flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-white/5 ${
+                  `relative flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-white/5 ${
                     isActive ? 'text-accent-bright' : 'text-[#555555]'
                   }`
                 }
               >
-                <Icon className="h-[20px] w-[20px] shrink-0" />
+                <span className="relative">
+                  <Icon className="h-[20px] w-[20px] shrink-0" />
+                  {it.to === '/missionary/meetings' && pendingMeetingCount > 0 ? (
+                    <span
+                      className="absolute -right-1.5 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold leading-none text-white"
+                      aria-hidden
+                    >
+                      {pendingMeetingCount > 9 ? '9+' : pendingMeetingCount}
+                    </span>
+                  ) : null}
+                </span>
                 <span className="sent-nav-label max-w-full truncate text-center">{it.label}</span>
               </NavLink>
             </li>
@@ -96,8 +106,9 @@ function BottomNav({ pendingMeetingCount }) {
 }
 
 export default function MissionaryLayout() {
-  const { profile, loading } = useAuth();
+  const { profile, loading, user } = useAuth();
   const location = useLocation();
+  const { count: pendingMeetingCount } = usePendingMeetingRequestsCount(user?.id);
 
   if (loading) {
     return <FullPageLoading />;
@@ -114,15 +125,15 @@ export default function MissionaryLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-mission-canvas text-ink">
-      <SideNav />
-      <main className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-8 md:py-8 lg:px-10">
-        <div className="mx-auto w-full max-w-mobile pb-[max(7rem,calc(4rem+env(safe-area-inset-bottom)))] md:max-w-6xl md:pb-0">
-          <div key={location.pathname} className="sent-outlet-enter">
+      <SideNav pendingMeetingCount={pendingMeetingCount} />
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-mobile flex-1 flex-col md:max-w-6xl">
+          <div key={location.pathname} className="sent-outlet-enter flex min-h-0 flex-1 flex-col">
             <Outlet />
           </div>
         </div>
       </main>
-      <BottomNav />
+      <BottomNav pendingMeetingCount={pendingMeetingCount} />
     </div>
   );
 }

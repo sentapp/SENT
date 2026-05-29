@@ -11,6 +11,7 @@ import { isProfilesAccentColumnUnavailable } from '../../lib/profileAccentPersis
 import { ProfileAvatarAccentSection } from '../../components/ProfileAvatarAccentSection';
 import { Button, Card, Input, Label, Textarea } from '../../components/ui';
 import DarkPageHeader from '../../components/DarkPageHeader';
+import MissionaryPageShell from '../../components/MissionaryPageShell';
 import FeedbackSection from '../../components/FeedbackSection';
 import LocalPinSettingsSection from '../../components/LocalPinSettingsSection';
 import { CURRENCIES, getCurrencySymbol, normalizeCurrencyCode } from '../../lib/currencies';
@@ -294,8 +295,9 @@ export default function MissionarySettings() {
   const supporterCodeDisplay = String(profile?.supporter_code ?? '').trim() || '—';
 
   return (
+    <MissionaryPageShell>
     <div
-      className="space-y-6"
+      className="space-y-6 pb-5 md:pb-8"
       style={{ '--profile-accent': normalizeProfileAccent(accentColor) }}
     >
       <DarkPageHeader title="Settings" subtitle="Profile, goals & security" />
@@ -460,5 +462,6 @@ export default function MissionarySettings() {
         </div>
       </Card>
     </div>
+    </MissionaryPageShell>
   );
 }

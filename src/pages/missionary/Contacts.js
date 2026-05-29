@@ -52,6 +52,7 @@ import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopo
 import { useContactDrawer } from '../../context/ContactDrawerContext';
 import { Button, EmptyState, Input, LoadingSpinner, Modal } from '../../components/ui';
 import DarkPageHeader from '../../components/DarkPageHeader';
+import MissionaryPageShell from '../../components/MissionaryPageShell';
 import ContactEditFormLayout from './ContactEditFormLayout';
 
 /** Pipeline strip: active outreach stages, excluding monthly supporters (shown under Partners). */
@@ -1154,7 +1155,8 @@ export default function MissionaryContacts() {
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
 
   return (
-    <div className="flex flex-col gap-4">
+    <MissionaryPageShell>
+    <div className="flex flex-col gap-4 pb-5 md:pb-8">
       <DarkPageHeader
         title={
           activeFilterCount > 0
@@ -1430,7 +1432,7 @@ export default function MissionaryContacts() {
 
       <div
         ref={listRef}
-        className="flex min-h-0 flex-col gap-4 overflow-y-auto [-webkit-overflow-scrolling:touch] max-h-[calc(100dvh-15rem)] md:max-h-[calc(100dvh-11rem)]"
+        className="flex flex-col gap-4"
       >
         {!loading && contacts.length > 0 && pipelineStripContacts.length > 0 ? (
           <div>
@@ -1791,5 +1793,6 @@ export default function MissionaryContacts() {
         </div>
       </Modal>
     </div>
+    </MissionaryPageShell>
   );
 }

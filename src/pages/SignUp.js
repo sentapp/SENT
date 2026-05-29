@@ -10,7 +10,11 @@ import {
   waitForProfileRow,
 } from '../lib/authApi';
 import { useAuth } from '../auth/AuthContext';
-import { ensureMissionarySupporterCode, linkSupporterToMissionary } from '../lib/supporterConnection';
+import {
+  ensureMissionarySupporterCode,
+  linkSupporterToMissionary,
+  normalizeMissionaryInviteCode,
+} from '../lib/supporterConnection';
 import { saveLocalPin } from '../lib/localPin';
 import { PinDots, PinKeypad } from '../components/PinEntry';
 import AuthSplitShell from '../components/AuthSplitShell';
@@ -183,7 +187,7 @@ function SignUp({ prefilledCode = '' }) {
         if (navRole === 'missionary') {
           await ensureMissionarySupporterCode(uid, name);
         } else if (navRole === 'supporter') {
-          const linked = await linkSupporterToMissionary(uid, inviteCode.trim());
+          const linked = await linkSupporterToMissionary(uid, normalizeMissionaryInviteCode(inviteCode));
           if (!linked.ok && !linked.skipped) {
             setError(linked.error || 'Could not link invite code.');
             setSubmitting(false);
