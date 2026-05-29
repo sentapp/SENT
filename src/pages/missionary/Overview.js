@@ -342,7 +342,7 @@ export default function MissionaryOverview() {
   return (
     <MissionaryPageShell
       header={
-        <header className="sticky top-0 z-10 shrink-0 border-b border-[#222] bg-[#111] px-5 py-5 text-white md:px-8">
+        <header className="shrink-0 border-b border-[#222] bg-[#111] px-5 py-5 text-white md:px-8">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
             <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-white/20 bg-[#222]">
