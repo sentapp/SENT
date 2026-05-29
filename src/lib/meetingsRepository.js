@@ -142,3 +142,16 @@ export async function saveMeetingOutcome(supabaseClient, params) {
 
   return { ok: true };
 }
+
+export async function deleteMeeting(supabaseClient, { meetingId, missionaryId }) {
+  if (!supabaseClient || !meetingId || !missionaryId) {
+    return { ok: false, error: 'Missing meeting.' };
+  }
+  const { error } = await supabaseClient
+    .from('meetings')
+    .delete()
+    .eq('id', meetingId)
+    .eq('missionary_id', missionaryId);
+  if (error) return { ok: false, error: error.message || 'Could not delete meeting.' };
+  return { ok: true };
+}

@@ -5,6 +5,7 @@ import { fetchActiveMissionPushForMissionary } from '../../lib/missionPushesRepo
 import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
 import { DEFAULT_PROFILE_ACCENT, initialsFromDisplayName, normalizeProfileAccent } from '../../lib/profileAppearance';
 import { Card, EmptyState } from '../../components/ui';
+import RequestMeetingCard from '../../components/meetings/RequestMeetingCard';
 
 function normalizeUrl(url) {
   const u = (url || '').trim();
@@ -22,7 +23,7 @@ function daysUntilDeadline(deadlineStr) {
 }
 
 export default function SupporterGive() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const missionaryId = profile?.connected_missionary_id;
   const { profile: missionary } = useMissionaryPublicProfile(missionaryId);
 
@@ -161,6 +162,13 @@ export default function SupporterGive() {
           )}
         </div>
       </Card>
+
+      <RequestMeetingCard
+        missionaryId={missionaryId}
+        missionaryName={name}
+        requesterId={user?.id}
+        requesterName={profile?.full_name?.trim() || ''}
+      />
 
       {missionPush && missionPush.is_active ? (
         <Card className="feed-accent-card border p-6 shadow-sm">

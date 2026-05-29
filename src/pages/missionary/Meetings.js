@@ -9,44 +9,23 @@ import {
   fetchMeetingsForMissionary,
   saveMeetingOutcome,
 } from '../../lib/meetingsRepository';
-import { Button, Input, LoadingSpinner, Modal } from '../../components/ui';
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function formatDay(dateStr) {
-  if (!dateStr) return '—';
-  const d = new Date(`${dateStr}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? '—' : d.getDate();
-}
-
-function formatMonth(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(`${dateStr}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? '' : MONTHS[d.getMonth()];
-}
-
-function formatTime(timeStr) {
-  if (!timeStr) return '';
-  const parts = String(timeStr).split(':');
-  const h = Number.parseInt(parts[0], 10);
-  const m = parts[1] ?? '00';
-  if (Number.isNaN(h)) return timeStr;
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 || 12;
-  return `${h12}:${m.slice(0, 2)} ${ampm}`;
-}
-
-function formatMeetingDate(dateStr) {
-  if (!dateStr) return '—';
-  const d = new Date(`${dateStr}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+import {
+  fetchMeetingRequestsForMissionary,
+  updateMeetingRequestStatus,
+} from '../../lib/meetingRequestsRepository';
+import {
+  MONTHS_FULL,
+  WEEKDAYS,
+  buildCalendarCells,
+  formatDay,
+  formatMeetingDate,
+  formatMonth,
+  formatTime,
+  shiftMonth,
+  todayStr,
+} from '../../lib/meetingDateUtils';
+import AddMeetingModal from '../../components/meetings/AddMeetingModal';
+import { Button, LoadingSpinner, Modal } from '../../components/ui';
 
 export default function MissionaryMeetings() {
   const { openDrawer } = useContactDrawer();
@@ -55,32 +34,37 @@ export default function MissionaryMeetings() {
   const { contacts, refetch: refetchContacts } = useSupabaseContacts(user?.id, { authLoading });
 
   const [meetings, setMeetings] = useState([]);
+  const [meetingRequests, setMeetingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('calendar');
   const [showAdd, setShowAdd] = useState(false);
-  const [addContactId, setAddContactId] = useState('');
-  const [addContactQuery, setAddContactQuery] = useState('');
-  const [addDate, setAddDate] = useState(todayStr());
-  const [addTime, setAddTime] = useState('');
-  const [addType, setAddType] = useState('initial');
-  const [addNotes, setAddNotes] = useState('');
-  const [addSaving, setAddSaving] = useState(false);
-  const [addError, setAddError] = useState('');
+  const [addPrefill, setAddPrefill] = useState({ contactId: '', contactName: '', date: '' });
+
+  const now = new Date();
+  const [calendarYear, setCalendarYear] = useState(now.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(now.getMonth());
 
   const [detailMeeting, setDetailMeeting] = useState(null);
   const [outcome, setOutcome] = useState('');
   const [outcomeNotes, setOutcomeNotes] = useState('');
   const [outcomeSaving, setOutcomeSaving] = useState(false);
   const [outcomeError, setOutcomeError] = useState('');
+  const [requestBusyId, setRequestBusyId] = useState('');
 
   const loadMeetings = useCallback(async () => {
     if (!supabase || !user?.id) {
       setMeetings([]);
+      setMeetingRequests([]);
       setLoading(false);
       return;
     }
     setLoading(true);
-    const rows = await fetchMeetingsForMissionary(supabase, user.id);
+    const [rows, requests] = await Promise.all([
+      fetchMeetingsForMissionary(supabase, user.id),
+      fetchMeetingRequestsForMissionary(supabase, user.id),
+    ]);
     setMeetings(rows);
+    setMeetingRequests(requests);
     setLoading(false);
   }, [user?.id]);
 
@@ -92,12 +76,13 @@ export default function MissionaryMeetings() {
     const add = searchParams.get('add');
     const contactId = searchParams.get('contact');
     if (add === '1') {
+      const c = contactId ? contacts.find((x) => String(x.id) === String(contactId)) : null;
+      setAddPrefill({
+        contactId: contactId || '',
+        contactName: c?.fullName || '',
+        date: todayStr(),
+      });
       setShowAdd(true);
-      if (contactId) {
-        setAddContactId(contactId);
-        const c = contacts.find((x) => String(x.id) === String(contactId));
-        if (c) setAddContactQuery(c.fullName || '');
-      }
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -111,6 +96,11 @@ export default function MissionaryMeetings() {
   }, [searchParams, contacts, setSearchParams]);
 
   const today = todayStr();
+  const pendingRequests = useMemo(
+    () => meetingRequests.filter((r) => r.status === 'pending'),
+    [meetingRequests],
+  );
+
   const { upcomingMeetings, pastMeetings } = useMemo(() => {
     const upcoming = [];
     const past = [];
@@ -132,58 +122,21 @@ export default function MissionaryMeetings() {
     return { upcomingMeetings: upcoming, pastMeetings: past };
   }, [meetings, today]);
 
-  const contactPickList = useMemo(() => {
-    const q = addContactQuery.trim().toLowerCase();
-    const base = q
-      ? contacts.filter(
-          (c) =>
-            (c.fullName || '').toLowerCase().includes(q) ||
-            (c.email || '').toLowerCase().includes(q) ||
-            (c.phone || '').toLowerCase().includes(q),
-        )
-      : contacts;
-    return base.slice(0, 12);
-  }, [contacts, addContactQuery]);
-
-  const resetAddForm = () => {
-    setAddContactId('');
-    setAddContactQuery('');
-    setAddDate(todayStr());
-    setAddTime('');
-    setAddType('initial');
-    setAddNotes('');
-    setAddError('');
-  };
-
-  const handleCreateMeeting = async () => {
-    if (!user?.id) return;
-    setAddError('');
-    if (!addDate) {
-      setAddError('Date is required.');
-      return;
+  const meetingsByDate = useMemo(() => {
+    const map = new Map();
+    for (const m of meetings) {
+      const key = m.meetingDate;
+      if (!key) continue;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(m);
     }
-    const contact = addContactId ? contacts.find((c) => String(c.id) === String(addContactId)) : null;
-    const contactName = contact?.fullName || addContactQuery.trim() || 'Meeting';
+    return map;
+  }, [meetings]);
 
-    setAddSaving(true);
-    const res = await createMeeting(supabase, {
-      missionaryId: user.id,
-      contactId: addContactId || null,
-      contactName,
-      meetingDate: addDate,
-      meetingTime: addTime || null,
-      meetingType: addType,
-      notes: addNotes,
-    });
-    setAddSaving(false);
-    if (!res.ok) {
-      setAddError(res.error || 'Could not save.');
-      return;
-    }
-    setShowAdd(false);
-    resetAddForm();
-    void loadMeetings();
-  };
+  const calendarCells = useMemo(
+    () => buildCalendarCells(calendarYear, calendarMonth),
+    [calendarYear, calendarMonth],
+  );
 
   const openMeeting = (meeting) => {
     setDetailMeeting(meeting);
@@ -226,28 +179,185 @@ export default function MissionaryMeetings() {
     void refetchContacts();
   };
 
+  const handleRequestAction = async (request, action) => {
+    if (!user?.id) return;
+    setRequestBusyId(request.id);
+    const status = action === 'accept' ? 'accepted' : 'declined';
+    const res = await updateMeetingRequestStatus(supabase, {
+      requestId: request.id,
+      missionaryId: user.id,
+      status,
+    });
+    if (!res.ok) {
+      setRequestBusyId('');
+      return;
+    }
+    if (action === 'accept') {
+      await createMeeting(supabase, {
+        missionaryId: user.id,
+        contactId: null,
+        contactName: request.requesterName || 'Supporter',
+        meetingDate: request.requestedDate,
+        meetingTime: null,
+        meetingType: 'initial',
+        notes: request.message || null,
+      });
+    }
+    setRequestBusyId('');
+    void loadMeetings();
+  };
+
+  const monthLabel = `${MONTHS_FULL[calendarMonth]} ${calendarYear}`;
+
   return (
     <div className="space-y-0 overflow-hidden rounded-card border border-mission-line bg-white">
-      <div className="flex items-center justify-between gap-3 border-b border-[#EEEEEE] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EEEEEE] px-4 py-3">
         <div>
           <h1 className="text-base font-medium text-ink">Meetings</h1>
           <p className="text-[11px] text-muted">{upcomingMeetings.length} upcoming</p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            resetAddForm();
-            setShowAdd(true);
-          }}
-          className="rounded-full border-0 bg-green px-3.5 py-1.5 text-[11px] font-medium text-white hover:bg-green/90"
-        >
-          + Add meeting
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ViewToggle viewMode={viewMode} onChange={setViewMode} />
+          <button
+            type="button"
+            onClick={() => {
+              setAddPrefill({ contactId: '', contactName: '', date: todayStr() });
+              setShowAdd(true);
+            }}
+            className="rounded-full border-0 bg-green px-3.5 py-1.5 text-[11px] font-medium text-white hover:bg-green/90"
+          >
+            + Add meeting
+          </button>
+        </div>
       </div>
+
+      {pendingRequests.length > 0 ? (
+        <div className="border-b border-[#EEEEEE] bg-[color:var(--accent-light,#E8F5EE)] px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            Meeting requests ({pendingRequests.length})
+          </p>
+          <ul className="mt-2 space-y-2">
+            {pendingRequests.map((req) => (
+              <li
+                key={req.id}
+                className="flex flex-col gap-2 rounded-lg border border-[#EEEEEE] bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ink">
+                    {req.requesterName || 'Supporter'} · {formatMeetingDate(req.requestedDate)}
+                  </p>
+                  {req.message ? <p className="mt-1 text-xs text-muted">{req.message}</p> : null}
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    disabled={requestBusyId === req.id}
+                    onClick={() => void handleRequestAction(req, 'decline')}
+                    className="rounded-btn border border-[#EEEEEE] px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-surface disabled:opacity-50"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    type="button"
+                    disabled={requestBusyId === req.id}
+                    onClick={() => void handleRequestAction(req, 'accept')}
+                    className="rounded-btn bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent/90 disabled:opacity-50"
+                  >
+                    {requestBusyId === req.id ? '…' : 'Accept'}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="flex justify-center py-12">
           <LoadingSpinner />
+        </div>
+      ) : viewMode === 'calendar' ? (
+        <div className="px-4 py-4">
+          <div className="mb-4 flex items-center justify-between">
+            <button
+              type="button"
+              className="rounded-btn px-2 py-1 text-sm text-muted hover:bg-surface"
+              onClick={() => {
+                const next = shiftMonth(calendarYear, calendarMonth, -1);
+                setCalendarYear(next.year);
+                setCalendarMonth(next.month);
+              }}
+              aria-label="Previous month"
+            >
+              ‹
+            </button>
+            <p className="text-sm font-semibold text-ink">{monthLabel}</p>
+            <button
+              type="button"
+              className="rounded-btn px-2 py-1 text-sm text-muted hover:bg-surface"
+              onClick={() => {
+                const next = shiftMonth(calendarYear, calendarMonth, 1);
+                setCalendarYear(next.year);
+                setCalendarMonth(next.month);
+              }}
+              aria-label="Next month"
+            >
+              ›
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted">
+            {WEEKDAYS.map((d) => (
+              <div key={d} className="py-1">
+                {d}
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {calendarCells.map((cell, idx) => {
+              if (!cell.date) {
+                return <div key={`empty-${idx}`} className="min-h-[52px]" aria-hidden />;
+              }
+              const dayMeetings = meetingsByDate.get(cell.date) || [];
+              const isToday = cell.date === today;
+              return (
+                <button
+                  key={cell.date}
+                  type="button"
+                  onClick={() => {
+                    if (dayMeetings.length === 1) openMeeting(dayMeetings[0]);
+                    else if (dayMeetings.length === 0) {
+                      setAddPrefill({ contactId: '', contactName: '', date: cell.date });
+                      setShowAdd(true);
+                    }
+                  }}
+                  className={`min-h-[52px] rounded-lg border p-1 text-left transition hover:bg-surface ${
+                    isToday ? 'border-accent bg-[color:var(--accent-light,#E8F5EE)]' : 'border-[#EEEEEE]'
+                  }`}
+                >
+                  <span className={`text-xs font-medium ${isToday ? 'text-accent' : 'text-ink'}`}>{cell.day}</span>
+                  {dayMeetings.length > 0 ? (
+                    <div className="mt-0.5 space-y-0.5">
+                      {dayMeetings.slice(0, 2).map((m) => (
+                        <div
+                          key={m.id}
+                          className="truncate rounded bg-white/80 px-0.5 text-[9px] font-medium text-ink"
+                          title={m.contactName}
+                        >
+                          {m.contactName}
+                        </div>
+                      ))}
+                      {dayMeetings.length > 2 ? (
+                        <div className="text-[9px] text-muted">+{dayMeetings.length - 2}</div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+          {meetings.length === 0 ? (
+            <p className="mt-6 text-center text-sm text-muted">No meetings yet. Schedule your first one.</p>
+          ) : null}
         </div>
       ) : (
         <>
@@ -275,122 +385,17 @@ export default function MissionaryMeetings() {
         </>
       )}
 
-      <Modal
+      <AddMeetingModal
         open={showAdd}
-        title="Add meeting"
-        onClose={() => {
-          if (!addSaving) {
-            setShowAdd(false);
-            resetAddForm();
-          }
-        }}
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" type="button" disabled={addSaving} onClick={() => { setShowAdd(false); resetAddForm(); }}>
-              Cancel
-            </Button>
-            <Button type="button" disabled={addSaving} onClick={() => void handleCreateMeeting()}>
-              {addSaving ? 'Saving…' : 'Save'}
-            </Button>
-          </div>
-        }
-      >
-        {addError ? <p className="mb-3 text-sm text-red-600">{addError}</p> : null}
-        <div className="space-y-4">
-          <div>
-            <span className="text-xs font-semibold text-neutral-600">Contact</span>
-            <Input
-              value={addContactQuery}
-              onChange={(e) => {
-                setAddContactQuery(e.target.value);
-                setAddContactId('');
-              }}
-              placeholder="Search contacts…"
-              className="mt-1"
-            />
-            {addContactId ? (
-              <p className="mt-2 text-xs text-neutral-600">
-                Selected:{' '}
-                <span className="font-medium text-ink">
-                  {contacts.find((c) => String(c.id) === String(addContactId))?.fullName || 'Contact'}
-                </span>{' '}
-                <button
-                  type="button"
-                  className="font-semibold text-mission-ink hover:underline"
-                  onClick={() => {
-                    setAddContactId('');
-                    setAddContactQuery('');
-                  }}
-                >
-                  Clear
-                </button>
-              </p>
-            ) : null}
-            {!addContactId && addContactQuery.trim() ? (
-              <ul className="mt-2 max-h-40 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm">
-                {contactPickList.length === 0 ? (
-                  <li className="px-3 py-2 text-neutral-500">No matches</li>
-                ) : (
-                  contactPickList.map((c) => (
-                    <li key={c.id} className="border-b border-neutral-100 last:border-b-0">
-                      <button
-                        type="button"
-                        className="w-full px-3 py-2 text-left hover:bg-neutral-50"
-                        onClick={() => {
-                          setAddContactId(c.id);
-                          setAddContactQuery(c.fullName || '');
-                        }}
-                      >
-                        {c.fullName || 'Unnamed'}
-                      </button>
-                    </li>
-                  ))
-                )}
-              </ul>
-            ) : null}
-          </div>
-          <label className="block">
-            <span className="text-xs font-semibold text-neutral-600">Date</span>
-            <Input type="date" value={addDate} onChange={(e) => setAddDate(e.target.value)} className="mt-1" required />
-          </label>
-          <label className="block">
-            <span className="text-xs font-semibold text-neutral-600">Time (optional)</span>
-            <Input type="time" value={addTime} onChange={(e) => setAddTime(e.target.value)} className="mt-1" />
-          </label>
-          <div>
-            <span className="text-xs font-semibold text-neutral-600">Type</span>
-            <div className="mt-2 flex gap-2">
-              {[
-                { value: 'initial', label: 'Initial meeting' },
-                { value: 'followup', label: 'Follow up' },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setAddType(opt.value)}
-                  className={`rounded-btn border px-3 py-1.5 text-xs font-medium ${
-                    addType === opt.value
-                      ? 'border-green bg-green-light text-green'
-                      : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <label className="block">
-            <span className="text-xs font-semibold text-neutral-600">Notes (optional)</span>
-            <textarea
-              value={addNotes}
-              onChange={(e) => setAddNotes(e.target.value)}
-              rows={3}
-              className="mt-1 w-full rounded-btn border border-neutral-200 px-3 py-2 text-sm"
-              placeholder="Anything to remember…"
-            />
-          </label>
-        </div>
-      </Modal>
+        onClose={() => setShowAdd(false)}
+        supabase={supabase}
+        missionaryId={user?.id}
+        contacts={contacts}
+        initialContactId={addPrefill.contactId}
+        initialContactName={addPrefill.contactName}
+        initialDate={addPrefill.date}
+        onSaved={() => void loadMeetings()}
+      />
 
       <Modal
         open={Boolean(detailMeeting)}
@@ -489,7 +494,7 @@ export default function MissionaryMeetings() {
                     value={outcomeNotes}
                     onChange={(e) => setOutcomeNotes(e.target.value)}
                     rows={3}
-                    className="mt-1 w-full rounded-btn border border-neutral-200 px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-btn border border-[#EEEEEE] px-3 py-2 text-sm"
                   />
                 </label>
                 {outcomeError ? <p className="text-sm text-red-600">{outcomeError}</p> : null}
@@ -498,6 +503,28 @@ export default function MissionaryMeetings() {
           </div>
         ) : null}
       </Modal>
+    </div>
+  );
+}
+
+function ViewToggle({ viewMode, onChange }) {
+  return (
+    <div className="flex rounded-full border border-[#EEEEEE] p-0.5 text-[11px]">
+      {[
+        { id: 'calendar', label: 'Calendar' },
+        { id: 'list', label: 'List' },
+      ].map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => onChange(opt.id)}
+          className={`rounded-full px-3 py-1 font-medium transition ${
+            viewMode === opt.id ? 'bg-green text-white' : 'text-muted hover:text-ink'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }

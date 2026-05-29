@@ -15,6 +15,7 @@ import {
 import { supabase } from '../../lib/supabaseClient';
 import { deleteOwnPostComment, fetchCommentsForPosts, insertPostComment } from '../../lib/postCommentsRepository';
 import { Card, EmptyState } from '../../components/ui';
+import RequestMeetingCard from '../../components/meetings/RequestMeetingCard';
 import { postTypeBadgeClass, postTypePostCardClass } from '../../lib/postTypeStyles';
 
 function TypeBadge({ children, typeKeyClass }) {
@@ -315,6 +316,13 @@ export default function SupporterFeed() {
         />
       ) : (
         <>
+          <RequestMeetingCard
+            missionaryId={missionaryId}
+            missionaryName={displayName}
+            requesterId={user?.id}
+            requesterName={supporterProfile?.full_name?.trim() || ''}
+          />
+
           {showGiving ? (
             <Card className="overflow-hidden p-6">
               <div className="flex gap-4">
