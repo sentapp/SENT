@@ -43,7 +43,8 @@ function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<MissionaryOverview />} />
+        <Route index element={<Navigate to="/missionary/overview" replace />} />
+        <Route path="overview" element={<MissionaryOverview />} />
         <Route path="onboarding" element={<MissionaryOnboarding />} />
         <Route path="contacts" element={<MissionaryContacts />} />
         <Route path="pipeline" element={<MissionaryPipeline />} />
