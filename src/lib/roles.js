@@ -5,7 +5,7 @@ export function isAdminRole(role) {
 
 /** Default post-sign-in / wrong-portal redirect for a profile role. */
 export function homePathForRole(role) {
-  if (role === 'missionary') return '/missionary';
+  if (role === 'missionary') return '/missionary/overview';
   if (role === 'admin') return '/admin';
   return '/supporter';
 }

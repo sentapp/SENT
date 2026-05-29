@@ -18,6 +18,7 @@ import {
 import { saveLocalPin } from '../lib/localPin';
 import { PinDots, PinKeypad } from '../components/PinEntry';
 import AuthSplitShell from '../components/AuthSplitShell';
+import { homePathForRole } from '../lib/roles';
 
 function Progress({ step }) {
   return (
@@ -210,7 +211,7 @@ function SignUp({ prefilledCode = '' }) {
         }
 
         await refreshProfile();
-        navigate(navRole === 'missionary' ? '/missionary' : '/supporter', { replace: true });
+        navigate(homePathForRole(navRole), { replace: true });
         return;
       }
 

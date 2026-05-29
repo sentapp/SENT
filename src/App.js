@@ -29,6 +29,7 @@ import AdminMissionaries from './pages/admin/Missionaries';
 import AdminSupporters from './pages/admin/Supporters';
 import AdminFeedback from './pages/admin/Feedback';
 import AdminBlast from './pages/admin/Blast';
+import AdminSystem from './pages/admin/System';
 
 import RequireAuth from './components/RequireAuth';
 import { ContactDrawerProvider } from './context/ContactDrawerContext';
@@ -74,12 +75,14 @@ function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="/admin/overview" replace />} />
-        <Route path="overview" element={<AdminOverview />} />
+        <Route index element={<AdminOverview />} />
         <Route path="missionaries" element={<AdminMissionaries />} />
         <Route path="supporters" element={<AdminSupporters />} />
         <Route path="feedback" element={<AdminFeedback />} />
-        <Route path="blast" element={<AdminBlast />} />
+        <Route path="blasts" element={<AdminBlast />} />
+        <Route path="system" element={<AdminSystem />} />
+        <Route path="overview" element={<Navigate to="/admin" replace />} />
+        <Route path="blast" element={<Navigate to="/admin/blasts" replace />} />
       </Route>
 
       <Route
