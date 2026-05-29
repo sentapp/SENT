@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import NotificationBell from '../components/layout/NotificationBell';
 import { usePendingMeetingRequestsCount } from '../hooks/usePendingMeetingRequestsCount';
 import { MISSIONARY_HOME_PATH, missionaryNavItems } from '../lib/missionaryNav';
 
@@ -34,9 +35,12 @@ function MeetingNavBadge({ count }) {
 function SideNav({ pendingMeetingCount }) {
   return (
     <aside className="hidden w-[240px] shrink-0 border-r border-[#222] bg-[#111] text-white md:flex md:flex-col">
-      <div className="border-b border-[#222] px-6 py-5">
-        <p className="font-display text-2xl tracking-wide text-white">SENT</p>
-        <p className="mt-1 text-[11px] text-[#666]">For missionaries and the people who send them.</p>
+      <div className="flex items-center justify-between border-b border-[#222] px-5 py-4">
+        <div>
+          <p className="font-display text-2xl tracking-wide text-white">SENT</p>
+          <p className="mt-1 text-[11px] text-[#666]">For missionaries and the people who send them.</p>
+        </div>
+        <NotificationBell />
       </div>
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-1">

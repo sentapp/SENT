@@ -1,3 +1,5 @@
+import { createNotification } from './notificationsRepository';
+
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseClient
  * @param {string[]} postIds
@@ -45,6 +47,13 @@ export async function insertPostComment(supabaseClient, { postId, authorId, body
   if (!supabaseClient || !postId || !authorId || !text) {
     return { error: new Error('Invalid comment.') };
   }
+
+  const { data: postRow } = await supabaseClient
+    .from('posts')
+    .select('missionary_id')
+    .eq('id', postId)
+    .maybeSingle();
+
   const { data, error } = await supabaseClient
     .from('post_comments')
     .insert({ post_id: postId, author_id: authorId, body: text })
@@ -52,6 +61,18 @@ export async function insertPostComment(supabaseClient, { postId, authorId, body
     .single();
 
   if (error) return { error };
+
+  const commenterName = data.author_display_name || 'Someone';
+  const missionaryId = postRow?.missionary_id;
+  if (missionaryId && missionaryId !== authorId) {
+    void createNotification(missionaryId, {
+      type: 'comment',
+      title: `${commenterName} commented on your update`,
+      body: text.slice(0, 80),
+      related_id: postId,
+    });
+  }
+
   return {
     data: {
       id: data.id,

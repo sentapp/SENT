@@ -1,3 +1,5 @@
+import { createNotification } from './notificationsRepository';
+
 const PRAYER_AUTHOR_EMBED =
   'id, missionary_id, author_id, body, is_anonymous, prayed_count, created_at, author:profiles!prayer_requests_author_id_fkey(full_name)';
 
@@ -59,7 +61,17 @@ export async function insertPrayerRequest(supabaseClient, { missionaryId, author
     .single();
 
   if (error) return { error };
-  return { data: mapPrayerRow(data) };
+
+  const mapped = mapPrayerRow(data);
+  const authorName = mapped.anonymous ? 'Someone' : prayerAttributionLabel(mapped).replace(/^From /, '') || 'Someone';
+  void createNotification(missionaryId, {
+    type: 'prayer_request',
+    title: `${authorName} submitted a prayer request`,
+    body: text.slice(0, 80),
+    related_id: mapped.id,
+  });
+
+  return { data: mapped };
 }
 
 export async function incrementPrayedCount(supabaseClient, requestId) {

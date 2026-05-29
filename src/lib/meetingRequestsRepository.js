@@ -1,3 +1,20 @@
+import { createNotification } from './notificationsRepository';
+
+function formatMeetingDate(isoDate) {
+  if (!isoDate) return '';
+  try {
+    const [y, m, d] = String(isoDate).slice(0, 10).split('-').map(Number);
+    if (!y || !m || !d) return String(isoDate);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return String(isoDate);
+  }
+}
+
 /**
  * @param {Record<string, unknown>} row
  */
@@ -59,7 +76,17 @@ export async function submitMeetingRequest(supabaseClient, payload) {
 
   const { data, error } = await supabaseClient.from('meeting_requests').insert(row).select('*').single();
   if (error) return { ok: false, error: error.message || 'Could not send request.' };
-  return { ok: true, request: mapMeetingRequestRow(data) };
+
+  const request = mapMeetingRequestRow(data);
+  const displayName = String(requesterName ?? row.requester_name ?? '').trim() || 'A supporter';
+  void createNotification(missionaryId, {
+    type: 'meeting_request',
+    title: `${displayName} requested a meeting`,
+    body: `Suggested date: ${formatMeetingDate(requestedDate)}`,
+    related_id: request?.id,
+  });
+
+  return { ok: true, request };
 }
 
 export async function updateMeetingRequestStatus(supabaseClient, { requestId, missionaryId, status }) {

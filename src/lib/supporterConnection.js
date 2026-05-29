@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
-import { addSupporterAsContact, maybeLinkSupporterContactAfterLink } from './supporterContactLink';
+import { maybeLinkSupporterContactAfterLink } from './supporterContactLink';
+import { syncSupporterToContacts } from './supporterContactSync';
 
 function parseLinkInviteRpcPayload(payload) {
   if (payload == null) return null;
@@ -86,7 +87,7 @@ async function loadSupporterProfileForContact(supporterUserId) {
   if (!supabase || !supporterUserId) return null;
   const { data: p } = await supabase
     .from('profiles')
-    .select('email, full_name')
+    .select('email, full_name, phone')
     .eq('id', supporterUserId)
     .maybeSingle();
   return p;
@@ -95,7 +96,7 @@ async function loadSupporterProfileForContact(supporterUserId) {
 async function afterSupporterLinked(missionaryId, supporterUserId) {
   const p = await loadSupporterProfileForContact(supporterUserId);
   if (p) {
-    await addSupporterAsContact(missionaryId, p);
+    await syncSupporterToContacts(missionaryId, p);
   } else {
     void maybeLinkSupporterContactAfterLink(missionaryId, supporterUserId);
   }
