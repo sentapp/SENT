@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
+import { useContactDrawer } from '../../context/ContactDrawerContext';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
 import {
   ContactQuickLogPopup,

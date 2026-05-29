@@ -22,9 +22,12 @@ import SupporterRefer from './pages/supporter/Refer';
 import SupporterGive from './pages/supporter/SupporterGive';
 import SupporterProfile from './pages/supporter/Profile';
 import RequireAuth from './components/RequireAuth';
+import { ContactDrawerProvider } from './context/ContactDrawerContext';
+import GlobalContactDrawer from './components/contacts/GlobalContactDrawer';
 
 function App() {
   return (
+    <ContactDrawerProvider>
     <div className="font-sans min-h-screen bg-[#F7F5F2]">
     <Routes>
       <Route path="/" element={<Landing />} />
@@ -70,7 +73,9 @@ function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    <GlobalContactDrawer />
     </div>
+    </ContactDrawerProvider>
   );
 }
 

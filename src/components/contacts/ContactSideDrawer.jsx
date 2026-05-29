@@ -110,6 +110,11 @@ function previewNotes(text, max = 140) {
  *   onLog: () => void,
  *   onScheduleMeeting?: (contact: Record<string, unknown>) => void,
  *   actionError?: string,
+ *   logs?: unknown[],
+ *   tasks?: unknown[],
+ *   logsLoading?: boolean,
+ *   tasksLoading?: boolean,
+ *   onRefreshLogsAndTasks?: () => void,
  *   activityLogsRefreshKey?: number,
  *   suppressEscape?: boolean,
  * }} props
@@ -128,16 +133,27 @@ export function ContactSideDrawer({
   onLog,
   onScheduleMeeting,
   actionError = '',
+  logs: logsProp,
+  tasks: tasksProp,
+  logsLoading: logsLoadingProp,
+  tasksLoading: tasksLoadingProp,
+  onRefreshLogsAndTasks,
   activityLogsRefreshKey = 0,
   suppressEscape = false,
 }) {
   const { user } = useAuth();
   const narrow = useDrawerNarrow();
   const [entered, setEntered] = useState(false);
-  const [logs, setLogs] = useState([]);
-  const [logsLoading, setLogsLoading] = useState(false);
-  const [tasks, setTasks] = useState([]);
-  const [tasksLoading, setTasksLoading] = useState(false);
+  const [internalLogs, setInternalLogs] = useState([]);
+  const [internalLogsLoading, setInternalLogsLoading] = useState(false);
+  const [internalTasks, setInternalTasks] = useState([]);
+  const [internalTasksLoading, setInternalTasksLoading] = useState(false);
+  const dataFromParent = logsProp !== undefined;
+  const logs = dataFromParent ? logsProp : internalLogs;
+  const setLogs = dataFromParent ? () => {} : setInternalLogs;
+  const logsLoading = dataFromParent ? Boolean(logsLoadingProp) : internalLogsLoading;
+  const tasks = dataFromParent ? tasksProp || [] : internalTasks;
+  const tasksLoading = dataFromParent ? Boolean(tasksLoadingProp) : internalTasksLoading;
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDue, setNewTaskDue] = useState('');
   const [newTaskSaving, setNewTaskSaving] = useState(false);
@@ -160,13 +176,17 @@ export function ContactSideDrawer({
   }, [contact?.id]);
 
   const loadLogsAndTasks = useCallback(async () => {
-    if (!supabase || !contact?.id || !user?.id) {
-      setLogs([]);
-      setTasks([]);
+    if (dataFromParent) {
+      onRefreshLogsAndTasks?.();
       return;
     }
-    setLogsLoading(true);
-    setTasksLoading(true);
+    if (!supabase || !contact?.id || !user?.id) {
+      setInternalLogs([]);
+      setInternalTasks([]);
+      return;
+    }
+    setInternalLogsLoading(true);
+    setInternalTasksLoading(true);
     const [logsRes, tasksRes] = await Promise.all([
       supabase
         .from('communication_logs')
@@ -182,25 +202,26 @@ export function ContactSideDrawer({
         .eq('is_complete', false)
         .order('due_date', { ascending: true }),
     ]);
-    setLogsLoading(false);
-    setTasksLoading(false);
+    setInternalLogsLoading(false);
+    setInternalTasksLoading(false);
     if (logsRes.error) {
       console.error('ContactSideDrawer communication_logs', logsRes.error);
-      setLogs([]);
+      setInternalLogs([]);
     } else {
-      setLogs(logsRes.data || []);
+      setInternalLogs(logsRes.data || []);
     }
     if (tasksRes.error) {
       console.error('ContactSideDrawer tasks', tasksRes.error);
-      setTasks([]);
+      setInternalTasks([]);
     } else {
-      setTasks((tasksRes.data || []).map(mapTaskRow));
+      setInternalTasks((tasksRes.data || []).map(mapTaskRow));
     }
-  }, [contact?.id, user?.id]);
+  }, [contact?.id, user?.id, dataFromParent, onRefreshLogsAndTasks]);
 
   useEffect(() => {
+    if (dataFromParent) return;
     void loadLogsAndTasks();
-  }, [loadLogsAndTasks, activityLogsRefreshKey]);
+  }, [loadLogsAndTasks, activityLogsRefreshKey, dataFromParent]);
 
   useEffect(() => {
     if (!contact || suppressEscape) return undefined;
@@ -254,7 +275,9 @@ export function ContactSideDrawer({
   const toggleContactTask = async (task) => {
     if (!supabase || !user?.id) return;
     if (!task.isComplete) {
-      setTasks((prev) => prev.filter((x) => x.id !== task.id));
+      if (!dataFromParent) {
+        setInternalTasks((prev) => prev.filter((x) => x.id !== task.id));
+      }
       await completeTaskRepo(supabase, task.id, user.id);
       void loadLogsAndTasks();
     }

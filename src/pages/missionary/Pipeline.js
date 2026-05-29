@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
+import { useContactDrawer } from '../../context/ContactDrawerContext';
 import {
   MISSIONARY_KANBAN_STATUSES,
   PIPELINE_NEXT_STATUS,
@@ -37,7 +37,7 @@ function truncateNotes(text, max = 100) {
 }
 
 export default function MissionaryPipeline() {
-  const navigate = useNavigate();
+  const { openDrawer } = useContactDrawer();
   const { user, loading: authLoading } = useAuth();
   const { contacts, refetch: refetchContacts, updateContact, loading: contactsLoading } = useSupabaseContacts(
     user?.id,
@@ -96,8 +96,11 @@ export default function MissionaryPipeline() {
     if (!res.ok) setSaveError(res.error || 'Could not update status.');
   };
 
-  const openEditor = (id) => {
-    navigate(`/missionary/contacts?contact=${encodeURIComponent(id)}`);
+  const openEditor = (contactOrId) => {
+    const id = typeof contactOrId === 'object' ? contactOrId?.id : contactOrId;
+    if (!id) return;
+    const c = contacts.find((x) => String(x.id) === String(id));
+    if (c) openDrawer(c);
   };
 
   /** Places the contact at **Contacted** (not New Lead); new imports without a status use `prospect` / New Lead. */
@@ -168,11 +171,11 @@ export default function MissionaryPipeline() {
                       key={c.id}
                       role="button"
                       tabIndex={0}
-                      onClick={() => openEditor(c.id)}
+                      onClick={() => openEditor(c)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
-                          openEditor(c.id);
+                          openEditor(c);
                         }
                       }}
                       className="cursor-pointer border-mission-line p-4 shadow-none transition hover:bg-[color:var(--color-bg)]"

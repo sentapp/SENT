@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
+import { useContactDrawer } from '../../context/ContactDrawerContext';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { supabase } from '../../lib/supabaseClient';
 import {
@@ -49,6 +50,7 @@ function todayStr() {
 
 export default function MissionaryMeetings() {
   const navigate = useNavigate();
+  const { openDrawer } = useContactDrawer();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { contacts, refetch: refetchContacts } = useSupabaseContacts(user?.id, { authLoading });
@@ -426,7 +428,10 @@ export default function MissionaryMeetings() {
                 <button
                   type="button"
                   className="mt-2 text-xs font-semibold text-mission-ink hover:underline"
-                  onClick={() => navigate(`/missionary/contacts?contact=${encodeURIComponent(detailMeeting.contactId)}`)}
+                  onClick={() => {
+                    const c = contacts.find((x) => String(x.id) === String(detailMeeting.contactId));
+                    if (c) openDrawer(c);
+                  }}
                 >
                   View contact →
                 </button>
