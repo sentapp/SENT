@@ -7,9 +7,12 @@ import {
   computePartnerCurrencyTotals,
   normalizeCurrencyCode,
 } from '../../lib/currencies';
-import { LoadingSpinner } from '../../components/ui';
+import { Button, LoadingSpinner } from '../../components/ui';
 import DarkPageHeader from '../../components/DarkPageHeader';
 import MissionaryPageShell from '../../components/MissionaryPageShell';
+import { initialsFromDisplayName } from '../../lib/profileAppearance';
+
+const JOIN_BASE = 'https://sent-kohl.vercel.app/join';
 
 const DAILY_GOAL = 16;
 const GOALS = {
@@ -42,6 +45,25 @@ function lastNDays(n) {
   return days;
 }
 
+function normMatchKey(s) {
+  return String(s ?? '').trim().toLowerCase();
+}
+
+function accountMatchesContact(account, contact) {
+  const accEmail = normMatchKey(account.email);
+  const accName = normMatchKey(account.full_name);
+  const cEmail = normMatchKey(contact.email);
+  const cName = normMatchKey(contact.fullName);
+  if (accEmail && cEmail && accEmail === cEmail) return true;
+  if (accName && cName && accName === cName) return true;
+  return false;
+}
+
+function pctConnected(current, total) {
+  if (!total || total <= 0) return 0;
+  return Math.min(Math.round((current / total) * 100), 100);
+}
+
 const goalIcons = {
   contacts: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden>
@@ -70,6 +92,10 @@ export default function MissionaryStats({ embedded = false }) {
   const { contacts, loading: contactsLoading } = useSupabaseContacts(user?.id, { authLoading });
   const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(true);
+  const [supporterAccounts, setSupporterAccounts] = useState([]);
+  const [contactsWithAccounts, setContactsWithAccounts] = useState(0);
+  const [supportersLoading, setSupportersLoading] = useState(true);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const loadLogs = useCallback(async () => {
     if (!supabase || !user?.id) {
@@ -91,6 +117,54 @@ export default function MissionaryStats({ embedded = false }) {
   useEffect(() => {
     void loadLogs();
   }, [loadLogs]);
+
+  useEffect(() => {
+    if (!supabase || !user?.id) {
+      setSupporterAccounts([]);
+      setContactsWithAccounts(0);
+      setSupportersLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setSupportersLoading(true);
+
+    (async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .eq('connected_missionary_id', user.id);
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error('MissionaryStats supporter accounts', error);
+        setSupporterAccounts([]);
+        setContactsWithAccounts(0);
+        setSupportersLoading(false);
+        return;
+      }
+
+      const accounts = (data || []).filter((row) => row?.role === 'supporter');
+      setSupporterAccounts(accounts);
+
+      const matchedContacts = contacts.filter((c) =>
+        accounts.some((a) => accountMatchesContact(a, c)),
+      );
+      setContactsWithAccounts(matchedContacts.length);
+      setSupportersLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, contacts]);
+
+  useEffect(() => {
+    if (!codeCopied) return undefined;
+    const t = window.setTimeout(() => setCodeCopied(false), 2500);
+    return () => window.clearTimeout(t);
+  }, [codeCopied]);
 
   const homeCurrency = normalizeCurrencyCode(profile?.home_currency);
   const partners = useMemo(
@@ -169,7 +243,25 @@ export default function MissionaryStats({ embedded = false }) {
     [contacts.length, logs.length, homeCurrencyTotal, partners.length],
   );
 
-  const loading = authLoading || contactsLoading || logsLoading;
+  const supporterCode = String(profile?.supporter_code ?? '').trim();
+  const shareLink = supporterCode
+    ? `${JOIN_BASE}?code=${encodeURIComponent(supporterCode)}`
+    : '';
+  const supportersOnSent = supporterAccounts.length;
+  const supportersPct = pctConnected(supportersOnSent, partners.length);
+  const contactsOnSentPct = pctConnected(contactsWithAccounts, contacts.length);
+
+  const copyInviteLink = async () => {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCodeCopied(true);
+    } catch {
+      setCodeCopied(false);
+    }
+  };
+
+  const loading = authLoading || contactsLoading || logsLoading || supportersLoading;
 
   const page = (
     <div className={`space-y-6 ${embedded ? '' : 'pb-5 md:pb-8'}`}>
@@ -223,6 +315,115 @@ export default function MissionaryStats({ embedded = false }) {
               );
             })}
           </div>
+
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold text-ink">SENT community</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-[10px] border border-[#EEEEEE] p-4" style={{ background: '#E8F5EE' }}>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-[#1A6B40]">
+                  Supporters on SENT
+                </p>
+                <p className="mt-2 font-display text-[36px] leading-none tracking-wide text-ink">
+                  {supportersOnSent}
+                </p>
+                <p className="mt-1 text-[11px] text-muted">of {partners.length} partners</p>
+                <div className="mt-3 h-[4px] rounded-sm bg-black/10">
+                  <div
+                    className="h-full rounded-sm bg-[#1A6B40]"
+                    style={{ width: `${supportersPct}%` }}
+                  />
+                </div>
+                <p className="mt-1.5 text-[10px] font-medium text-[#1A6B40]">{supportersPct}% connected</p>
+              </div>
+              <div className="rounded-[10px] border border-[#EEEEEE] p-4" style={{ background: '#EBF5FF' }}>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-[#0C447C]">
+                  Contacts on SENT
+                </p>
+                <p className="mt-2 font-display text-[36px] leading-none tracking-wide text-ink">
+                  {contactsWithAccounts}
+                </p>
+                <p className="mt-1 text-[11px] text-muted">of {contacts.length} contacts</p>
+                <div className="mt-3 h-[4px] rounded-sm bg-black/10">
+                  <div
+                    className="h-full rounded-sm bg-[#0C447C]"
+                    style={{ width: `${contactsOnSentPct}%` }}
+                  />
+                </div>
+                <p className="mt-1.5 text-[10px] font-medium text-[#0C447C]">{contactsOnSentPct}% connected</p>
+              </div>
+            </div>
+
+            {supporterAccounts.length > 0 ? (
+              <div className="overflow-hidden rounded-card border border-mission-line bg-white">
+                <div className="border-b border-border px-4 py-3">
+                  <p className="text-sm font-semibold text-ink">Who&apos;s on SENT</p>
+                </div>
+                <ul className="divide-y divide-border/60">
+                  {supporterAccounts.map((acc) => {
+                    const name = String(acc.full_name ?? '').trim() || 'Supporter';
+                    const email = String(acc.email ?? '').trim();
+                    return (
+                      <li key={acc.id} className="flex items-center gap-3 px-4 py-3">
+                        <div
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green/15 font-display text-sm text-green"
+                          aria-hidden
+                        >
+                          {initialsFromDisplayName(name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-ink">{name}</p>
+                          {email ? <p className="truncate text-xs text-muted">{email}</p> : null}
+                        </div>
+                        <span className="shrink-0 rounded-full bg-green/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-green">
+                          Supporter
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="circuit-profile-code">
+              <p className="sent-section-label text-white/60">Share your supporter code</p>
+              <p className="circuit-profile-code-value">{supporterCode || '—'}</p>
+              {supporterCode ? (
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="break-all text-sm text-white/80">{shareLink}</p>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Button type="button" variant="secondary" onClick={() => void copyInviteLink()}>
+                      {codeCopied ? 'Copied!' : 'Copy link'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={async () => {
+                        if (navigator.share) {
+                          try {
+                            await navigator.share({
+                              title: 'Join me on SENT',
+                              text: 'Use my link to connect as a supporter on SENT.',
+                              url: shareLink,
+                            });
+                            return;
+                          } catch {
+                            // cancelled or unavailable
+                          }
+                        }
+                        await copyInviteLink();
+                      }}
+                    >
+                      Share
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-white/70">
+                  Your supporter code will appear here once it is set in Settings.
+                </p>
+              )}
+            </div>
+          </section>
 
           <div className="overflow-hidden rounded-card border border-mission-line bg-white p-4">
             <p className="text-sm font-semibold text-ink">Weekly outreach</p>
