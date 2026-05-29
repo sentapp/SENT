@@ -12,7 +12,7 @@ function MissionaryDrawer({ missionary, onClose }) {
   return (
     <div className="flex h-full w-[320px] shrink-0 flex-col border-l border-[#EEEEEE] bg-white">
       <div className="flex items-center justify-between border-b border-[#EEEEEE] px-5 py-4">
-        <h2 className="font-semibold text-[#111]">{missionary.display_name}</h2>
+        <h2 className="font-semibold text-[#111]">{missionary.full_name}</h2>
         <button type="button" onClick={onClose} className="text-[#AAA] hover:text-[#111]">✕</button>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
@@ -57,9 +57,9 @@ export default function AdminMissionaries() {
     async function load() {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, display_name, organization, location_name, monthly_amount, goal_amount, supporter_code, home_currency')
+        .select('id, full_name, organization, location_name, monthly_amount, goal_amount, supporter_code, home_currency')
         .eq('role', 'missionary')
-        .order('display_name');
+        .order('full_name');
 
       if (!profiles) { setLoading(false); return; }
 
@@ -79,7 +79,7 @@ export default function AdminMissionaries() {
   }, []);
 
   const filtered = missionaries.filter((m) =>
-    m.display_name?.toLowerCase().includes(search.toLowerCase())
+    m.full_name?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -121,7 +121,7 @@ export default function AdminMissionaries() {
                         className="cursor-pointer hover:bg-[#FAFAFA]"
                         onClick={() => setSelected(m)}
                       >
-                        <td className="px-5 py-3 font-medium text-[#111]">{m.display_name}</td>
+                        <td className="px-5 py-3 font-medium text-[#111]">{m.full_name}</td>
                         <td className="px-5 py-3 text-[#666]">{m.organization || '—'}</td>
                         <td className="px-5 py-3">
                           <span className={funded >= 80 ? 'text-[#2A9A58]' : funded >= 50 ? 'text-[#906010]' : 'text-[#C03060]'}>

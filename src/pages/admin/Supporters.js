@@ -10,9 +10,9 @@ export default function AdminSupporters() {
     async function load() {
       const { data } = await supabase
         .from('profiles')
-        .select('id, display_name, email, connected_missionary_id')
+        .select('id, full_name, email, connected_missionary_id')
         .eq('role', 'supporter')
-        .order('display_name');
+        .order('full_name');
 
       if (!data) { setLoading(false); return; }
 
@@ -21,9 +21,9 @@ export default function AdminSupporters() {
       if (missionaryIds.length > 0) {
         const { data: missionaries } = await supabase
           .from('profiles')
-          .select('id, display_name')
+          .select('id, full_name')
           .in('id', missionaryIds);
-        (missionaries || []).forEach((m) => { missionaryMap[m.id] = m.display_name; });
+        (missionaries || []).forEach((m) => { missionaryMap[m.id] = m.full_name; });
       }
 
       setSupporters(data.map((s) => ({ ...s, missionary_name: missionaryMap[s.connected_missionary_id] || null })));
@@ -33,7 +33,7 @@ export default function AdminSupporters() {
   }, []);
 
   const filtered = supporters.filter((s) =>
-    s.display_name?.toLowerCase().includes(search.toLowerCase())
+    s.full_name?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -67,7 +67,7 @@ export default function AdminSupporters() {
               <tbody className="divide-y divide-[#EEEEEE]">
                 {filtered.map((s) => (
                   <tr key={s.id} className="hover:bg-[#FAFAFA]">
-                    <td className="px-5 py-3 font-medium text-[#111]">{s.display_name || '—'}</td>
+                    <td className="px-5 py-3 font-medium text-[#111]">{s.full_name || '—'}</td>
                     <td className="px-5 py-3 text-[#666]">{s.missionary_name || <span className="text-[#AAA]">Not connected</span>}</td>
                     <td className="px-5 py-3">
                       {s.connected_missionary_id ? (

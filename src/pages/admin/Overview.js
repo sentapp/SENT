@@ -18,9 +18,10 @@ export default function AdminOverview() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: profiles }, { data: feedback }] = await Promise.all([
+      const [{ data: profiles }, { data: feedback }, { count: feedbackCount }] = await Promise.all([
         supabase.from('profiles').select('id, role, connected_missionary_id'),
         supabase.from('feedback').select('id, message, created_at, user_id').order('created_at', { ascending: false }).limit(5),
+        supabase.from('feedback').select('id', { count: 'exact', head: true }),
       ]);
 
       const missionaries = (profiles || []).filter((p) => p.role === 'missionary');
@@ -28,7 +29,13 @@ export default function AdminOverview() {
       const connected = supporters.filter((p) => p.connected_missionary_id);
       const ratio = missionaries.length > 0 ? (supporters.length / missionaries.length).toFixed(1) : '—';
 
-      setStats({ missionaries: missionaries.length, supporters: supporters.length, connected: connected.length, ratio });
+      setStats({
+        missionaries: missionaries.length,
+        supporters: supporters.length,
+        connected: connected.length,
+        ratio,
+        feedbackCount: feedbackCount ?? 0,
+      });
       setRecentFeedback(feedback || []);
       setLoading(false);
     }
@@ -47,10 +54,11 @@ export default function AdminOverview() {
           <p className="text-sm text-[#AAA]">Loading…</p>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
               <StatCard label="Missionaries" value={stats.missionaries} />
               <StatCard label="Supporters" value={stats.supporters} sub={`${stats.connected} connected`} />
               <StatCard label="Supporter Ratio" value={`${stats.ratio}x`} sub="per missionary" color="text-accent-bright" />
+              <StatCard label="Feedback" value={stats.feedbackCount} sub="submissions" />
             </div>
 
             <div className="mt-8">
