@@ -1168,7 +1168,7 @@ export default function MissionaryContacts() {
       }
     >
     <div className="flex flex-col gap-4 pb-5 md:pb-8">
-      <header className="-mt-2 flex flex-wrap items-end justify-between gap-3">
+      <header className="mt-2 flex flex-wrap items-end justify-between gap-3">
         <div className="sr-only">
           <h1>Contacts</h1>
         </div>
