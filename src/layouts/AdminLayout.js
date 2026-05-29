@@ -43,16 +43,34 @@ export default function AdminLayout() {
             </NavLink>
           ))}
         </nav>
-        <div style={{ padding: '12px 20px', borderTop: '0.5px solid #222' }}>
+        <div style={{ padding: '16px 20px', borderTop: '0.5px solid #222' }}>
           <button
             type="button"
-            onClick={() => {
-              signOut();
+            onClick={async () => {
+              await signOut();
               navigate('/');
             }}
-            style={{ fontSize: 12, color: '#444', background: 'transparent', border: 'none', cursor: 'pointer' }}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              background: 'transparent',
+              border: '0.5px solid #333',
+              borderRadius: 6,
+              color: '#666',
+              fontSize: 12,
+              cursor: 'pointer',
+              textAlign: 'left',
+              letterSpacing: '.03em',
+              transition: 'all .15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#fff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#666';
+            }}
           >
-            ← Sign out
+            Sign out →
           </button>
         </div>
       </div>
