@@ -295,13 +295,13 @@ export default function MissionarySettings() {
   const supporterCodeDisplay = String(profile?.supporter_code ?? '').trim() || '—';
 
   return (
-    <MissionaryPageShell>
+    <MissionaryPageShell
+      header={<DarkPageHeader title="Settings" subtitle="Profile, goals & security" />}
+    >
     <div
       className="space-y-6 pb-5 md:pb-8"
       style={{ '--profile-accent': normalizeProfileAccent(accentColor) }}
     >
-      <DarkPageHeader title="Settings" subtitle="Profile, goals & security" />
-
       {loadError ? (
         <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>
       ) : null}

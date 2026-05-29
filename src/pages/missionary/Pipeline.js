@@ -193,9 +193,6 @@ export default function MissionaryPipeline({ embedded = false }) {
 
   const page = (
     <div className={`flex flex-col gap-4 md:gap-4 ${embedded ? '' : 'pb-5 md:pb-8'}`}>
-      {!embedded ? (
-        <DarkPageHeader title="Pipeline" subtitle="Advance stages & grow partners" />
-      ) : null}
       <header className="flex flex-wrap items-end justify-end gap-3">
         <Button type="button" onClick={() => setAddOpen(true)}>
           Add to pipeline
@@ -394,5 +391,11 @@ export default function MissionaryPipeline({ embedded = false }) {
     </div>
   );
 
-  return embedded ? page : <MissionaryPageShell>{page}</MissionaryPageShell>;
+  return embedded ? (
+    page
+  ) : (
+    <MissionaryPageShell header={<DarkPageHeader title="Pipeline" subtitle="Advance stages & grow partners" />}>
+      {page}
+    </MissionaryPageShell>
+  );
 }

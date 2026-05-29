@@ -204,10 +204,10 @@ export default function MissionaryUpdates() {
   };
 
   return (
-    <MissionaryPageShell>
+    <MissionaryPageShell
+      header={<DarkPageHeader title="Updates" subtitle="Stories for your send team" />}
+    >
     <div className="space-y-6 pb-5 md:pb-8">
-      <DarkPageHeader title="Updates" subtitle="Stories for your send team" />
-
       {flashSuccess ? (
         <p className="rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{flashSuccess}</p>
       ) : null}

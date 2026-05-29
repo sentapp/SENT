@@ -1155,16 +1155,19 @@ export default function MissionaryContacts() {
   const showEmpty = !loading && contacts.length === 0 && !unexpectedEmptyWarning;
 
   return (
-    <MissionaryPageShell>
+    <MissionaryPageShell
+      header={
+        <DarkPageHeader
+          title={
+            activeFilterCount > 0
+              ? `Showing ${filteredSorted.length} of ${contacts.length} contacts`
+              : `Contacts (${contacts.length})`
+          }
+          subtitle="People & relationships"
+        />
+      }
+    >
     <div className="flex flex-col gap-4 pb-5 md:pb-8">
-      <DarkPageHeader
-        title={
-          activeFilterCount > 0
-            ? `Showing ${filteredSorted.length} of ${contacts.length} contacts`
-            : `Contacts (${contacts.length})`
-        }
-        subtitle="People & relationships"
-      />
       <header className="-mt-2 flex flex-wrap items-end justify-between gap-3">
         <div className="sr-only">
           <h1>Contacts</h1>

@@ -213,9 +213,10 @@ export default function MissionaryMeetings() {
   const monthLabel = `${MONTHS_FULL[calendarMonth]} ${calendarYear}`;
 
   return (
-    <MissionaryPageShell>
+    <MissionaryPageShell
+      header={<DarkPageHeader title="Meetings" subtitle={`${upcomingMeetings.length} upcoming`} />}
+    >
     <div className="space-y-4 pb-5 md:pb-8">
-      <DarkPageHeader title="Meetings" subtitle={`${upcomingMeetings.length} upcoming`} />
       <PendingMeetingRequestsBanner pending={pendingRequests} className="mb-1" />
       <div className="space-y-0 overflow-hidden rounded-card border border-mission-line bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EEEEEE] px-4 py-3">

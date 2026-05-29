@@ -340,9 +340,9 @@ export default function MissionaryOverview() {
   };
 
   return (
-    <MissionaryPageShell>
-    <div className="flex flex-col gap-6 pb-5 md:pb-8">
-      <header className="-mx-5 sticky top-0 z-10 shrink-0 border-b border-[#222] bg-[#111] px-5 py-5 text-white md:-mx-8 md:px-8">
+    <MissionaryPageShell
+      header={
+        <header className="sticky top-0 z-10 shrink-0 border-b border-[#222] bg-[#111] px-5 py-5 text-white md:px-8">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
             <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-white/20 bg-[#222]">
@@ -413,8 +413,10 @@ export default function MissionaryOverview() {
             </button>
           </div>
         )}
-      </header>
-
+        </header>
+      }
+    >
+    <div className="flex flex-col gap-6 pb-5 md:pb-8">
       <PendingMeetingRequestsBanner pending={pendingMeetingRequests} />
 
       <Card className="p-4">

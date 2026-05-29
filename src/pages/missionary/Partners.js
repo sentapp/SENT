@@ -472,9 +472,9 @@ export default function MissionaryPartners() {
   }, []);
 
   return (
-    <MissionaryPageShell>
-    <div className="space-y-6 pb-5 md:pb-8">
-      <header className="-mx-5 sticky top-0 z-10 shrink-0 border-b border-[#222] bg-[#111] px-5 py-4 text-white md:-mx-8 md:px-8">
+    <MissionaryPageShell
+      header={
+        <header className="sticky top-0 z-10 shrink-0 border-b border-[#222] bg-[#111] px-5 py-4 text-white md:px-8">
         <h1 className="font-display text-[26px] leading-none tracking-wide">Partners</h1>
         <div className="mt-4 grid grid-cols-3 gap-2">
           <div className="rounded-lg border border-[#333] bg-[#1a1a1a] px-2.5 py-2.5">
@@ -509,8 +509,10 @@ export default function MissionaryPartners() {
             </p>
           </div>
         </div>
-      </header>
-
+        </header>
+      }
+    >
+    <div className="space-y-6 pb-5 md:pb-8">
       {allPartners.length === 0 ? (
         <EmptyState
           icon="heart"

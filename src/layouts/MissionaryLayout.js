@@ -132,7 +132,7 @@ export default function MissionaryLayout() {
       <SideNav pendingMeetingCount={pendingMeetingCount} />
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="mx-auto flex h-full min-h-0 w-full max-w-mobile flex-1 flex-col md:max-w-6xl">
-          <div key={location.pathname} className="sent-outlet-enter flex min-h-0 flex-1 flex-col">
+          <div key={location.pathname} className="sent-outlet-enter flex h-full min-h-0 flex-1 flex-col">
             <Outlet />
           </div>
         </div>

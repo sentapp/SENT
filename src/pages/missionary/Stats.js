@@ -174,14 +174,11 @@ export default function MissionaryStats({ embedded = false }) {
   const page = (
     <div className={`space-y-6 ${embedded ? '' : 'pb-5 md:pb-8'}`}>
       {!embedded ? (
-        <>
-          <DarkPageHeader title="Stats" subtitle="Progress toward your goals" />
-          <div className="flex justify-end">
-            <Link to="/missionary/overview" className="text-sm font-medium text-ink hover:underline">
-              ← Overview
-            </Link>
-          </div>
-        </>
+        <div className="flex justify-end">
+          <Link to="/missionary/overview" className="text-sm font-medium text-ink hover:underline">
+            ← Overview
+          </Link>
+        </div>
       ) : null}
 
       {loading ? (
@@ -302,5 +299,11 @@ export default function MissionaryStats({ embedded = false }) {
     </div>
   );
 
-  return embedded ? page : <MissionaryPageShell>{page}</MissionaryPageShell>;
+  return embedded ? (
+    page
+  ) : (
+    <MissionaryPageShell header={<DarkPageHeader title="Stats" subtitle="Progress toward your goals" />}>
+      {page}
+    </MissionaryPageShell>
+  );
 }
