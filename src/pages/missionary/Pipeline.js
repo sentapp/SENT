@@ -14,6 +14,7 @@ import { getDateFromNow, localDateStr } from '../../lib/dateHelpers';
 import { formatPhone } from '../../lib/phoneFormat';
 import { Button, Card, Input, Modal } from '../../components/ui';
 import DarkPageHeader from '../../components/DarkPageHeader';
+import MissionaryPageShell from '../../components/MissionaryPageShell';
 
 const KANBAN_SET = new Set(MISSIONARY_KANBAN_STATUSES);
 
@@ -190,12 +191,12 @@ export default function MissionaryPipeline({ embedded = false }) {
 
   const loading = pipelineLoading || contactsLoading;
 
-  return (
-    <div className="flex flex-col gap-4 md:gap-4">
+  const page = (
+    <div className={`flex flex-col gap-4 md:gap-4 ${embedded ? '' : 'pb-5 md:pb-8'}`}>
       {!embedded ? (
         <DarkPageHeader title="Pipeline" subtitle="Advance stages & grow partners" />
       ) : null}
-      <header className={`flex flex-wrap items-end justify-end gap-3 ${embedded ? '' : '-mt-2'}`}>
+      <header className="flex flex-wrap items-end justify-end gap-3">
         <Button type="button" onClick={() => setAddOpen(true)}>
           Add to pipeline
         </Button>
@@ -392,4 +393,6 @@ export default function MissionaryPipeline({ embedded = false }) {
       </Modal>
     </div>
   );
+
+  return embedded ? page : <MissionaryPageShell>{page}</MissionaryPageShell>;
 }

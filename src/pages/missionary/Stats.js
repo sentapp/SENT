@@ -9,6 +9,7 @@ import {
 } from '../../lib/currencies';
 import { LoadingSpinner } from '../../components/ui';
 import DarkPageHeader from '../../components/DarkPageHeader';
+import MissionaryPageShell from '../../components/MissionaryPageShell';
 
 const DAILY_GOAL = 16;
 const GOALS = {
@@ -170,12 +171,12 @@ export default function MissionaryStats({ embedded = false }) {
 
   const loading = authLoading || contactsLoading || logsLoading;
 
-  return (
-    <div className="space-y-6">
+  const page = (
+    <div className={`space-y-6 ${embedded ? '' : 'pb-5 md:pb-8'}`}>
       {!embedded ? (
         <>
           <DarkPageHeader title="Stats" subtitle="Progress toward your goals" />
-          <div className="-mt-2 flex justify-end">
+          <div className="flex justify-end">
             <Link to="/missionary/overview" className="text-sm font-medium text-ink hover:underline">
               ← Overview
             </Link>
@@ -300,4 +301,6 @@ export default function MissionaryStats({ embedded = false }) {
       )}
     </div>
   );
+
+  return embedded ? page : <MissionaryPageShell>{page}</MissionaryPageShell>;
 }
