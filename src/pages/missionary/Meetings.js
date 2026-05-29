@@ -455,14 +455,16 @@ export default function MissionaryMeetings() {
                       ? 'Not yet'
                       : detailMeeting.outcome === 'followup'
                         ? 'Follow up scheduled'
-                        : 'Completed'}
+                        : detailMeeting.outcome === 'not_right_now'
+                          ? 'Not right now'
+                          : 'Completed'}
                 </p>
                 {detailMeeting.notes ? <p className="mt-1 text-neutral-600">{detailMeeting.notes}</p> : null}
               </div>
             ) : (
               <>
                 <p className="text-xs font-medium text-ink">Did they say yes to partnering?</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <OutcomeButton
                     selected={outcome === 'yes'}
                     onClick={() => setOutcome('yes')}
@@ -489,6 +491,15 @@ export default function MissionaryMeetings() {
                     label="Follow up"
                     icon="↻"
                     labelColor="#906010"
+                  />
+                  <OutcomeButton
+                    selected={outcome === 'not_right_now'}
+                    onClick={() => setOutcome('not_right_now')}
+                    borderColor="#C8BCF5"
+                    bg="#F5F0FF"
+                    label="Not right now"
+                    icon="⏸"
+                    labelColor="#6040B0"
                   />
                 </div>
                 <label className="block">

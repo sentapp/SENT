@@ -3,7 +3,9 @@ import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { getContactAvatarStyle } from '../../lib/contactAvatarStyles';
 import { Input, Label, Textarea } from '../../components/ui';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
+import FollowUpDateField from '../../components/contacts/FollowUpDateField';
 import { CURRENCIES, getCurrencySymbol, normalizeCurrencyCode } from '../../lib/currencies';
+import { normalizeStatusFromDb } from '../../lib/contactStatuses';
 
 /**
  * Layout A: avatar + name header, sectioned fields (add + edit).
@@ -46,6 +48,7 @@ export default function ContactEditFormLayout({
       category: form.category,
       status: form.status,
       relationship: form.relationship ?? '',
+      followUpDate: form.followUpDate ?? '',
       isOneTimeDonor: form.isOneTimeDonor,
       oneTimeDonationAmount: form.oneTimeDonationAmount,
       oneTimeDonationDate: form.oneTimeDonationDate,
@@ -62,6 +65,7 @@ export default function ContactEditFormLayout({
       form.category,
       form.status,
       form.relationship,
+      form.followUpDate,
       form.isOneTimeDonor,
       form.oneTimeDonationAmount,
       form.oneTimeDonationDate,
@@ -74,6 +78,13 @@ export default function ContactEditFormLayout({
         <div className="space-y-2 border-b border-mission-line pb-4" onClick={(e) => e.stopPropagation()}>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-mission-muted">Tags</h3>
           <ContactThreeQuickTagRows contact={quickTagContact} deferSave setForm={setForm} />
+          {normalizeStatusFromDb(form.status) === 'not_right_now' ? (
+            <FollowUpDateField
+              className="mt-3 rounded-lg border border-[#E8E0F0] bg-[#F5F0FF] p-3"
+              value={form.followUpDate || ''}
+              onChange={(v) => setForm((f) => ({ ...f, followUpDate: v }))}
+            />
+          ) : null}
         </div>
       ) : null}
       <div className="flex gap-3 border-b border-mission-line pb-4">

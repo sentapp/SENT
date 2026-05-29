@@ -2,6 +2,7 @@ import { normalizeCategoryForSave, normalizeCategoryFromDb } from './contactCate
 import { safeCategoryValue } from './safeCategory';
 import { normalizeRelationshipForSave } from './contactRelationships';
 import { normalizeStatusForSave, normalizeStatusFromDb } from './contactStatuses';
+import { addDaysFromNow } from './dateHelpers';
 
 /**
  * Persist a single quick-tag field with a scoped partial `UPDATE` (category+status, or relationship only).
@@ -16,10 +17,20 @@ export async function saveQuickTagToSupabase(supabase, { missionaryId, contact, 
     patch = { relationship: normalizeRelationshipForSave(value) };
   } else if (field === 'category' || field === 'status') {
     const { category, status } = buildQuickTagCategoryStatusPayload(contact, field, value);
+    const statusSaved = normalizeStatusForSave(status);
     patch = {
       category: safeCategoryValue(category),
-      status: normalizeStatusForSave(status),
+      status: statusSaved,
     };
+    if (field === 'status') {
+      if (statusSaved === 'not_right_now') {
+        const existing = contact.followUpDate || contact.follow_up_date;
+        patch.follow_up_date =
+          existing && String(existing).trim() ? String(existing).slice(0, 10) : addDaysFromNow(90);
+      } else {
+        patch.follow_up_date = null;
+      }
+    }
   } else {
     return { ok: false, error: 'Unknown quick-tag field.' };
   }
@@ -81,10 +92,16 @@ export function fullContactPayloadFromQuickTag(contact, field, value) {
     };
   }
   const { category, status } = buildQuickTagCategoryStatusPayload(contact, field, value);
+  const statusSaved = normalizeStatusForSave(status);
+  const followUpDate =
+    statusSaved === 'not_right_now'
+      ? contact.followUpDate || contact.follow_up_date || addDaysFromNow(90)
+      : null;
   return {
     ...baseContactPayloadForSave(contact),
     category,
-    status,
+    status: statusSaved,
+    followUpDate,
   };
 }
 
@@ -97,7 +114,16 @@ export function mergeContactAfterQuickTag(contact, field, value) {
     return next;
   }
   const { category, status } = buildQuickTagCategoryStatusPayload(contact, field, value);
+  const statusSaved = normalizeStatusForSave(status);
   next.category = normalizeCategoryFromDb(category);
-  next.status = status;
+  next.status = statusSaved;
+  if (field === 'status') {
+    if (statusSaved === 'not_right_now') {
+      next.followUpDate =
+        contact.followUpDate || contact.follow_up_date || addDaysFromNow(90);
+    } else {
+      next.followUpDate = '';
+    }
+  }
   return next;
 }

@@ -10,6 +10,7 @@ import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { relationshipLabel } from '../../lib/contactRelationships';
 import { notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
 import { normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
+import FollowUpDateField from './FollowUpDateField';
 import { calcCareFlags, calcPriorityScore, CARE_LETTERS, getPriorityStyle } from '../../lib/priorityScore';
 import { completeTask as completeTaskRepo, createTask, mapTaskRow } from '../../lib/tasksRepository';
 import { ContactThreeQuickTagRows } from './QuickTagPopover';
@@ -148,6 +149,8 @@ export function ContactSideDrawer({
   const [entered, setEntered] = useState(false);
   const [internalLogs, setInternalLogs] = useState([]);
   const [internalLogsLoading, setInternalLogsLoading] = useState(false);
+  const [drawerFollowUp, setDrawerFollowUp] = useState('');
+  const [followUpSaving, setFollowUpSaving] = useState(false);
   const [internalTasks, setInternalTasks] = useState([]);
   const [internalTasksLoading, setInternalTasksLoading] = useState(false);
   const dataFromParent = logsProp !== undefined;
@@ -223,6 +226,32 @@ export function ContactSideDrawer({
     if (dataFromParent) return;
     void loadLogsAndTasks();
   }, [loadLogsAndTasks, activityLogsRefreshKey, dataFromParent]);
+
+  useEffect(() => {
+    setDrawerFollowUp(contact?.followUpDate ? String(contact.followUpDate).slice(0, 10) : '');
+  }, [contact?.id, contact?.followUpDate]);
+
+  const saveDrawerFollowUp = useCallback(
+    async (dateStr) => {
+      if (!supabase || !user?.id || !contact?.id) return;
+      setFollowUpSaving(true);
+      const trimmed = dateStr ? String(dateStr).slice(0, 10) : null;
+      const { error } = await supabase
+        .from('contacts')
+        .update({ follow_up_date: trimmed })
+        .eq('id', contact.id)
+        .eq('missionary_id', user.id);
+      setFollowUpSaving(false);
+      if (error) {
+        console.error('saveDrawerFollowUp', error);
+        return;
+      }
+      patchContactInList?.(contact.id, { followUpDate: trimmed || '' });
+      onPatchContact?.({ ...contact, followUpDate: trimmed || '' });
+      onAfterQuickTagSave?.();
+    },
+    [contact, user?.id, patchContactInList, onPatchContact, onAfterQuickTagSave],
+  );
 
   useEffect(() => {
     if (!contact || suppressEscape) return undefined;
@@ -400,6 +429,19 @@ export function ContactSideDrawer({
                 variant="compact"
                 className="flex flex-col gap-1"
               />
+              {normalizeStatusFromDb(contact.status) === 'not_right_now' ? (
+                <FollowUpDateField
+                  className="mt-2 rounded-lg border border-[#E8E0F0] bg-[#F5F0FF] p-2.5"
+                  value={drawerFollowUp}
+                  onChange={(v) => {
+                    setDrawerFollowUp(v);
+                    void saveDrawerFollowUp(v);
+                  }}
+                />
+              ) : null}
+              {followUpSaving ? (
+                <p className="mt-1 text-[10px] text-neutral-500">Saving follow-up…</p>
+              ) : null}
             </div>
           ) : null}
         </div>

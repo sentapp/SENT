@@ -45,6 +45,7 @@ import {
   calcCareFlags,
   calcPriorityScore,
   CARE_LETTERS,
+  getPriorityDot,
   getPriorityStyle,
 } from '../../lib/priorityScore';
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
@@ -178,6 +179,7 @@ const emptyForm = {
   isOneTimeDonor: false,
   oneTimeDonationAmount: '',
   oneTimeDonationDate: '',
+  followUpDate: '',
   notes: '',
 };
 
@@ -198,8 +200,8 @@ function PriorityDot({ contact, logs }) {
   return (
     <span className="group relative inline-flex shrink-0 items-center">
       <span
-        className="h-2.5 w-2.5 rounded-full ring-2 ring-white"
-        style={{ backgroundColor: style.dot }}
+        className="rounded-full ring-2 ring-white"
+        style={getPriorityDot(score)}
         aria-label={`${style.label} priority`}
       />
       <span
@@ -237,6 +239,7 @@ function contactFormSnapshot(f) {
     isOneTimeDonor: Boolean(f.isOneTimeDonor),
     oneTimeDonationAmount: f.oneTimeDonationAmount ?? '',
     oneTimeDonationDate: f.oneTimeDonationDate ?? '',
+    followUpDate: f.followUpDate ?? '',
     notes: f.notes ?? '',
   });
 }
@@ -837,6 +840,7 @@ export default function MissionaryContacts() {
           ? String(c.oneTimeDonationAmount)
           : '',
       oneTimeDonationDate: c.oneTimeDonationDate || '',
+      followUpDate: c.followUpDate || '',
     };
     originalFormSnapshotRef.current = contactFormSnapshot(nextForm);
     setForm(nextForm);
@@ -902,6 +906,13 @@ export default function MissionaryContacts() {
     const oneTimeAmt = Number.parseFloat(String(form.oneTimeDonationAmount ?? '').replace(/,/g, ''));
     const isOneTimeDonorEffective =
       Boolean(form.isOneTimeDonor) || (Number.isFinite(oneTimeAmt) && oneTimeAmt > 0);
+    const statusSaved = normalizeStatusForSave(form.status);
+    const followUpDate =
+      statusSaved === 'not_right_now' && form.followUpDate ? String(form.followUpDate).slice(0, 10) : null;
+    if (statusSaved === 'not_right_now' && !followUpDate) {
+      setSaveError('Pick a follow-up date for “Not right now”.');
+      return;
+    }
 
     if (editingId) {
       const payload = {
@@ -910,13 +921,14 @@ export default function MissionaryContacts() {
         email: form.email,
         address: form.address,
         category: safeCategoryValue(normalizeCategoryForSave(form.category)),
-        status: normalizeStatusForSave(form.status),
+        status: statusSaved,
         relationship: normalizeRelationshipForSave(form.relationship) ?? '',
         monthlyAmount: form.monthlyAmount,
         currency: form.currency,
         isOneTimeDonor: isOneTimeDonorEffective,
         oneTimeDonationAmount: form.oneTimeDonationAmount,
         oneTimeDonationDate: form.oneTimeDonationDate,
+        followUpDate,
         notes: mergeNotesWithSocial(form.notes, form.social),
       };
       const res = await updateContact(editingId, payload);
@@ -932,7 +944,6 @@ export default function MissionaryContacts() {
     }
 
     const categorySaved = safeCategoryValue(normalizeCategoryForSave(form.category));
-    const statusSaved = normalizeStatusForSave(form.status);
 
     const res = await insertContact({
       fullName: form.fullName.trim(),
@@ -947,6 +958,7 @@ export default function MissionaryContacts() {
       isOneTimeDonor: isOneTimeDonorEffective,
       oneTimeDonationAmount: form.oneTimeDonationAmount,
       oneTimeDonationDate: form.oneTimeDonationDate,
+      followUpDate,
       notes: mergeNotesWithSocial(form.notes, form.social),
     });
     if (!res.ok) {
@@ -1328,6 +1340,11 @@ export default function MissionaryContacts() {
             className="rounded-lg border-b border-[#EEEEEE] bg-[#FAFAFA] px-3.5 py-2.5"
             style={{ borderBottom: '0.5px solid #EEEEEE' }}
           >
+            {activeFilterCount > 0 ? (
+              <p className="mb-2 text-[11px] font-medium text-[#1A6B3C]">
+                Showing {filteredSorted.length} of {contacts.length}
+              </p>
+            ) : null}
             <FilterSection label="Status">
               {CONTACT_STATUS_FILTER_OPTIONS.map((opt) => (
                 <FilterChip

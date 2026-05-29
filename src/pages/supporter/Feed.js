@@ -49,6 +49,36 @@ function mapProfileForPins(dbProfile) {
   };
 }
 
+const QUOTE_SPLIT = /("[^"]*"|'[^']*'|\u201c[^\u201d]*\u201d)/;
+
+function isQuotedSegment(part) {
+  return /^["']/.test(part) || /^\u201c/.test(part);
+}
+
+function PostBody({ body }) {
+  const text = String(body ?? '');
+  const parts = text.split(QUOTE_SPLIT).filter((p) => p.length > 0);
+  const hasQuote = parts.some(isQuotedSegment);
+  if (!hasQuote) {
+    return <p className="sent-body mt-3 whitespace-pre-wrap text-mission-ink">{text}</p>;
+  }
+  return (
+    <p className="sent-body mt-3 whitespace-pre-wrap text-mission-ink">
+      {parts.map((part, i) => {
+        const isQuote = isQuotedSegment(part);
+        if (isQuote) {
+          return (
+            <span key={i} className="font-[Lora,serif] italic">
+              {part}
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </p>
+  );
+}
+
 function daysUntilDeadline(deadlineStr) {
   if (!deadlineStr) return null;
   const d = new Date(`${deadlineStr}T23:59:59`);
@@ -439,7 +469,7 @@ export default function SupporterFeed() {
                         {p.locationName}
                       </p>
                     ) : null}
-                    <p className="sent-body mt-3 whitespace-pre-wrap text-mission-ink">{p.body}</p>
+                    <PostBody body={p.body} />
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       <ReactionButton

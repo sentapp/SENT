@@ -5,8 +5,8 @@ import { MISSIONARY_HOME_PATH, missionaryNavItems } from '../lib/missionaryNav';
 function navLinkClass(isActive) {
   return `sent-body flex w-full items-center rounded-lg border-l-[3px] px-3 py-2.5 text-left font-medium transition-colors duration-200 ${
     isActive
-      ? 'border-green bg-white font-semibold text-green shadow-sm'
-      : 'border-transparent text-muted hover:bg-white'
+      ? 'border-accent-bright bg-[#1a1a1a] font-semibold text-accent-bright'
+      : 'border-transparent text-[#888888] hover:bg-[#1a1a1a] hover:text-white'
   }`;
 }
 
@@ -20,10 +20,10 @@ function FullPageLoading() {
 
 function SideNav() {
   return (
-    <aside className="hidden w-[240px] shrink-0 border-r border-border bg-surface md:flex md:flex-col">
-      <div className="border-b border-border px-6 py-5">
-        <p className="sent-section-title">SENT</p>
-        <p className="sent-caption mt-1">For missionaries and the people who send them.</p>
+    <aside className="hidden w-[240px] shrink-0 border-r border-[#222] bg-[#111] text-white md:flex md:flex-col">
+      <div className="border-b border-[#222] px-6 py-5">
+        <p className="font-display text-2xl tracking-wide text-white">SENT</p>
+        <p className="mt-1 text-[11px] text-[#666]">For missionaries and the people who send them.</p>
       </div>
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-1">

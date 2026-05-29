@@ -18,7 +18,9 @@ import MissionaryStats from './Stats';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { computePartnerCurrencyTotals, formatAmount, normalizeCurrencyCode } from '../../lib/currencies';
-import { daysBetween } from '../../lib/dateHelpers';
+import { daysUntilFollowUp } from '../../lib/dateHelpers';
+import { fetchMeetingsForMissionary } from '../../lib/meetingsRepository';
+import { formatMeetingDate, formatTime } from '../../lib/meetingDateUtils';
 import { normalizeStatusFromDb } from '../../lib/contactStatuses';
 
 function MissionaryPrayerRequestMenu({ open, onOpenChange, onDelete }) {
@@ -149,6 +151,8 @@ export default function MissionaryOverview() {
   );
   const [showPipeline, setShowPipeline] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [meetings, setMeetings] = useState([]);
+  const [meetingsLoading, setMeetingsLoading] = useState(true);
   const [todayOutreachCount, setTodayOutreachCount] = useState(0);
   const [todayOutreachLoading, setTodayOutreachLoading] = useState(true);
 
@@ -175,9 +179,22 @@ export default function MissionaryOverview() {
     setTodayOutreachLoading(false);
   }, [user?.id]);
 
+  const loadMeetings = useCallback(async () => {
+    if (!supabase || !user?.id) {
+      setMeetings([]);
+      setMeetingsLoading(false);
+      return;
+    }
+    setMeetingsLoading(true);
+    const rows = await fetchMeetingsForMissionary(supabase, user.id);
+    setMeetings(rows);
+    setMeetingsLoading(false);
+  }, [user?.id]);
+
   useEffect(() => {
     void loadTodayOutreach();
-  }, [loadTodayOutreach]);
+    void loadMeetings();
+  }, [loadTodayOutreach, loadMeetings]);
 
   useEffect(() => {
     const onFocus = () => void loadTodayOutreach();
@@ -264,15 +281,25 @@ export default function MissionaryOverview() {
   const circleBackSoon = useMemo(
     () =>
       contacts
-        .filter(
-          (c) =>
-            normalizeStatusFromDb(c.status) === 'not_right_now' &&
-            c.followUpDate &&
-            daysBetween(new Date(), new Date(`${c.followUpDate}T12:00:00`)) <= 7,
-        )
+        .filter((c) => {
+          if (normalizeStatusFromDb(c.status) !== 'not_right_now' || !c.followUpDate) return false;
+          const days = daysUntilFollowUp(c.followUpDate);
+          return days >= 0 && days <= 7;
+        })
         .sort((a, b) => String(a.followUpDate).localeCompare(String(b.followUpDate))),
     [contacts],
   );
+
+  const upcomingMeetingsPreview = useMemo(() => {
+    const upcoming = meetings
+      .filter((m) => !m.isComplete && m.meetingDate && m.meetingDate >= todayStr)
+      .sort((a, b) => {
+        const d = String(a.meetingDate).localeCompare(String(b.meetingDate));
+        if (d !== 0) return d;
+        return String(a.meetingTime || '').localeCompare(String(b.meetingTime || ''));
+      });
+    return upcoming.slice(0, 2);
+  }, [meetings, todayStr]);
 
   const resetAddTaskForm = () => {
     setAddTaskTitle('');
@@ -355,7 +382,9 @@ export default function MissionaryOverview() {
               {oneTimeTotal > 0 ? (
                 <>
                   {' · '}
-                  <span style={{ color: '#4CAF7D' }}>One-time: ${oneTimeTotal.toLocaleString()}</span>
+                  <span style={{ color: '#4CAF7D' }}>
+                    One-time: {formatAmount(oneTimeTotal, homeCurrency)}
+                  </span>
                 </>
               ) : null}
             </span>
@@ -409,6 +438,29 @@ export default function MissionaryOverview() {
           <span>{todayOutreachLoading ? '' : `${Math.round(Math.min((todayOutreachCount / dailyGoal) * 100, 100))}%`}</span>
         </div>
       </Card>
+
+      {meetingsLoading ? (
+        <Card className="p-4">
+          <p className="text-sm text-muted">Loading meetings…</p>
+        </Card>
+      ) : upcomingMeetingsPreview.length > 0 ? (
+        <Card className="overflow-hidden p-0">
+          <div className="border-b border-border px-4 py-3">
+            <p className="sent-section-label">Upcoming meetings</p>
+          </div>
+          <ul className="divide-y divide-border/60">
+            {upcomingMeetingsPreview.map((m) => (
+              <li key={m.id} className="px-4 py-3">
+                <p className="text-sm font-medium text-ink">{m.contactName || 'Meeting'}</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {formatMeetingDate(m.meetingDate)}
+                  {m.meetingTime ? ` · ${formatTime(m.meetingTime)}` : ''}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       <div className="overflow-hidden rounded-card border border-mission-line bg-surface">
         <div className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3">
@@ -661,6 +713,16 @@ export default function MissionaryOverview() {
       >
         <MissionaryStats embedded />
       </MissionaryFullscreenOverlay>
+
+      <div className="flex justify-center pb-2">
+        <button
+          type="button"
+          onClick={() => setShowStats(true)}
+          className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888] transition-colors hover:text-ink"
+        >
+          View full stats →
+        </button>
+      </div>
 
       {user?.id ? <MissionPushSection missionaryId={user.id} /> : null}
 

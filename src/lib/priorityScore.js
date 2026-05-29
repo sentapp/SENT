@@ -42,4 +42,16 @@ export function getPriorityStyle(score) {
   return { bg: '#F5F5F5', color: '#888888', dot: '#CCCCCC', label: 'Cold' };
 }
 
+/** Inline style for the 7px priority dot on contact rows. */
+export function getPriorityDot(score) {
+  const { dot } = getPriorityStyle(score);
+  return {
+    width: 7,
+    height: 7,
+    borderRadius: '50%',
+    backgroundColor: dot,
+    flexShrink: 0,
+  };
+}
+
 export { CARE_LETTERS };

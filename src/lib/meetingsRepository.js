@@ -74,7 +74,7 @@ export async function createMeeting(supabaseClient, payload) {
  *   missionaryId: string,
  *   contactId: string | null,
  *   contactName: string,
- *   outcome: 'yes' | 'no' | 'followup',
+ *   outcome: 'yes' | 'no' | 'followup' | 'not_right_now',
  *   notes?: string,
  * }} params
  */
@@ -109,12 +109,27 @@ export async function saveMeetingOutcome(supabaseClient, params) {
         .eq('id', contactId)
         .eq('missionary_id', missionaryId);
       if (contactErr) console.error('saveMeetingOutcome contact no', contactErr);
+    } else if (outcome === 'not_right_now') {
+      const followUpDate = new Date();
+      followUpDate.setDate(followUpDate.getDate() + 90);
+      const dueDate = followUpDate.toISOString().split('T')[0];
+      const { error: contactErr } = await supabaseClient
+        .from('contacts')
+        .update({ status: 'not_right_now', follow_up_date: dueDate })
+        .eq('id', contactId)
+        .eq('missionary_id', missionaryId);
+      if (contactErr) console.error('saveMeetingOutcome contact not_right_now', contactErr);
     }
 
     const logNotes =
       outcome === 'yes'
         ? `Said yes to partnering!${notesStr ? ` ${notesStr}` : ''}`
-        : notesStr || (outcome === 'followup' ? 'Follow-up meeting' : 'Meeting — not yet');
+        : notesStr ||
+          (outcome === 'followup'
+            ? 'Follow-up meeting'
+            : outcome === 'not_right_now'
+              ? 'Not right now — follow up later'
+              : 'Meeting — not yet');
 
     const { error: logErr } = await supabaseClient.from('communication_logs').insert({
       missionary_id: missionaryId,

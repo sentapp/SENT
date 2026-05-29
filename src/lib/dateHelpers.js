@@ -30,3 +30,21 @@ export function getDateFromNow(opt) {
   else if (opt === '6 months') d.setMonth(d.getMonth() + 6);
   return localDateStr(d);
 }
+
+/** Calendar date N days from today. */
+export function addDaysFromNow(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return localDateStr(d);
+}
+
+/** Whole days until a follow-up date (negative if overdue). */
+export function daysUntilFollowUp(followUpDateStr) {
+  if (!followUpDateStr) return Infinity;
+  const target = new Date(`${String(followUpDateStr).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(target.getTime())) return Infinity;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+  return Math.ceil((target - today) / (24 * 60 * 60 * 1000));
+}

@@ -3,6 +3,7 @@ import { categoryLabel, getCategoryTagColors, shouldShowCategoryTag } from '../.
 import { getRelationshipTagColors, relationshipLabel, RELATIONSHIP_TAG_OPTIONS } from '../../lib/contactRelationships';
 import { fullContactPayloadFromQuickTag, mergeContactAfterQuickTag } from '../../lib/contactQuickTagSave';
 import { QUICK_STATUS_EDIT_OPTIONS, STATUS_TAG_COLORS, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
+import { addDaysFromNow } from '../../lib/dateHelpers';
 
 const PANEL_STYLE = {
   backgroundColor: '#ffffff',
@@ -159,12 +160,20 @@ export function ContactThreeQuickTagRows({
       setForm((f) => {
         const base = { ...contact, category: f.category, status: f.status, relationship: f.relationship ?? '' };
         const merged = mergeContactAfterQuickTag(base, field, value);
-        return {
+        const next = {
           ...f,
           category: merged.category,
           status: merged.status,
           relationship: merged.relationship ?? '',
         };
+        if (field === 'status') {
+          if (normalizeStatusFromDb(merged.status) === 'not_right_now') {
+            next.followUpDate = f.followUpDate || merged.followUpDate || addDaysFromNow(90);
+          } else {
+            next.followUpDate = '';
+          }
+        }
+        return next;
       });
       return;
     }

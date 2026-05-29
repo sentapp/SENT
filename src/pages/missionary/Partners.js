@@ -556,7 +556,7 @@ export default function MissionaryPartners() {
 
           <section className="space-y-3" aria-labelledby="all-partners-heading">
             <h2 id="all-partners-heading" className="text-base font-semibold text-ink">
-              All partners{' '}
+              All good{' '}
               <span className="font-normal text-mission-muted">({allGoodPartners.length})</span>
             </h2>
             {lastContactLoading ? <p className="text-xs text-neutral-500">Loading touchpoints…</p> : null}

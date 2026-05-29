@@ -10,8 +10,6 @@ export const CURRENCIES = [
   { code: 'ZAR', label: 'South African Rand', symbol: 'R' },
   { code: 'NGN', label: 'Nigerian Naira', symbol: '₦' },
   { code: 'BRL', label: 'Brazilian Real', symbol: 'R$' },
-  { code: 'MXN', label: 'Mexican Peso', symbol: 'MX$' },
-  { code: 'INR', label: 'Indian Rupee', symbol: '₹' },
 ];
 
 const CODE_SET = new Set(CURRENCIES.map((c) => c.code));
