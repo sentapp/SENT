@@ -19,6 +19,7 @@ export default function MissionaryPipelineSection({
   pipelineLoading,
 }) {
   const navigate = useNavigate();
+  const { openDrawer } = useContactDrawer();
 
   const goPipeline = () => {
     navigate('/missionary/pipeline');
@@ -57,14 +58,18 @@ export default function MissionaryPipelineSection({
             <ul className="list-disc space-y-2 pl-5 text-sm marker:text-neutral-400">
               {pipelineContacts.map((c) => (
                 <li key={c.id} className="pl-0.5">
-                  <span className="inline-flex flex-wrap items-baseline gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex flex-wrap items-baseline gap-2 text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mission-ink/25"
+                    onClick={() => openDrawer(c)}
+                  >
                     <span className="font-medium text-ink">{c.fullName || 'Unnamed'}</span>
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${pipelineStatusBadgeClass(c.status)}`}
                     >
                       {statusLabel(c.status)}
                     </span>
-                  </span>
+                  </button>
                 </li>
               ))}
             </ul>
