@@ -10,6 +10,7 @@ import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { relationshipLabel } from '../../lib/contactRelationships';
 import { notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
 import { statusLabel } from '../../lib/contactStatuses';
+import { calcCareFlags, calcPriorityScore, CARE_LETTERS, getPriorityStyle } from '../../lib/priorityScore';
 import { completeTask as completeTaskRepo, createTask, mapTaskRow } from '../../lib/tasksRepository';
 import { ContactThreeQuickTagRows } from './QuickTagPopover';
 import { PARTNER_DRAWER_BACKDROP_Z, PARTNER_DRAWER_PANEL_Z } from './quickViewOverlayZIndex';
@@ -107,6 +108,7 @@ function previewNotes(text, max = 140) {
  *   onCall: () => void,
  *   onText: () => void,
  *   onLog: () => void,
+ *   onScheduleMeeting?: (contact: Record<string, unknown>) => void,
  *   actionError?: string,
  *   activityLogsRefreshKey?: number,
  *   suppressEscape?: boolean,
@@ -124,6 +126,7 @@ export function ContactSideDrawer({
   onCall,
   onText,
   onLog,
+  onScheduleMeeting,
   actionError = '',
   activityLogsRefreshKey = 0,
   suppressEscape = false,
@@ -275,10 +278,15 @@ export function ContactSideDrawer({
   const monthly = Number(contact.monthlyAmount);
   const monthlyLine =
     Number.isFinite(monthly) && monthly > 0 ? (
-      <p className="mt-0.5 text-sm font-semibold" style={{ color: '#2A9A58' }}>
+      <p className="mt-0.5 text-sm font-semibold" style={{ color: 'var(--accent)' }}>
         {formatMonthlyAmount(monthly, contact.currency)}
       </p>
     ) : null;
+
+  const priorityScore = calcPriorityScore(contact, logs);
+  const priorityStyle = getPriorityStyle(priorityScore);
+  const careFlags = calcCareFlags(contact, logs);
+  const careFlagByLetter = { C: careFlags.C, A: careFlags.A, R: careFlags.R, E: careFlags.E };
 
   const socialStr = social ? String(social).trim() : '';
   const socialHref =
@@ -384,6 +392,26 @@ export function ContactSideDrawer({
               <InfoRow label="Category" value={categoryDisp} valueClassName="text-sm font-medium text-ink" />
               <InfoRow label="Status" value={statusDisp} valueClassName="text-sm font-medium text-ink" />
               <InfoRow label="Relationship" value={relationshipDisp} valueClassName="text-sm font-medium text-ink" />
+              <div className="flex items-center gap-2 border-b border-[#EEEEEE] px-4 py-2">
+                <span className="text-xs text-neutral-500">Priority</span>
+                <div className="ml-auto flex items-center gap-1">
+                  {CARE_LETTERS.map((letter) => (
+                    <span
+                      key={letter}
+                      className="rounded px-1.5 py-px text-[10px] font-medium"
+                      style={{
+                        background: careFlagByLetter[letter] ? priorityStyle.bg : '#F5F5F5',
+                        color: careFlagByLetter[letter] ? priorityStyle.color : '#CCC',
+                      }}
+                    >
+                      {letter}
+                    </span>
+                  ))}
+                  <span className="ml-1 text-[11px] font-medium" style={{ color: priorityStyle.color }}>
+                    {priorityStyle.label}
+                  </span>
+                </div>
+              </div>
               <InfoRow
                 label="Social"
                 value={socialStr}
@@ -425,6 +453,18 @@ export function ContactSideDrawer({
               Log
             </button>
           </div>
+
+          {onScheduleMeeting ? (
+            <div className="border-b border-[#EEEEEE] px-4 py-3">
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => onScheduleMeeting(contact)}
+              >
+                Schedule meeting
+              </Button>
+            </div>
+          ) : null}
 
           {actionError ? <p className="px-4 py-2 text-sm text-red-600">{actionError}</p> : null}
 

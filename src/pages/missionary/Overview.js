@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { deletePrayerRequestAsMissionary, prayerAttributionLabel } from '../../lib/prayerRequestsRepository';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
 import { useMissionaryPipelineContacts } from '../../hooks/useMissionaryPipelineContacts';
@@ -191,6 +191,41 @@ export default function MissionaryOverview() {
   const [oneTimeModalOpen, setOneTimeModalOpen] = useState(false);
   const [oneTimeModalRows, setOneTimeModalRows] = useState([]);
   const [oneTimeModalLoading, setOneTimeModalLoading] = useState(false);
+  const [todayOutreachCount, setTodayOutreachCount] = useState(0);
+  const [todayOutreachLoading, setTodayOutreachLoading] = useState(true);
+
+  const dailyGoal = 16;
+
+  const loadTodayOutreach = useCallback(async () => {
+    if (!supabase || !user?.id) {
+      setTodayOutreachCount(0);
+      setTodayOutreachLoading(false);
+      return;
+    }
+    setTodayOutreachLoading(true);
+    const day = localDateStr();
+    const start = `${day}T00:00:00.000`;
+    const end = `${day}T23:59:59.999`;
+    const { count, error } = await supabase
+      .from('communication_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('missionary_id', user.id)
+      .gte('created_at', start)
+      .lte('created_at', end);
+    if (error) console.error('Overview today outreach', error);
+    setTodayOutreachCount(error ? 0 : count ?? 0);
+    setTodayOutreachLoading(false);
+  }, [user?.id]);
+
+  useEffect(() => {
+    void loadTodayOutreach();
+  }, [loadTodayOutreach]);
+
+  useEffect(() => {
+    const onFocus = () => void loadTodayOutreach();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [loadTodayOutreach]);
 
   const partners = useMemo(
     () =>
@@ -356,8 +391,18 @@ export default function MissionaryOverview() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="sent-page-title">Overview</h1>
-        <p className="sent-body text-mission-muted">Your ministry at a glance on SENT.</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="sent-page-title">Overview</h1>
+            <p className="sent-body text-mission-muted">Your ministry at a glance on SENT.</p>
+          </div>
+          <Link
+            to="/missionary/stats"
+            className="shrink-0 pt-1 text-sm font-medium text-mission-ink hover:underline"
+          >
+            View stats →
+          </Link>
+        </div>
       </header>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -374,7 +419,7 @@ export default function MissionaryOverview() {
           ariaLabel="Monthly support — open partners"
           onActivate={() => navigate('/missionary/partners')}
           tint="bg-green-light"
-          labelColor="#2A9A58"
+          labelColor="var(--accent)"
           Icon={<span className="text-green">{metricIconMonthly}</span>}
         />
         <MetricCard
@@ -392,7 +437,7 @@ export default function MissionaryOverview() {
           ariaLabel="Partners — open partners list"
           onActivate={() => navigate('/missionary/partners')}
           tint="bg-green-light"
-          labelColor="#2A9A58"
+          labelColor="var(--accent)"
           Icon={<span className="text-green">{metricIconPeople}</span>}
         />
         <MetricCard
@@ -429,6 +474,35 @@ export default function MissionaryOverview() {
         </div>
         <div className="garden-progress-track mt-4">
           <div className="garden-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-medium text-ink">Today&apos;s outreach</span>
+          <span
+            className={`text-xs font-medium ${todayOutreachCount >= dailyGoal ? 'text-green' : 'text-ink'}`}
+          >
+            {todayOutreachLoading ? '…' : `${todayOutreachCount} / ${dailyGoal}`}
+          </span>
+        </div>
+        <div className="mt-1.5 h-1 rounded-sm bg-[#EEEEEE]">
+          <div
+            className="h-full rounded-sm bg-green transition-[width] duration-300"
+            style={{
+              width: `${Math.min((todayOutreachCount / dailyGoal) * 100, 100)}%`,
+            }}
+          />
+        </div>
+        <div className="mt-1 flex justify-between text-[10px] text-muted">
+          <span>
+            {todayOutreachLoading
+              ? 'Loading…'
+              : todayOutreachCount >= dailyGoal
+                ? 'Daily goal reached! 🎉'
+                : `${Math.max(dailyGoal - todayOutreachCount, 0)} more to hit your daily goal`}
+          </span>
+          <span>{todayOutreachLoading ? '' : `${Math.round(Math.min((todayOutreachCount / dailyGoal) * 100, 100))}%`}</span>
         </div>
       </Card>
 

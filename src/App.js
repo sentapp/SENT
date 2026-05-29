@@ -11,6 +11,8 @@ import MissionaryContacts from './pages/missionary/Contacts';
 import MissionaryPipeline from './pages/missionary/Pipeline';
 import MissionaryPartners from './pages/missionary/Partners';
 import MissionaryUpdates from './pages/missionary/Updates';
+import MissionaryMeetings from './pages/missionary/Meetings';
+import MissionaryStats from './pages/missionary/Stats';
 import MissionarySettings from './pages/missionary/Settings';
 import MissionaryOnboarding from './pages/missionary/MissionaryOnboarding';
 
@@ -42,7 +44,9 @@ function App() {
         <Route path="onboarding" element={<MissionaryOnboarding />} />
         <Route path="contacts" element={<MissionaryContacts />} />
         <Route path="pipeline" element={<MissionaryPipeline />} />
+        <Route path="meetings" element={<MissionaryMeetings />} />
         <Route path="partners" element={<MissionaryPartners />} />
+        <Route path="stats" element={<MissionaryStats />} />
         <Route path="updates" element={<MissionaryUpdates />} />
         <Route path="map" element={<Navigate to="/missionary/updates" replace />} />
         <Route path="settings" element={<MissionarySettings />} />

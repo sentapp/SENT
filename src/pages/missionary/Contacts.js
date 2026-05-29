@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { stripOptionalContactColumnsFromRow, useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import {
@@ -36,6 +36,12 @@ import { mergeNotesWithSocial, notesWithoutSocialBlock, splitSocialFromNotes } f
 import { normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
 import { normalizeRelationshipForSave } from '../../lib/contactRelationships';
 import {
+  calcCareFlags,
+  calcPriorityScore,
+  CARE_LETTERS,
+  getPriorityStyle,
+} from '../../lib/priorityScore';
+import {
   ContactQuickLogPopup,
 } from '../../components/contacts/ContactQuickViewPopup';
 import { ContactSideDrawer } from '../../components/contacts/ContactSideDrawer';
@@ -55,7 +61,7 @@ function isPipelineStripContact(c) {
   return PIPELINE_STRIP_SET.has(st) && normalizeCategory(c.category) !== 'supporter';
 }
 const STRIP_DOT = {
-  contacted: '#2A9A58',
+  contacted: 'var(--accent)',
   meeting_scheduled: '#C17A00',
   committed: '#6040B0',
 };
@@ -114,6 +120,39 @@ function cleanDisplayNotes(notes) {
   const trimmed = body.toString().trim();
   if (/^\d+$/.test(trimmed)) return '';
   return trimmed;
+}
+
+function PriorityDot({ contact, logs }) {
+  const score = calcPriorityScore(contact, logs);
+  const style = getPriorityStyle(score);
+  const flags = calcCareFlags(contact, logs);
+  const flagByLetter = { C: flags.C, A: flags.A, R: flags.R, E: flags.E };
+
+  return (
+    <span className="group relative inline-flex shrink-0 items-center">
+      <span
+        className="h-2.5 w-2.5 rounded-full ring-2 ring-white"
+        style={{ backgroundColor: style.dot }}
+        aria-label={`${style.label} priority`}
+      />
+      <span
+        className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded px-2 py-1 text-[10px] font-medium shadow-md group-hover:block"
+        style={{ background: style.bg, color: style.color }}
+        role="tooltip"
+      >
+        {style.label}
+        {' · '}
+        {CARE_LETTERS.map((letter) => (
+          <span
+            key={letter}
+            style={{ color: flagByLetter[letter] ? style.color : '#CCC', fontWeight: flagByLetter[letter] ? 600 : 400 }}
+          >
+            {letter}
+          </span>
+        ))}
+      </span>
+    </span>
+  );
 }
 
 function contactFormSnapshot(f) {
@@ -253,7 +292,9 @@ export default function MissionaryContacts() {
   const [logError, setLogError] = useState('');
   const [loggedSuccess, setLoggedSuccess] = useState(false);
   const [activityLogRefreshKey, setActivityLogRefreshKey] = useState(0);
+  const [missionaryLogs, setMissionaryLogs] = useState([]);
   const [commActionError, setCommActionError] = useState('');
+  const navigate = useNavigate();
 
   const sessionRef = useRef(0);
   const contactUrlHandledRef = useRef(null);
@@ -340,6 +381,35 @@ export default function MissionaryContacts() {
     const t = setTimeout(() => setDedupeBanner(null), 10000);
     return () => clearTimeout(t);
   }, [dedupeBanner]);
+
+  useEffect(() => {
+    if (!user?.id || !supabase) {
+      setMissionaryLogs([]);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('communication_logs')
+        .select('contact_id, created_at')
+        .eq('missionary_id', user.id);
+      if (!cancelled) setMissionaryLogs(error ? [] : data || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, activityLogRefreshKey]);
+
+  const logsByContactId = useMemo(() => {
+    const map = new Map();
+    for (const log of missionaryLogs) {
+      const id = log.contact_id;
+      if (!id) continue;
+      if (!map.has(id)) map.set(id, []);
+      map.get(id).push(log);
+    }
+    return map;
+  }, [missionaryLogs]);
 
   const resetImportWizard = () => {
     setImportTab('excel');
@@ -822,8 +892,13 @@ export default function MissionaryContacts() {
           (c.address || '').toLowerCase().includes(q)
         );
       })
-      .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', undefined, { sensitivity: 'base' }));
-  }, [contacts, oneTimeDonorFilter, activeFilter, query]);
+      .sort((a, b) => {
+        const scoreA = calcPriorityScore(a, logsByContactId.get(a.id) || []);
+        const scoreB = calcPriorityScore(b, logsByContactId.get(b.id) || []);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return (a.fullName || '').localeCompare(b.fullName || '', undefined, { sensitivity: 'base' });
+      });
+  }, [contacts, oneTimeDonorFilter, activeFilter, query, logsByContactId]);
 
   const pipelineStripContacts = useMemo(
     () =>
@@ -987,6 +1062,7 @@ export default function MissionaryContacts() {
         created_at,
       });
       if (error) return { ok: false, error: error.message || 'Could not save log.' };
+      setActivityLogRefreshKey((k) => k + 1);
       await refetch();
       return { ok: true, created_at };
     },
@@ -1348,6 +1424,7 @@ export default function MissionaryContacts() {
                   ) : null}
                   <div className="min-w-0 flex-1 flex flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
+                      <PriorityDot contact={c} logs={logsByContactId.get(c.id) || []} />
                       <p className="text-base font-semibold text-ink">{c.fullName || 'Unnamed contact'}</p>
                     </div>
                     <ContactThreeQuickTagRows
@@ -1413,6 +1490,9 @@ export default function MissionaryContacts() {
         onCall={handleCall}
         onText={handleText}
         onLog={openQuickLogFromDetail}
+        onScheduleMeeting={(c) =>
+          navigate(`/missionary/meetings?add=1&contact=${encodeURIComponent(c.id)}`)
+        }
         actionError={commActionError}
         activityLogsRefreshKey={activityLogRefreshKey}
         suppressEscape={showLogModal}
