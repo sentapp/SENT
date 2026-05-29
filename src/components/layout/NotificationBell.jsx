@@ -93,7 +93,9 @@ export default function NotificationBell() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
+  const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
   const ref = useRef(null);
+  const btnRef = useRef(null);
 
   const loadNotifications = useCallback(async () => {
     if (!supabase || !user?.id) return;
@@ -142,6 +144,10 @@ export default function NotificationBell() {
 
   const toggleOpen = () => {
     const next = !open;
+    if (next && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPopupPos({ top: rect.bottom + 8, left: rect.left });
+    }
     setOpen(next);
     if (next && unread > 0) void markAllRead();
   };
@@ -151,6 +157,7 @@ export default function NotificationBell() {
   return (
     <div ref={ref} className="relative">
       <button
+        ref={btnRef}
         type="button"
         onClick={toggleOpen}
         className="relative flex cursor-pointer items-center border-0 bg-transparent p-1"
@@ -167,7 +174,8 @@ export default function NotificationBell() {
 
       {open ? (
         <div
-          className="absolute left-0 top-[calc(100%+8px)] z-[100] w-[290px] overflow-hidden rounded-xl border border-[#E0E0E0] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
+          style={{ top: popupPos.top, left: popupPos.left }}
+          className="fixed z-[200] w-[290px] overflow-hidden rounded-xl border border-[#E0E0E0] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
           role="dialog"
           aria-label="Notifications panel"
         >
