@@ -13,6 +13,7 @@ import { daysOverdue, formatDate, isDueToday, isOverdue } from '../../lib/taskDa
 import MissionPushSection from '../../components/MissionPushSection';
 import MissionaryPipelineSection from '../../components/MissionaryPipelineSection';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
+import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import {
   computePartnerCurrencyTotals,
   formatAmount,
@@ -121,6 +122,14 @@ function localDateStr(d = new Date()) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function computeDayOfMission(profile) {
+  const raw = profile?.mission_start_date || profile?.created_at;
+  if (!raw) return null;
+  const start = new Date(raw);
+  if (Number.isNaN(start.getTime())) return null;
+  return Math.max(1, Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 }
 
 function TaskCompleteCircle({ onComplete, variant, ariaLabel }) {
@@ -311,6 +320,11 @@ export default function MissionaryOverview() {
   const goal = Number(profile?.monthly_goal ?? state.missionary.profile.monthlyGoal ?? 0) || 0;
   const gap = Math.max(goal - homeCurrencyTotal, 0);
   const pct = goal > 0 ? Math.min(100, Math.round((homeCurrencyTotal / goal) * 100)) : 0;
+  const dayOfMission = computeDayOfMission(profile);
+  const displayName = (profile?.full_name || '').trim() || 'Missionary';
+  const orgLine = (profile?.organization || '').trim();
+  const avatarInitials = initialsFromDisplayName(displayName);
+  const photoUrl = profile?.photo_url || '';
 
   const todayStr = localDateStr();
   const incompleteTasks = useMemo(() => tasks.filter((t) => !t.isComplete), [tasks]);
@@ -390,19 +404,53 @@ export default function MissionaryOverview() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
+      <header className="sticky top-0 z-30 -mx-5 -mt-5 border-b border-[#222] bg-[#111] px-5 py-5 text-white md:-mx-8 md:-mt-8 md:px-8">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="sent-page-title">Overview</h1>
-            <p className="sent-body text-mission-muted">Your ministry at a glance on SENT.</p>
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-white/20 bg-[#222]">
+              {photoUrl ? (
+                <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center font-display text-lg text-white">
+                  {avatarInitials.slice(0, 2)}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              {dayOfMission != null ? (
+                <p className="font-display text-[22px] leading-none text-accent-bright">DAY {dayOfMission}</p>
+              ) : (
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#666]">Overview</p>
+              )}
+              <h1 className="mt-1 truncate font-display text-[26px] leading-none tracking-wide">{displayName}</h1>
+              {orgLine ? (
+                <p className="mt-1 truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#666]">{orgLine}</p>
+              ) : null}
+            </div>
           </div>
-          <Link
-            to="/missionary/stats"
-            className="shrink-0 pt-1 text-sm font-medium text-mission-ink hover:underline"
-          >
-            View stats →
+          <Link to="/missionary/stats" className="shrink-0 pt-1 text-xs font-medium text-white/70 hover:text-white">
+            Stats →
           </Link>
         </div>
+
+        <div className="mt-5 flex items-end justify-between gap-3">
+          <p className="font-display text-[48px] leading-none tracking-wide">
+            {formatAmount(homeCurrencyTotal, homeCurrency)}
+          </p>
+          <p className="circuit-progress-pct pb-1">{pct}% funded</p>
+        </div>
+        <div className="circuit-progress-track mt-3">
+          <div className="circuit-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <p className="mt-2 text-xs text-white/60">
+          {goal > 0 ? (
+            <>
+              {formatAmount(gap, homeCurrency)} to monthly goal · {formatAmount(goal, homeCurrency)} target
+            </>
+          ) : (
+            'Set your monthly goal in Settings'
+          )}
+        </p>
       </header>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -459,23 +507,6 @@ export default function MissionaryOverview() {
           Icon={<span className="text-neutral-600">{metricIconBook}</span>}
         />
       </div>
-
-      <Card className="p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold">Funding progress</p>
-            <p className="mt-1 text-xs text-muted">
-              {goal > 0
-                ? `${formatAmount(homeCurrencyTotal, homeCurrency)} of ${formatAmount(goal, homeCurrency)}`
-                : 'Set your monthly goal in Settings'}
-            </p>
-          </div>
-          <p className="garden-progress-pct">{pct}%</p>
-        </div>
-        <div className="garden-progress-track mt-4">
-          <div className="garden-progress-fill" style={{ width: `${pct}%` }} />
-        </div>
-      </Card>
 
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3">

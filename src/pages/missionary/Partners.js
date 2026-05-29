@@ -13,6 +13,7 @@ import {
   DRAWER_STACK_QUICK_LOG_MODAL_Z,
 } from '../../components/contacts/quickViewOverlayZIndex';
 import { Button, EmptyState, Modal } from '../../components/ui';
+import DarkPageHeader from '../../components/DarkPageHeader';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { findEmailConflict, findPhoneConflict } from '../../lib/contactDuplicates';
 import { normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
@@ -459,21 +460,19 @@ export default function MissionaryPartners() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <h1 className="sent-page-title">Partners</h1>
-          <p className="sent-body text-mission-muted">
-            {partners.length === 0
-              ? 'Monthly partners are derived from your contacts.'
-              : (
-                  <>
-                    {formatMonthlyAmount(homeCurrencyTotal, homeCurrency)} · {partnerCountLabel}
-                    {partnersOtherCurrenciesLine ? (
-                      <span className="mt-0.5 block text-xs text-neutral-500">{partnersOtherCurrenciesLine}</span>
-                    ) : null}
-                  </>
-                )}
-          </p>
+      <DarkPageHeader
+        title="Partners"
+        subtitle={
+          partners.length === 0
+            ? 'Monthly support'
+            : `${formatMonthlyAmount(homeCurrencyTotal, homeCurrency)} · ${partnerCountLabel}`
+        }
+      />
+      <header className="-mt-2 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          {partnersOtherCurrenciesLine ? (
+            <p className="sent-body text-muted">{partnersOtherCurrenciesLine}</p>
+          ) : null}
         </div>
         {needsContact.length > 0 ? (
           <span className="shrink-0 rounded-full bg-[#A32D2D]/12 px-3 py-1 text-xs font-semibold text-[#A32D2D] ring-1 ring-[#A32D2D]/25">

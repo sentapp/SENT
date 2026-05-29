@@ -3,9 +3,7 @@
 @tailwind utilities;
 
 /*
- * Inter loads from public/index.html (Google Fonts) — no @import here to avoid duplicate requests.
- * Tailwind preflight stays first via @tailwind base; avoid a global * { margin:0 } reset.
- * Scoped box model on #root so third-party widgets outside #root are unaffected.
+ * Inter + Bebas Neue load from public/index.html (Google Fonts).
  */
 @layer base {
   #root {
@@ -21,16 +19,20 @@
 
 @layer base {
   :root {
-    /* Garden multicolor */
+    /* Circuit Riders movement palette */
+    --accent: #1a6b3c;
+    --accent-bright: #4caf7d;
+    --accent-light: #edf7f0;
+    --accent-border: #a8d4b8;
+    --accent-dark: #145a32;
+    --font-display: 'Bebas Neue', sans-serif;
+
     --bg: #ffffff;
     --surface: #fafafa;
     --ink: #111111;
     --muted: #888888;
     --border: #eeeeee;
-    --accent: #2a9a58;
-    --accent-light: #edfaf2;
-    --accent-border: #a8e0c0;
-    --accent-dark: #1a7a40;
+
     --green: var(--accent);
     --green-light: var(--accent-light);
     --green-border: var(--accent-border);
@@ -41,7 +43,6 @@
     --rose-light: #fde8ee;
     --rose-border: #f5c4d4;
 
-    /* Legacy sent-* → Garden (keeps existing classnames working) */
     --sent-bg: var(--bg);
     --sent-surface: #ffffff;
     --sent-ink: var(--ink);
@@ -49,7 +50,7 @@
     --sent-border: var(--border);
     --sent-brown: var(--muted);
     --sent-card: #ffffff;
-    --sent-nav-bg: var(--surface);
+    --sent-nav-bg: #111111;
     --sent-on-ink: #ffffff;
 
     --color-bg: var(--bg);
@@ -59,12 +60,12 @@
     --color-muted: var(--muted);
     --color-accent: var(--accent);
     --color-warm: var(--amber);
-    --color-success: var(--green);
-    --sent-nav-active: var(--green);
-    --sent-nav-inactive: #bbbbbb;
-    --sent-primary: var(--green);
+    --color-success: var(--accent);
+    --sent-nav-active: var(--accent-bright);
+    --sent-nav-inactive: #555555;
+    --sent-primary: var(--ink);
     --sent-muted: var(--muted);
-    --sent-success: var(--green);
+    --sent-success: var(--accent);
     --sent-danger: #e05050;
     --sent-line: var(--border);
   }
@@ -95,7 +96,6 @@
   animation: sent-outlet-fade 0.32s ease-out;
 }
 
-/* Leaflet — readable popups for custom markers (src/lib/mapMarkers.js) */
 .leaflet-popup-content-wrapper {
   border-radius: 12px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
@@ -115,28 +115,31 @@
   color: var(--sent-ink);
 }
 
-/* L.divIcon — hide Leaflet default marker box */
 .sent-map-pin {
   background: transparent !important;
   border: none !important;
 }
 
 @layer components {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
   .sent-logo {
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: var(--font-display);
     font-size: 32px;
     line-height: 1.1;
     font-weight: 400;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.02em;
     color: var(--sent-ink);
   }
 
   .sent-metric {
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: var(--font-display);
     font-size: 28px;
     line-height: 1.15;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-weight: 400;
+    letter-spacing: 0.02em;
     color: var(--sent-ink);
   }
 
@@ -149,15 +152,14 @@
     color: var(--sent-stone);
   }
 
-  /** Strip row: muted label on surface with bottom border (Garden section headers). */
   .garden-section-header {
     font-size: 9px;
     line-height: 1.35;
     font-weight: 600;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--muted);
-    background-color: var(--surface);
+    color: #888888;
+    background-color: #f5f5f5;
     border-bottom: 1px solid var(--border);
   }
 
@@ -214,7 +216,25 @@
     color: var(--sent-stone);
   }
 
-  /** Progress — track / fill / label (Garden). */
+  .circuit-progress-track {
+    height: 4px;
+    width: 100%;
+    border-radius: 2px;
+    background-color: #333333;
+    overflow: hidden;
+  }
+  .circuit-progress-fill {
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--accent-bright);
+    transition: width 0.2s ease-out;
+  }
+  .circuit-progress-pct {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--accent-bright);
+  }
+
   .garden-progress-track {
     height: 4px;
     width: 100%;
@@ -233,9 +253,20 @@
     font-weight: 600;
     color: var(--accent);
   }
+
+  .circuit-metric-card {
+    @apply rounded-card border border-border bg-white p-5 transition-colors duration-200;
+  }
+
+  .circuit-profile-code {
+    @apply rounded-card border border-[#111]/15 bg-[#111] p-5 text-white;
+  }
+  .circuit-profile-code-value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    @apply mt-3 break-all text-2xl font-bold tracking-wide md:text-3xl;
+  }
 }
 
-/* Profile / supporter feed — dynamic accent via CSS variable --profile-accent or --feed-accent */
 @layer components {
   .profile-accent-bg {
     background-color: var(--profile-accent, var(--color-accent));

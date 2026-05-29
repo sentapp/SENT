@@ -8,6 +8,7 @@ import {
   normalizeCurrencyCode,
 } from '../../lib/currencies';
 import { LoadingSpinner } from '../../components/ui';
+import DarkPageHeader from '../../components/DarkPageHeader';
 
 const DAILY_GOAL = 16;
 const GOALS = {
@@ -171,15 +172,12 @@ export default function MissionaryStats() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="sent-page-title">Stats</h1>
-          <p className="sent-body text-mission-muted">Progress toward your ministry goals.</p>
-        </div>
-        <Link to="/missionary" className="shrink-0 text-sm font-medium text-mission-ink hover:underline">
+      <DarkPageHeader title="Stats" subtitle="Progress toward your goals" />
+      <div className="-mt-2 flex justify-end">
+        <Link to="/missionary" className="text-sm font-medium text-ink hover:underline">
           ← Overview
         </Link>
-      </header>
+      </div>
 
       {loading ? (
         <div className="flex justify-center py-16">

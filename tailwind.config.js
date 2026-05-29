@@ -17,6 +17,7 @@ module.exports = {
           light: 'var(--accent-light)',
           border: 'var(--accent-border)',
           dark: 'var(--accent-dark)',
+          bright: 'var(--accent-bright)',
         },
         rose: {
           ...colors.rose,
@@ -26,7 +27,8 @@ module.exports = {
         },
         background: '#FFFFFF',
         accent: 'var(--accent)',
-        primary: 'var(--accent)',
+        'accent-bright': 'var(--accent-bright)',
+        primary: '#111111',
         warm: '#C17A00',
         success: 'var(--accent)',
         subtle: '#FAFAFA',
@@ -65,6 +67,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        display: ['Bebas Neue', 'sans-serif'],
       },
     },
   },

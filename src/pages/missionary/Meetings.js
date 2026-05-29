@@ -25,6 +25,7 @@ import {
   todayStr,
 } from '../../lib/meetingDateUtils';
 import AddMeetingModal from '../../components/meetings/AddMeetingModal';
+import DarkPageHeader from '../../components/DarkPageHeader';
 import { Button, LoadingSpinner, Modal } from '../../components/ui';
 
 export default function MissionaryMeetings() {
@@ -210,11 +211,12 @@ export default function MissionaryMeetings() {
   const monthLabel = `${MONTHS_FULL[calendarMonth]} ${calendarYear}`;
 
   return (
-    <div className="space-y-0 overflow-hidden rounded-card border border-mission-line bg-white">
+    <div className="space-y-4">
+      <DarkPageHeader title="Meetings" subtitle={`${upcomingMeetings.length} upcoming`} />
+      <div className="space-y-0 overflow-hidden rounded-card border border-mission-line bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EEEEEE] px-4 py-3">
-        <div>
-          <h1 className="text-base font-medium text-ink">Meetings</h1>
-          <p className="text-[11px] text-muted">{upcomingMeetings.length} upcoming</p>
+        <div className="sr-only">
+          <h1>Meetings</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ViewToggle viewMode={viewMode} onChange={setViewMode} />
@@ -384,6 +386,7 @@ export default function MissionaryMeetings() {
           ) : null}
         </>
       )}
+      </div>
 
       <AddMeetingModal
         open={showAdd}

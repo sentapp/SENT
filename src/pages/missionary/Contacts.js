@@ -44,6 +44,7 @@ import {
 import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
 import { useContactDrawer } from '../../context/ContactDrawerContext';
 import { Button, EmptyState, Input, LoadingSpinner, Modal } from '../../components/ui';
+import DarkPageHeader from '../../components/DarkPageHeader';
 import ContactEditFormLayout from './ContactEditFormLayout';
 
 /** Pipeline strip: active outreach stages, excluding monthly supporters (shown under Partners). */
@@ -1004,11 +1005,10 @@ export default function MissionaryContacts() {
 
   return (
     <div className="flex flex-col gap-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="sent-page-title">
-            Contacts <span className="text-lg font-semibold text-mission-muted">({contacts.length})</span>
-          </h1>
+      <DarkPageHeader title={`Contacts (${contacts.length})`} subtitle="People & relationships" />
+      <header className="-mt-2 flex flex-wrap items-end justify-between gap-3">
+        <div className="sr-only">
+          <h1>Contacts</h1>
         </div>
         {selectMode ? (
           <div className="flex flex-wrap items-center gap-2">

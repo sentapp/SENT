@@ -3,9 +3,10 @@ import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
 import { useMissionaryMapPoints } from '../../hooks/useMissionaryMapPoints';
 import MapView from '../../components/MapView';
-import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { postTypeBadgeClass, postTypePostCardClass } from '../../lib/postTypeStyles';
 import { Button, Card, EmptyState, Input, Label, Modal, Textarea } from '../../components/ui';
+import DarkPageHeader from '../../components/DarkPageHeader';
+import ReactionButton from '../../components/ReactionButton';
 
 const POST_TYPES = ['Field story 🔥', 'Prayer 🙏', 'Monthly update 📊', 'Win ✨'];
 
@@ -32,7 +33,7 @@ function PostActionsMenu({ onEdit, onDelete }) {
     <div className="relative shrink-0" ref={wrapRef}>
       <button
         type="button"
-        className="rounded-btn px-2 py-1 text-lg leading-none text-neutral-600 hover:bg-neutral-100"
+        className="rounded-btn px-2 py-1 text-lg leading-none text-white/70 hover:bg-white/10"
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Post options"
@@ -78,10 +79,6 @@ export default function MissionaryUpdates() {
   const mid = user?.id;
   const { posts, loading, addPost, updatePost, deletePost } = useMissionaryPosts(mid);
   const mapPoints = useMissionaryMapPoints(profile, posts);
-
-  const displayName = (profile?.full_name || '').trim() || 'You';
-  const photoUrl = profile?.photo_url || '';
-  const avatarInitials = initialsFromDisplayName(displayName);
 
   const [type, setType] = useState(POST_TYPES[0]);
   const [locationName, setLocationName] = useState('');
@@ -207,12 +204,7 @@ export default function MissionaryUpdates() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="sent-page-title">Updates</h1>
-        <p className="sent-body text-mission-muted">
-          Post stories for supporters, manage recent posts, and view your mission map — all on this page.
-        </p>
-      </header>
+      <DarkPageHeader title="Updates" subtitle="Stories for your send team" />
 
       {flashSuccess ? (
         <p className="rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{flashSuccess}</p>
@@ -303,41 +295,34 @@ export default function MissionaryUpdates() {
         ) : (
           <div className="space-y-4">
             {recent.map((p) => (
-              <Card
+              <article
                 key={p.id}
                 id={`post-${p.id}`}
-                className={`relative scroll-mt-4 overflow-hidden p-5 ${postTypePostCardClass(p.type)}`}
+                className={`relative scroll-mt-4 overflow-hidden rounded-card border border-[#333] bg-[#111] ${postTypePostCardClass(p.type)}`}
               >
-                <div className="absolute left-5 top-5 z-10">
-                  <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
-                </div>
-                <div className="absolute right-3 top-4 z-10">
-                  <PostActionsMenu onEdit={() => openEdit(p)} onDelete={() => setDeletingPost(p)} />
-                </div>
-                <div className="flex items-start gap-3 pt-10">
-                  <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-mission-line bg-white">
-                    {photoUrl ? (
-                      <img src={photoUrl} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-surface text-xs font-semibold text-ink">
-                        {avatarInitials.slice(0, 2)}
-                      </div>
-                    )}
+                <div className="relative min-h-[100px] bg-[#1A1A1A] px-4 pb-4 pt-12">
+                  <div className="absolute left-4 top-4 z-10">
+                    <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
                   </div>
-                  <div className="min-w-0 flex-1 pr-8">
-                    <p className="sent-caption">{new Date(p.createdAt).toLocaleString()}</p>
-                    {p.locationName ? (
-                      <p className="sent-body mt-2 font-medium text-mission-ink">
-                        <span className="mr-1" aria-hidden>
-                          📍
-                        </span>
-                        {p.locationName}
-                      </p>
-                    ) : null}
-                    <p className="sent-body mt-3 whitespace-pre-wrap text-mission-ink">{p.body}</p>
+                  <div className="absolute right-2 top-3 z-10">
+                    <PostActionsMenu onEdit={() => openEdit(p)} onDelete={() => setDeletingPost(p)} />
                   </div>
+                  <p className="text-[11px] text-white/45">{new Date(p.createdAt).toLocaleString()}</p>
+                  {p.locationName ? (
+                    <p className="mt-2 text-sm font-medium text-white/70">
+                      <span className="mr-1" aria-hidden>
+                        📍
+                      </span>
+                      {p.locationName}
+                    </p>
+                  ) : null}
+                  <p className="mt-3 line-clamp-4 whitespace-pre-wrap text-sm leading-relaxed text-white">{p.body}</p>
                 </div>
-              </Card>
+                <div className="flex flex-wrap items-center gap-2 border-t border-[#333] px-4 py-3">
+                  <ReactionButton active={false} label="Pray" emoji="🙏" disabled onClick={() => {}} />
+                  <ReactionButton active={false} label="Celebrate" emoji="🎉" disabled onClick={() => {}} />
+                </div>
+              </article>
             ))}
           </div>
         )}

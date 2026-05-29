@@ -13,6 +13,7 @@ import { useAuth } from '../auth/AuthContext';
 import { ensureMissionarySupporterCode, linkSupporterToMissionary } from '../lib/supporterConnection';
 import { saveLocalPin } from '../lib/localPin';
 import { PinDots, PinKeypad } from '../components/PinEntry';
+import AuthSplitShell from '../components/AuthSplitShell';
 
 function Progress({ step }) {
   return (
@@ -20,9 +21,7 @@ function Progress({ step }) {
       {[1, 2, 3].map((n) => (
         <span
           key={n}
-          className={`h-2 w-10 rounded-full transition-colors ${
-            n <= step ? 'bg-mission-ink' : 'bg-neutral-200'
-          }`}
+          className={`h-2 w-10 rounded-full transition-colors ${n <= step ? 'bg-[#111111]' : 'bg-neutral-200'}`}
         />
       ))}
     </div>
@@ -36,7 +35,7 @@ function RoleCard({ title, subtitle, selected, onSelect }) {
       onClick={onSelect}
       className={`flex w-full flex-col items-start rounded-card border px-5 py-4 text-left shadow-sm transition ${
         selected
-          ? 'border-mission-ink ring-2 ring-mission-ink/25'
+          ? 'border-[#111111] ring-2 ring-[#111111]/25'
           : 'border-neutral-200 hover:border-neutral-300'
       }`}
     >
@@ -272,8 +271,8 @@ function SignUp() {
   };
 
   return (
-    <div className="min-h-full bg-background md:bg-mission-canvas">
-      <div className="mx-auto flex min-h-full max-w-mobile flex-col px-6 py-6 md:min-h-[100dvh] md:max-w-lg md:bg-surface md:shadow-sm md:rounded-card md:border md:border-border md:my-8">
+    <AuthSplitShell>
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
         <header className="mb-8 flex shrink-0 items-center gap-4">
           <button
             type="button"
@@ -291,9 +290,9 @@ function SignUp() {
         </header>
 
         {alreadyRegistered ? (
-          <div className="mb-4 rounded-btn border border-mission-ink/25 bg-mission-ink/5 px-4 py-4 text-center text-sm text-neutral-800">
+          <div className="mb-4 rounded-btn border border-ink/25 bg-surface px-4 py-4 text-center text-sm text-neutral-800">
             <p className="font-medium">This email is already registered. Try signing in instead.</p>
-            <Link className="mt-3 inline-block font-semibold text-mission-ink underline-offset-2 hover:underline" to="/signin">
+            <Link className="mt-3 inline-block font-semibold text-ink underline-offset-2 hover:underline" to="/signin">
               Sign in
             </Link>
           </div>
@@ -302,7 +301,7 @@ function SignUp() {
           <p className="mb-4 rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
         ) : null}
         {info ? (
-          <p className="mb-4 rounded-btn border border-mission-green/30 bg-mission-green/10 px-4 py-3 text-sm text-mission-green">
+          <p className="mb-4 rounded-btn border border-accent-bright/30 bg-accent-light px-4 py-3 text-sm text-accent">
             {info}
           </p>
         ) : null}
@@ -334,13 +333,13 @@ function SignUp() {
               <button
                 type="submit"
                 disabled={!canProceedStep1}
-                className="block w-full rounded-btn bg-accent py-[14px] text-center font-medium text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
+                className="block w-full rounded-[12px] bg-[#111111] py-[14px] text-center font-medium tracking-wide text-white hover:bg-[#222222] disabled:cursor-not-allowed disabled:bg-neutral-300"
               >
                 Continue
               </button>
               <p className="mt-6 text-center text-sm text-neutral-600">
                 Already have an account?{' '}
-                <Link className="font-medium text-mission-ink underline-offset-2 hover:underline" to="/signin">
+                <Link className="font-medium text-ink underline-offset-2 hover:underline" to="/signin">
                   Sign in
                 </Link>
               </p>
@@ -411,7 +410,7 @@ function SignUp() {
               <button
                 type="submit"
                 disabled={!canProceedStep2}
-                className="block w-full rounded-btn bg-accent py-[14px] text-center font-medium text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
+                className="block w-full rounded-[12px] bg-[#111111] py-[14px] text-center font-medium tracking-wide text-white hover:bg-[#222222] disabled:cursor-not-allowed disabled:bg-neutral-300"
               >
                 Continue
               </button>
@@ -481,7 +480,7 @@ function SignUp() {
           </section>
         )}
       </div>
-    </div>
+    </AuthSplitShell>
   );
 }
 

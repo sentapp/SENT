@@ -15,6 +15,7 @@ import {
 import { supabase } from '../../lib/supabaseClient';
 import { deleteOwnPostComment, fetchCommentsForPosts, insertPostComment } from '../../lib/postCommentsRepository';
 import { Card, EmptyState } from '../../components/ui';
+import ReactionButton from '../../components/ReactionButton';
 import RequestMeetingCard from '../../components/meetings/RequestMeetingCard';
 import { postTypeBadgeClass, postTypePostCardClass } from '../../lib/postTypeStyles';
 
@@ -25,28 +26,6 @@ function TypeBadge({ children, typeKeyClass }) {
     >
       {children}
     </span>
-  );
-}
-
-function ReactionButton({ active, label, emoji, disabled, onClick }) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition-colors duration-200 ${
-        active
-          ? 'feed-accent-reaction-active'
-          : 'border-mission-line bg-white text-mission-muted hover:border-mission-line hover:bg-[color:var(--color-bg)]'
-      } disabled:opacity-50`}
-      aria-label={label}
-      aria-pressed={active}
-    >
-      <span aria-hidden className="text-[13px] leading-none">
-        {emoji}
-      </span>
-      <span>{label}</span>
-    </button>
   );
 }
 
@@ -303,9 +282,13 @@ export default function SupporterFeed() {
 
   return (
     <div className="space-y-6" style={missionaryId ? { '--feed-accent': feedAccent } : undefined}>
-      <header className="space-y-1 text-center sm:text-left">
-        <h1 className={`sent-page-title ${missionaryId ? 'feed-accent-text' : 'text-mission-ink'}`}>Feed</h1>
-        <p className="sent-body text-mission-muted">Map, giving, and updates from your missionary.</p>
+      <header className="-mx-5 -mt-5 border-b border-[#222] bg-[#111] px-5 py-5 text-white md:-mx-8 md:-mt-8 md:px-8">
+        <h1 className="font-display text-[26px] leading-none tracking-wide">{displayName}</h1>
+        {orgLine ? (
+          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#666]">{orgLine}</p>
+        ) : (
+          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#666]">Supporter feed</p>
+        )}
       </header>
 
       {!missionaryId ? (

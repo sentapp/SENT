@@ -267,7 +267,7 @@ function BottomNav() {
     <>
       <MoreSheet open={moreOpen} onClose={closeMore} onNavigate={handleMoreNavigate} />
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-[#222] bg-[#111] pb-[env(safe-area-inset-bottom)] md:hidden"
         aria-label="Missionary navigation"
       >
         <ul className="mx-auto grid h-14 max-w-mobile grid-cols-5 items-stretch px-0.5">
@@ -282,8 +282,8 @@ function BottomNav() {
                   to={it.to}
                   aria-label={it.ariaLabel}
                   className={() =>
-                    `flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-[color:var(--color-bg)] ${
-                      isActive ? 'text-[color:var(--sent-nav-active)]' : 'text-[color:var(--sent-nav-inactive)]'
+                    `flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-white/5 ${
+                      isActive ? 'text-accent-bright' : 'text-[#555555]'
                     }`
                   }
                 >
@@ -299,8 +299,8 @@ function BottomNav() {
               aria-label="More"
               aria-expanded={moreOpen}
               onClick={() => setMoreOpen((v) => !v)}
-              className={`flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-[color:var(--color-bg)] ${
-                moreActive ? 'text-[color:var(--sent-nav-active)]' : 'text-[color:var(--sent-nav-inactive)]'
+              className={`flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-white/5 ${
+                moreActive ? 'text-accent-bright' : 'text-[#555555]'
               }`}
             >
               <IconMore className="h-[20px] w-[20px] shrink-0" />

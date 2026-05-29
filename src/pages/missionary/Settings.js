@@ -10,6 +10,7 @@ import { applyAccentColor } from '../../lib/applyAccentTheme';
 import { isProfilesAccentColumnUnavailable } from '../../lib/profileAccentPersistence';
 import { ProfileAvatarAccentSection } from '../../components/ProfileAvatarAccentSection';
 import { Button, Card, Input, Label, Textarea } from '../../components/ui';
+import DarkPageHeader from '../../components/DarkPageHeader';
 import FeedbackSection from '../../components/FeedbackSection';
 import LocalPinSettingsSection from '../../components/LocalPinSettingsSection';
 import { CURRENCIES, getCurrencySymbol, normalizeCurrencyCode } from '../../lib/currencies';
@@ -297,10 +298,7 @@ export default function MissionarySettings() {
       className="space-y-6"
       style={{ '--profile-accent': normalizeProfileAccent(accentColor) }}
     >
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-sm text-neutral-600">Profile, goals, security, and your SENT supporter invite code.</p>
-      </header>
+      <DarkPageHeader title="Settings" subtitle="Profile, goals & security" />
 
       {loadError ? (
         <p className="rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>
@@ -319,16 +317,14 @@ export default function MissionarySettings() {
           />
         </Card>
 
-        <Card className="border-2 border-[color:color-mix(in_srgb,var(--profile-accent)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--profile-accent)_10%,white)] p-5 md:p-6">
-          <p className="text-xs font-semibold uppercase tracking-wide profile-accent-text">Your missionary / supporter code</p>
-          <p className="mt-3 break-all font-mono text-2xl font-bold tracking-wide text-ink md:text-3xl">
-            {supporterCodeDisplay}
-          </p>
-          <p className="mt-3 text-sm text-neutral-700">
+        <div className="circuit-profile-code">
+          <p className="sent-section-label text-white/60">Your missionary / supporter code</p>
+          <p className="circuit-profile-code-value">{supporterCodeDisplay}</p>
+          <p className="mt-3 text-sm text-white/70">
             Share this code so supporters can link their SENT account to you. It’s unique to your ministry — keep it handy on
-            mobile from this Profile tab.
+            mobile from Settings.
           </p>
-        </Card>
+        </div>
 
         <Card className="p-5">
           <p className="text-sm font-semibold">Edit profile</p>

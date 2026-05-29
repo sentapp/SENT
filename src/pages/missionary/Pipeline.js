@@ -11,6 +11,7 @@ import { categoryLabel, shouldShowCategoryTag } from '../../lib/contactCategorie
 import { normalizeStatusFromDb } from '../../lib/contactStatuses';
 import { formatPhone } from '../../lib/phoneFormat';
 import { Button, Card, Input, Modal } from '../../components/ui';
+import DarkPageHeader from '../../components/DarkPageHeader';
 
 const KANBAN_SET = new Set(MISSIONARY_KANBAN_STATUSES);
 
@@ -136,13 +137,8 @@ export default function MissionaryPipeline() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="sent-page-title">Pipeline</h1>
-          <p className="sent-body text-mission-muted">
-            Drag-free board — advance stages or open a contact to edit details.
-          </p>
-        </div>
+      <DarkPageHeader title="Pipeline" subtitle="Advance stages & grow partners" />
+      <header className="-mt-2 flex flex-wrap items-end justify-end gap-3">
         <Button type="button" onClick={() => setAddOpen(true)}>
           Add to pipeline
         </Button>

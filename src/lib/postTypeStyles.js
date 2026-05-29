@@ -23,18 +23,14 @@ export function postTypePostCardClass() {
   return '';
 }
 
-/** Pill label colors per product spec */
+/** Type label on dark update cards — green accent text, no pill fill */
 export function postTypeBadgeClass(type) {
   switch (normalizePostTypeKey(type)) {
     case 'field_story':
-      return 'bg-green-light text-green';
     case 'prayer':
-      return 'bg-rose-light text-[color:var(--rose)]';
     case 'monthly':
-      return 'bg-[#F3F4F6] text-[#57534E]';
     case 'win':
-      return 'bg-[#FEF9C3] text-[#A16207]';
     default:
-      return 'bg-[#F3F4F6] text-mission-muted';
+      return 'bg-transparent text-accent-bright uppercase tracking-wide';
   }
 }

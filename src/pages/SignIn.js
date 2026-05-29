@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { ensureMissionarySupporterCode, repairSupporterMissionaryLink } from '../lib/supporterConnection';
 import { hasLocalPin, verifyLocalPin } from '../lib/localPin';
 import { PinDots, PinKeypad } from '../components/PinEntry';
+import AuthSplitShell from '../components/AuthSplitShell';
 
 function SignIn() {
   const navigate = useNavigate();
@@ -192,101 +193,96 @@ function SignIn() {
 
   if (view === 'checking') {
     return (
-      <div className="flex min-h-full items-center justify-center bg-background md:bg-mission-canvas px-6">
-        <p className="text-sm font-medium text-muted">Loading...</p>
+      <div className="flex min-h-full items-center justify-center bg-[#111] px-6">
+        <p className="text-sm font-medium text-white/70">Loading...</p>
+      </div>
+    );
+  }
+
+  if (view === 'pin') {
+    return (
+      <div className="flex min-h-full flex-col bg-[#111] px-6 py-10 text-white">
+        <div className="mb-10 text-center">
+          <h1 className="font-display text-[80px] leading-none tracking-wide">SENT</h1>
+          <p className="mt-3 text-sm text-white/70">Enter your PIN to continue</p>
+        </div>
+        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col">
+          {error ? (
+            <p className="mb-4 rounded-[12px] border border-red-400/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</p>
+          ) : null}
+          <PinDots digits={pin} />
+          <PinKeypad onKey={handlePinKey} />
+          <button
+            type="button"
+            onClick={switchToEmailPassword}
+            className="mt-8 text-center text-sm font-semibold text-white/90 hover:underline"
+          >
+            Use email &amp; password instead
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-background md:bg-mission-canvas">
-      <div className="mx-auto flex min-h-full max-w-mobile flex-col px-6 py-8 md:min-h-[100dvh] md:max-w-lg md:bg-surface md:shadow-sm md:rounded-card md:border md:border-border md:my-8">
-        {view === 'form' && (
-          <>
-            <h1 className="mb-8 text-center text-2xl font-semibold tracking-tight">Welcome back</h1>
-            <p className="mb-6 text-center text-sm text-neutral-600">
-              Sign in with your email and password. You can optionally set a 4-digit PIN on this device after signing in
-              (Settings) for quicker unlock when you already have an active session.
-            </p>
+    <AuthSplitShell>
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+        <h2 className="mb-6 text-center text-xl font-semibold tracking-tight text-ink">Welcome back</h2>
 
-            {error ? (
-              <p className="mb-4 rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-            ) : null}
-            {info ? (
-              <p className="mb-4 rounded-btn border border-mission-green/30 bg-mission-green/10 px-4 py-3 text-sm text-mission-green">
-                {info}
-              </p>
-            ) : null}
+        {error ? (
+          <p className="mb-4 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+        ) : null}
+        {info ? (
+          <p className="mb-4 rounded-[12px] border border-accent-bright/30 bg-accent-light px-4 py-3 text-sm text-accent">
+            {info}
+          </p>
+        ) : null}
 
-            <form onSubmit={onSubmitEmail}>
-              <label className="mb-4 block">
-                <span className="mb-2 block text-sm font-medium text-neutral-700">Email</span>
-                <input
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-btn border border-border px-4 py-[14px] text-[17px] outline-none ring-accent/30 focus:border-accent focus:ring"
-                  placeholder="you@example.com"
-                />
-              </label>
-              <label className="mb-2 block">
-                <span className="mb-2 block text-sm font-medium text-neutral-700">Password</span>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-btn border border-border px-4 py-[14px] text-[17px] outline-none ring-accent/30 focus:border-accent focus:ring"
-                  placeholder="••••••••"
-                />
-              </label>
-              <div className="mb-8 text-right">
-                <button type="button" onClick={onForgotPassword} className="text-sm font-medium text-mission-ink hover:underline">
-                  Forgot password?
-                </button>
-              </div>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="mb-6 w-full rounded-btn bg-mission-ink py-[14px] text-center text-[17px] font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
-              >
-                {submitting ? 'Signing in…' : 'Sign in'}
-              </button>
-            </form>
-
-            <p className="mt-auto text-center text-sm text-neutral-600">
-              Don&apos;t have an account?{' '}
-              <Link className="font-medium text-mission-ink underline-offset-2 hover:underline" to="/signup">
-                Sign up
-              </Link>
-            </p>
-          </>
-        )}
-
-        {view === 'pin' && (
-          <div className="flex flex-1 flex-col">
-            <h1 className="mb-2 text-center text-2xl font-semibold tracking-tight">Enter your PIN</h1>
-            <p className="mb-6 text-center text-sm text-neutral-600">Quick unlock on this device — your account stays signed in.</p>
-
-            {error ? (
-              <p className="mb-4 rounded-btn border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-            ) : null}
-
-            <PinDots digits={pin} />
-            <PinKeypad onKey={handlePinKey} />
-
-            <button
-              type="button"
-              onClick={switchToEmailPassword}
-              className="mt-8 text-center text-sm font-semibold text-mission-ink hover:underline"
-            >
-              Use email &amp; password instead
+        <form onSubmit={onSubmitEmail} className="flex flex-1 flex-col">
+          <label className="mb-4 block">
+            <span className="mb-2 block text-sm font-medium text-ink">Email</span>
+            <input
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-btn border border-border bg-surface px-4 py-[14px] text-[17px] outline-none ring-accent/30 focus:border-accent focus:ring"
+              placeholder="you@example.com"
+            />
+          </label>
+          <label className="mb-2 block">
+            <span className="mb-2 block text-sm font-medium text-ink">Password</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-btn border border-border bg-surface px-4 py-[14px] text-[17px] outline-none ring-accent/30 focus:border-accent focus:ring"
+              placeholder="••••••••"
+            />
+          </label>
+          <div className="mb-8 text-right">
+            <button type="button" onClick={onForgotPassword} className="text-sm font-medium text-ink hover:underline">
+              Forgot password?
             </button>
           </div>
-        )}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="mb-6 w-full rounded-[12px] bg-[#111111] py-[14px] text-center text-[17px] font-medium tracking-wide text-white hover:bg-[#222222] disabled:opacity-60"
+          >
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+
+        <p className="mt-auto text-center text-sm text-muted">
+          Don&apos;t have an account?{' '}
+          <Link className="font-medium text-ink underline-offset-2 hover:underline" to="/signup">
+            Sign up
+          </Link>
+        </p>
       </div>
-    </div>
+    </AuthSplitShell>
   );
 }
 

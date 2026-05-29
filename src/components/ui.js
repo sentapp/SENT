@@ -13,16 +13,16 @@ export function Card({ className = '', children, ...props }) {
 
 export function Button({ className = '', variant = 'primary', ...props }) {
   const base =
-    'inline-flex min-h-[44px] items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60';
+    'inline-flex min-h-[44px] items-center justify-center rounded-btn px-4 py-2.5 text-sm font-medium tracking-[0.04em] transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-60';
   const variants = {
     primary:
-      'border border-transparent bg-accent text-white hover:bg-accent/90 active:bg-accent/85',
+      'border border-transparent bg-[#111111] text-white hover:bg-[#222222] active:bg-[#000000]',
     accent:
-      'border border-transparent bg-accent text-white hover:bg-accent/90 active:bg-accent/85',
+      'border border-transparent bg-accent text-white hover:opacity-95 active:opacity-90',
     secondary:
       'border-[0.5px] border-[#111111] bg-white text-[#111111] hover:bg-[#FAFAFA] active:bg-[#EEEEEE]/80',
     ghost:
-      'min-h-0 border-transparent bg-transparent px-3 py-2 text-ink hover:bg-surface active:bg-border/40',
+      'min-h-0 border border-[#111111] bg-transparent px-3 py-2 text-ink hover:bg-surface active:bg-border/40',
     outlineBlue:
       'border-[0.5px] border-[#111111] bg-white text-[#111111] hover:bg-surface active:bg-border/60',
     danger:
