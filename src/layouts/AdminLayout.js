@@ -22,59 +22,35 @@ export default function AdminLayout() {
           <div style={{ fontSize: 9, color: '#444', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>Admin panel</div>
         </div>
         <nav style={{ flex: 1, padding: '10px 0' }}>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === '/admin'}
+          {navItems.map(item => (
+            <NavLink key={item.path} to={item.path} end={item.path === '/admin'}
               style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                padding: '9px 20px',
-                fontSize: 13,
+                display: 'flex', alignItems: 'center', padding: '9px 20px', fontSize: 13,
                 color: isActive ? '#4CAF7D' : '#666',
                 background: isActive ? 'rgba(74,207,125,0.08)' : 'transparent',
                 borderLeft: isActive ? '2px solid #4CAF7D' : '2px solid transparent',
-                textDecoration: 'none',
-                transition: 'all .15s',
-              })}
-            >
+                textDecoration: 'none', transition: 'all .15s',
+              })}>
               {item.label}
             </NavLink>
           ))}
         </nav>
         <div style={{ padding: '16px 20px', borderTop: '0.5px solid #222' }}>
           <button
-            type="button"
-            onClick={async () => {
-              await signOut();
-              navigate('/');
-            }}
+            onClick={async () => { await signOut(); navigate('/'); }}
             style={{
-              width: '100%',
-              padding: '8px 12px',
-              background: 'transparent',
-              border: '0.5px solid #333',
-              borderRadius: 6,
-              color: '#666',
-              fontSize: 12,
-              cursor: 'pointer',
-              textAlign: 'left',
-              letterSpacing: '.03em',
-              transition: 'all .15s',
+              width: '100%', padding: '8px 12px',
+              background: 'transparent', border: '0.5px solid #333',
+              borderRadius: 6, color: '#666', fontSize: 12,
+              cursor: 'pointer', textAlign: 'left', letterSpacing: '.03em',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#fff';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#666';
-            }}
+            onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+            onMouseLeave={e => e.currentTarget.style.color = '#666'}
           >
             Sign out →
           </button>
         </div>
       </div>
-
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <Outlet />
