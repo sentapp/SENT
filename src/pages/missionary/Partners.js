@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useContactDrawer } from '../../context/ContactDrawerContext';
-import { ContactThreeQuickTagRows } from '../../components/contacts/QuickTagPopover';
 import {
   ContactQuickLogPopup,
   lastContactBadgeFromIso,
@@ -13,7 +12,7 @@ import {
   DRAWER_STACK_QUICK_LOG_MODAL_Z,
 } from '../../components/contacts/quickViewOverlayZIndex';
 import { Button, EmptyState, Modal } from '../../components/ui';
-import DarkPageHeader from '../../components/DarkPageHeader';
+import NudgeCard from '../../components/partners/NudgeCard';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
 import { findEmailConflict, findPhoneConflict } from '../../lib/contactDuplicates';
 import { normalizeCategory, normalizeCategoryForSave } from '../../lib/contactCategories';
@@ -27,18 +26,13 @@ import { getContactAvatarStyle } from '../../lib/contactAvatarStyles';
 import ContactEditFormLayout from './ContactEditFormLayout';
 import {
   computePartnerCurrencyTotals,
+  formatAmount,
   formatMonthlyAmount,
-  formatOtherCurrenciesLine,
   normalizeCurrencyCode,
 } from '../../lib/currencies';
 
-const partnerFilters = [
-  { label: 'All', value: 'all' },
-  { label: 'Individuals', value: 'individual' },
-  { label: 'Churches', value: 'church' },
-];
-
 const PAGE_SIZE = 1000;
+const OVERDUE_CONTACT_DAYS = 30;
 
 /** Days since last contact; never contacted → large sentinel. */
 function daysSince(isoOrNull) {
@@ -66,6 +60,21 @@ function daysSinceContactLabel(lastIso) {
   if (d === 0) return 'Today';
   if (d === 1) return '1 day since contact';
   return `${d} days since contact`;
+}
+
+function partnerSubtitle(partner) {
+  const monthly = Number(partner.monthlyAmount) > 0;
+  const oneTime = partner.isOneTimeDonor && Number(partner.oneTimeDonationAmount) > 0;
+  if (monthly && oneTime) {
+    return `${formatMonthlyAmount(partner.monthlyAmount, partner.currency)} · ${formatAmount(partner.oneTimeDonationAmount, partner.currency)} one-time`;
+  }
+  if (monthly) return formatMonthlyAmount(partner.monthlyAmount, partner.currency);
+  if (oneTime) return `${formatAmount(partner.oneTimeDonationAmount, partner.currency)} one-time gift`;
+  return 'Partner';
+}
+
+function isMonthlyPartner(c) {
+  return Number(c.monthlyAmount) > 0;
 }
 
 const emptyForm = {
@@ -135,30 +144,32 @@ export default function MissionaryPartners() {
   const [savedNoticeId, setSavedNoticeId] = useState(null);
   const savedNoticeTimerRef = useRef(null);
 
-  const [partnerViewFilter, setPartnerViewFilter] = useState('all');
-
   const allPartners = useMemo(() => {
     return contacts.filter(
       (c) =>
+        c.isOneTimeDonor ||
         normalizeCategory(c.category) === 'supporter' ||
         normalizeStatusFromDb(c.status) === 'partner' ||
         Number(c.monthlyAmount) > 0,
     );
   }, [contacts]);
 
-  const partners = useMemo(() => {
-    if (partnerViewFilter === 'all') return allPartners;
-    if (partnerViewFilter === 'individual') {
-      return allPartners.filter((c) => {
-        const cat = normalizeCategory(c.category);
-        return cat === 'individual' || (cat !== 'church' && cat !== 'connector');
-      });
-    }
-    if (partnerViewFilter === 'church') {
-      return allPartners.filter((c) => normalizeCategory(c.category) === 'church');
-    }
-    return allPartners;
-  }, [allPartners, partnerViewFilter]);
+  const monthlyPartners = useMemo(() => allPartners.filter(isMonthlyPartner), [allPartners]);
+
+  const oneTimeDonors = useMemo(
+    () => allPartners.filter((c) => c.isOneTimeDonor && Number(c.oneTimeDonationAmount) > 0),
+    [allPartners],
+  );
+
+  const oneTimeTotal = useMemo(
+    () => oneTimeDonors.reduce((sum, c) => sum + (Number(c.oneTimeDonationAmount) || 0), 0),
+    [oneTimeDonors],
+  );
+
+  const { homeCurrencyTotal: monthlyTotal } = useMemo(
+    () => computePartnerCurrencyTotals(monthlyPartners, homeCurrency),
+    [monthlyPartners, homeCurrency],
+  );
 
   const loadLastContacts = useCallback(async () => {
     if (!supabase || !user?.id) {
@@ -228,36 +239,39 @@ export default function MissionaryPartners() {
     };
   }, []);
 
-  const { homeCurrencyTotal, otherCurrencies } = useMemo(
-    () => computePartnerCurrencyTotals(partners, homeCurrency),
-    [partners, homeCurrency],
-  );
-  const partnersOtherCurrenciesLine = useMemo(
-    () => formatOtherCurrenciesLine(otherCurrencies),
-    [otherCurrencies],
+  const reachOutPartners = useMemo(
+    () =>
+      monthlyPartners.filter((p) => daysSince(lastContactMap[p.id]) >= OVERDUE_CONTACT_DAYS),
+    [monthlyPartners, lastContactMap],
   );
 
-  const needsContact = useMemo(() => {
-    return partners.filter((p) => daysSince(lastContactMap[p.id]) >= 30);
-  }, [partners, lastContactMap]);
+  const overdueCount = reachOutPartners.length;
 
-  const allGood = useMemo(() => {
-    return partners.filter((p) => daysSince(lastContactMap[p.id]) < 30);
-  }, [partners, lastContactMap]);
+  const reachOutIds = useMemo(() => new Set(reachOutPartners.map((p) => p.id)), [reachOutPartners]);
 
-  const needsContactSorted = useMemo(() => {
-    return [...needsContact].sort(
-      (a, b) => daysSince(lastContactMap[b.id] ?? null) - daysSince(lastContactMap[a.id] ?? null),
-    );
-  }, [needsContact, lastContactMap]);
+  const allGoodPartners = useMemo(
+    () => allPartners.filter((p) => !reachOutIds.has(p.id)),
+    [allPartners, reachOutIds],
+  );
+
+  const reachOutSorted = useMemo(
+    () =>
+      [...reachOutPartners].sort(
+        (a, b) => daysSince(lastContactMap[b.id] ?? null) - daysSince(lastContactMap[a.id] ?? null),
+      ),
+    [reachOutPartners, lastContactMap],
+  );
 
   const allGoodSorted = useMemo(() => {
-    return [...allGood].sort((a, b) => {
+    return [...allGoodPartners].sort((a, b) => {
+      const aMonthly = isMonthlyPartner(a);
+      const bMonthly = isMonthlyPartner(b);
+      if (aMonthly !== bMonthly) return aMonthly ? -1 : 1;
       const da = daysSince(lastContactMap[a.id] ?? null);
       const db = daysSince(lastContactMap[b.id] ?? null);
       return db - da;
     });
-  }, [allGood, lastContactMap]);
+  }, [allGoodPartners, lastContactMap]);
 
   const openQuickLog = (partner) => {
     setQuickError('');
@@ -449,8 +463,6 @@ export default function MissionaryPartners() {
     flashSavedNotice(savedId);
   };
 
-  const partnerCountLabel = partners.length === 1 ? '1 partner' : `${partners.length} partners`;
-
   const scrollToContact = useCallback(() => {}, []);
 
   const openPartnerDrawer = useCallback((partner) => {
@@ -460,189 +472,111 @@ export default function MissionaryPartners() {
 
   return (
     <div className="space-y-6">
-      <DarkPageHeader
-        title="Partners"
-        subtitle={
-          partners.length === 0
-            ? 'Monthly support'
-            : `${formatMonthlyAmount(homeCurrencyTotal, homeCurrency)} · ${partnerCountLabel}`
-        }
-      />
-      <header className="-mt-2 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          {partnersOtherCurrenciesLine ? (
-            <p className="sent-body text-muted">{partnersOtherCurrenciesLine}</p>
-          ) : null}
+      <header className="sticky top-0 z-30 -mx-5 -mt-5 border-b border-[#222] bg-[#111] px-5 py-4 text-white md:-mx-8 md:-mt-8 md:px-8">
+        <h1 className="font-display text-[26px] leading-none tracking-wide">Partners</h1>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="rounded-lg border border-[#333] bg-[#1a1a1a] px-2.5 py-2.5">
+            <p className="font-display text-[22px] leading-none tracking-wide">
+              {formatAmount(monthlyTotal, homeCurrency)}
+            </p>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#888]">Monthly</p>
+            <p className="mt-0.5 text-[10px] text-green">
+              {monthlyPartners.length === 1 ? '1 partner' : `${monthlyPartners.length} partners`}
+            </p>
+          </div>
+          <div className="rounded-lg border border-[#333] bg-[#1a1a1a] px-2.5 py-2.5">
+            <p className="font-display text-[22px] leading-none tracking-wide">
+              {formatAmount(oneTimeTotal, homeCurrency)}
+            </p>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#888]">One-time</p>
+            <p className="mt-0.5 text-[10px] text-green">
+              {oneTimeDonors.length === 1 ? '1 gift' : `${oneTimeDonors.length} gifts`}
+            </p>
+          </div>
+          <div className="rounded-lg border border-[#333] bg-[#1a1a1a] px-2.5 py-2.5">
+            <p
+              className={`font-display text-[22px] leading-none tracking-wide ${
+                overdueCount > 0 ? 'text-[#E57373]' : 'text-green'
+              }`}
+            >
+              {overdueCount}
+            </p>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#888]">Overdue</p>
+            <p className={`mt-0.5 text-[10px] ${overdueCount > 0 ? 'text-[#E57373]' : 'text-green'}`}>
+              reach out
+            </p>
+          </div>
         </div>
-        {needsContact.length > 0 ? (
-          <span className="shrink-0 rounded-full bg-[#A32D2D]/12 px-3 py-1 text-xs font-semibold text-[#A32D2D] ring-1 ring-[#A32D2D]/25">
-            {needsContact.length} overdue
-          </span>
-        ) : null}
       </header>
-
-      {allPartners.length > 0 ? (
-        <div
-          className="flex w-full flex-wrap gap-2 rounded-lg border border-mission-line bg-neutral-100 p-1"
-          role="tablist"
-          aria-label="Filter partners"
-        >
-          {partnerFilters.map((f) => {
-            const active = partnerViewFilter === f.value;
-            return (
-              <button
-                key={f.value}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setPartnerViewFilter(f.value)}
-                className={`min-h-[40px] flex-1 rounded-md px-3 py-2 text-center text-xs font-semibold transition sm:text-sm ${
-                  active
-                    ? 'border-b-2 border-green bg-white text-green shadow-sm'
-                    : 'border-b-2 border-transparent text-neutral-600 hover:bg-white/70'
-                }`}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-
-      {allPartners.length > 0 && partners.length === 0 ? (
-        <EmptyState
-          icon="heart"
-          title="No partners in this view"
-          subtitle="Try a different filter — your partners are still saved under All."
-        />
-      ) : null}
 
       {allPartners.length === 0 ? (
         <EmptyState
           icon="heart"
           title="No partners yet"
-          subtitle="Add contacts on the Contacts tab and mark monthly amounts or partner status — they’ll roll up here."
+          subtitle="Add contacts on the Contacts tab and mark monthly amounts, one-time gifts, or partner status — they’ll roll up here."
           action={
             <Button type="button" onClick={() => navigate('/missionary/contacts')}>
               Open contacts
             </Button>
           }
         />
-      ) : partners.length === 0 ? null : (
+      ) : (
         <>
-          {needsContact.length > 0 ? (
+          {reachOutPartners.length > 0 ? (
             <section className="space-y-3" aria-labelledby="reach-out-heading">
               <h2 id="reach-out-heading" className="text-base font-semibold text-ink">
                 Reach out now{' '}
-                <span className="font-normal text-mission-muted">({needsContact.length})</span>
+                <span className="font-normal text-mission-muted">({reachOutPartners.length})</span>
               </h2>
               <ul className="space-y-2">
-                {needsContactSorted.map((p) => {
-                  const last = lastContactMap[p.id] ?? null;
-                  return (
-                    <li key={p.id} className="list-none">
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        className="group cursor-pointer overflow-hidden rounded-[12px] border-[0.5px] border-border border-l-[3px] border-l-rose-600 bg-white text-left outline-none transition-colors duration-200 ease-out hover:bg-surface focus-visible:ring-2 focus-visible:ring-green/25"
-                        onClick={() => openPartnerDrawer(p)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            openPartnerDrawer(p);
-                          }
-                        }}
-                      >
-                        <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-4">
-                          <div className="flex min-w-0 flex-1 items-start gap-3">
-                            <span
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-                              style={getContactAvatarStyle(p.category)}
-                            >
-                              {partnerInitials(p.fullName)}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <span className="flex flex-wrap items-center gap-2">
-                                <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
-                                {savedNoticeId === p.id ? (
-                                  <span className="text-xs font-semibold text-emerald-700">Saved</span>
-                                ) : null}
-                              </span>
-                              <span className="mt-0.5 block text-xs text-neutral-600">
-                                {formatMonthlyAmount(p.monthlyAmount, p.currency)}
-                              </span>
-                              <span className="mt-0.5 block text-xs font-medium text-[#A32D2D]">{daysSinceContactLabel(last)}</span>
-                              <div className="mt-2">
-                                <ContactThreeQuickTagRows
-                                  contact={p}
-                                  saveQuickTag={saveQuickTag}
-                                  patchContactInList={patchContactInList}
-                                  onAfterSave={() => void refetch()}
-                                  onPatchContact={(next) =>
-                                    setPopupPartner((cur) =>
-                                      cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur,
-                                    )
-                                  }
-                                  variant="compact"
-                                  className="flex flex-col gap-1"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                          <div
-                            className="flex shrink-0 items-start sm:items-center"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Button
-                              type="button"
-                              variant="danger"
-                              className="w-full min-w-[7.5rem] sm:w-auto"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openQuickLog(p);
-                              }}
-                            >
-                              Reach out
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
+                {reachOutSorted.map((p) => (
+                  <li key={p.id} className="list-none">
+                    <NudgeCard
+                      partner={p}
+                      initials={partnerInitials(p.fullName)}
+                      lastContactIso={lastContactMap[p.id] ?? null}
+                      daysSinceContactLabel={daysSinceContactLabel}
+                      savedNoticeId={savedNoticeId}
+                      onOpen={() => openPartnerDrawer(p)}
+                      onReachOut={() => openQuickLog(p)}
+                      saveQuickTag={saveQuickTag}
+                      patchContactInList={patchContactInList}
+                      onAfterSave={() => void refetch()}
+                      onPatchContact={(next) =>
+                        setPopupPartner((cur) =>
+                          cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur,
+                        )
+                      }
+                    />
+                  </li>
+                ))}
               </ul>
             </section>
           ) : null}
 
-          <section className="space-y-3" aria-labelledby="all-good-heading">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="all-good-heading" className="text-base font-semibold text-ink">
-                All good{' '}
-                <span className="font-normal text-mission-muted">({allGood.length})</span>
-              </h2>
-              {needsContact.length === 0 ? (
-                <p className="text-sm text-emerald-700">Everyone is on track.</p>
-              ) : null}
-            </div>
+          <section className="space-y-3" aria-labelledby="all-partners-heading">
+            <h2 id="all-partners-heading" className="text-base font-semibold text-ink">
+              All partners{' '}
+              <span className="font-normal text-mission-muted">({allGoodPartners.length})</span>
+            </h2>
             {lastContactLoading ? <p className="text-xs text-neutral-500">Loading touchpoints…</p> : null}
-            {allGood.length === 0 && needsContact.length > 0 ? (
+            {allGoodSorted.length === 0 ? (
               <div className="rounded-btn border border-dashed border-mission-line bg-[color:var(--color-bg)] px-4 py-6 text-center">
-                <p className="text-sm font-semibold text-ink">All partners are up to date</p>
-                <p className="mt-2 text-sm text-mission-muted">
-                  In this section — after you log a touchpoint within the last 30 days, that partner moves here.
-                </p>
+                <p className="text-sm font-semibold text-ink">All monthly partners need outreach</p>
+                <p className="mt-2 text-sm text-mission-muted">Log a touchpoint to move partners into this list.</p>
               </div>
             ) : (
               <ul className="space-y-2">
                 {allGoodSorted.map((p) => {
                   const last = lastContactMap[p.id] ?? null;
-                  const badge = lastContactBadgeFromIso(last);
+                  const badge = isMonthlyPartner(p) ? lastContactBadgeFromIso(last) : null;
+                  const showOneTimeBadge = p.isOneTimeDonor && Number(p.oneTimeDonationAmount) > 0;
                   return (
                     <li key={p.id} className="list-none">
                       <div
                         role="button"
                         tabIndex={0}
-                        className="flex w-full cursor-pointer flex-col gap-1.5 overflow-hidden rounded-[12px] border-[0.5px] border-border bg-white p-3 text-left outline-none transition-colors duration-200 ease-out hover:bg-surface focus-visible:ring-2 focus-visible:ring-green/25"
+                        className="flex w-full cursor-pointer items-center gap-3 overflow-hidden rounded-[12px] border-[0.5px] border-border bg-white p-3 text-left outline-none transition-colors duration-200 ease-out hover:bg-surface focus-visible:ring-2 focus-visible:ring-green/25"
                         onClick={() => openPartnerDrawer(p)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -651,39 +585,31 @@ export default function MissionaryPartners() {
                           }
                         }}
                       >
-                        <ContactThreeQuickTagRows
-                          contact={p}
-                          saveQuickTag={saveQuickTag}
-                          patchContactInList={patchContactInList}
-                          onAfterSave={() => void refetch()}
-                          onPatchContact={(next) =>
-                            setPopupPartner((cur) =>
-                              cur && String(cur.id) === String(next.id) ? { ...cur, ...next } : cur,
-                            )
-                          }
-                          variant="compact"
-                          className="mb-1 flex flex-col gap-1"
-                        />
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-                            style={getContactAvatarStyle(p.category)}
-                          >
-                            {partnerInitials(p.fullName)}
+                        <span
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+                          style={getContactAvatarStyle(p.category)}
+                        >
+                          {partnerInitials(p.fullName)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
+                            {savedNoticeId === p.id ? (
+                              <span className="text-xs font-semibold text-emerald-700">Saved</span>
+                            ) : null}
                           </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex flex-wrap items-center gap-2">
-                              <span className="block truncate font-semibold text-ink">{p.fullName || 'Unnamed partner'}</span>
-                              {savedNoticeId === p.id ? (
-                                <span className="text-xs font-semibold text-emerald-700">Saved</span>
-                              ) : null}
+                          <span className="mt-0.5 block text-xs text-neutral-600">{partnerSubtitle(p)}</span>
+                        </span>
+                        <span className="flex shrink-0 flex-col items-end gap-1">
+                          {showOneTimeBadge ? (
+                            <span className="rounded-full bg-[#4CAF7D]/12 px-2 py-0.5 text-[10px] font-semibold text-[#2d7a52]">
+                              One-time
                             </span>
-                            <span className="mt-0.5 block text-xs text-neutral-600">
-                              {formatMonthlyAmount(p.monthlyAmount, p.currency)}
-                            </span>
-                          </span>
-                          <span className={`shrink-0 text-xs ${badge.className}`}>{badge.label}</span>
-                        </div>
+                          ) : null}
+                          {badge ? (
+                            <span className={`text-xs ${badge.className}`}>{badge.label}</span>
+                          ) : null}
+                        </span>
                       </div>
                     </li>
                   );

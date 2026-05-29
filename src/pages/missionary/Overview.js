@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { deletePrayerRequestAsMissionary, prayerAttributionLabel } from '../../lib/prayerRequestsRepository';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
 import { useMissionaryPipelineContacts } from '../../hooks/useMissionaryPipelineContacts';
@@ -17,62 +16,7 @@ import MissionaryPipeline from './Pipeline';
 import MissionaryStats from './Stats';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
-import {
-  computePartnerCurrencyTotals,
-  formatAmount,
-  formatOtherCurrenciesLine,
-  normalizeCurrencyCode,
-} from '../../lib/currencies';
-
-function MetricCard({ label, value, onActivate, ariaLabel, tint, Icon, labelColor }) {
-  return (
-    <Card
-      role="button"
-      tabIndex={0}
-      aria-label={ariaLabel || label}
-      onClick={onActivate}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onActivate?.();
-        }
-      }}
-      className={`relative cursor-pointer overflow-hidden transition-colors duration-200 ease-out hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/25 ${tint}`}
-    >
-      <div className="pointer-events-none absolute right-4 top-4 opacity-95 [&>svg]:h-6 [&>svg]:w-6">{Icon}</div>
-      <p className="sent-section-label relative max-w-[70%]" style={labelColor ? { color: labelColor } : undefined}>
-        {label}
-      </p>
-      <p className="sent-metric relative mt-2">{value}</p>
-    </Card>
-  );
-}
-
-const metricIconMonthly = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-  </svg>
-);
-const metricIconGift = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-  </svg>
-);
-const metricIconPeople = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-  </svg>
-);
-const metricIconTarget = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-  </svg>
-);
-const metricIconBook = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-  </svg>
-);
+import { computePartnerCurrencyTotals, formatAmount, normalizeCurrencyCode } from '../../lib/currencies';
 
 function MissionaryPrayerRequestMenu({ open, onOpenChange, onDelete }) {
   const wrapRef = useRef(null);
@@ -154,7 +98,6 @@ function TaskCompleteCircle({ onComplete, variant, ariaLabel }) {
 }
 
 export default function MissionaryOverview() {
-  const navigate = useNavigate();
   const { profile, user, loading: authLoading } = useAuth();
   const { contacts, refetch: refetchContacts } = useSupabaseContacts(user?.id, {
     authLoading,
@@ -202,9 +145,6 @@ export default function MissionaryOverview() {
   );
   const [showPipeline, setShowPipeline] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [oneTimeModalOpen, setOneTimeModalOpen] = useState(false);
-  const [oneTimeModalRows, setOneTimeModalRows] = useState([]);
-  const [oneTimeModalLoading, setOneTimeModalLoading] = useState(false);
   const [todayOutreachCount, setTodayOutreachCount] = useState(0);
   const [todayOutreachLoading, setTodayOutreachLoading] = useState(true);
 
@@ -253,74 +193,18 @@ export default function MissionaryOverview() {
   );
   const homeCurrency = normalizeCurrencyCode(profile?.home_currency);
 
-  const { homeCurrencyTotal, otherCurrencies } = useMemo(
+  const { homeCurrencyTotal } = useMemo(
     () => computePartnerCurrencyTotals(partners, homeCurrency),
     [partners, homeCurrency],
   );
 
-  const otherCurrenciesLine = useMemo(() => formatOtherCurrenciesLine(otherCurrencies), [otherCurrencies]);
-
-  const oneTimeDonors = useMemo(() => contacts.filter((c) => c.isOneTimeDonor), [contacts]);
-  const totalOneTimeGifts = useMemo(
+  const oneTimeTotal = useMemo(
     () =>
-      oneTimeDonors.reduce((sum, c) => {
-        if (normalizeCurrencyCode(c.currency) !== homeCurrency) return sum;
-        return sum + (Number(c.oneTimeDonationAmount) || 0);
-      }, 0),
-    [oneTimeDonors, homeCurrency],
+      contacts
+        .filter((c) => c.isOneTimeDonor && Number(c.oneTimeDonationAmount) > 0)
+        .reduce((sum, c) => sum + (Number(c.oneTimeDonationAmount) || 0), 0),
+    [contacts],
   );
-
-  const oneTimeModalTotal = useMemo(
-    () =>
-      oneTimeModalRows.reduce((sum, r) => {
-        const cur = normalizeCurrencyCode(
-          r.currency ?? contacts.find((c) => String(c.id) === String(r.id))?.currency,
-        );
-        if (cur !== homeCurrency) return sum;
-        return sum + (Number(r.one_time_donation_amount) || 0);
-      }, 0),
-    [oneTimeModalRows, homeCurrency, contacts],
-  );
-
-  useEffect(() => {
-    if (!oneTimeModalOpen || !user?.id) return undefined;
-    let cancelled = false;
-    const fallbackRows = () =>
-      oneTimeDonors.map((c) => ({
-        id: c.id,
-        full_name: c.fullName,
-        one_time_donation_amount: c.oneTimeDonationAmount,
-        one_time_donation_date: c.oneTimeDonationDate || null,
-        currency: c.currency,
-      }));
-
-    if (!supabase) {
-      setOneTimeModalRows(fallbackRows());
-      setOneTimeModalLoading(false);
-      return undefined;
-    }
-
-    setOneTimeModalLoading(true);
-    (async () => {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('id, full_name, one_time_donation_amount, one_time_donation_date, currency')
-        .eq('missionary_id', user.id)
-        .eq('is_one_time_donor', true)
-        .order('one_time_donation_date', { ascending: false });
-      if (cancelled) return;
-      if (error) {
-        setOneTimeModalRows(fallbackRows());
-      } else {
-        setOneTimeModalRows(data || []);
-      }
-      setOneTimeModalLoading(false);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [oneTimeModalOpen, user?.id, oneTimeDonors]);
 
   const goal = Number(profile?.monthly_goal ?? state.missionary.profile.monthlyGoal ?? 0) || 0;
   const gap = Math.max(goal - homeCurrencyTotal, 0);
@@ -444,71 +328,28 @@ export default function MissionaryOverview() {
         <div className="circuit-progress-track mt-3">
           <div className="circuit-progress-fill" style={{ width: `${pct}%` }} />
         </div>
-        <p className="mt-2 text-xs text-white/60">
-          {goal > 0 ? (
-            <>
-              {formatAmount(gap, homeCurrency)} to monthly goal · {formatAmount(goal, homeCurrency)} target
-            </>
-          ) : (
-            'Set your monthly goal in Settings'
-          )}
-        </p>
-      </header>
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <MetricCard
-          label="Monthly Support"
-          value={
+        {goal > 0 ? (
+          <div
+            className="mt-2 flex items-center justify-between gap-2"
+            style={{ fontSize: 10, color: '#555' }}
+          >
             <span>
-              {formatAmount(homeCurrencyTotal, homeCurrency)}
-              {otherCurrenciesLine ? (
-                <span className="mt-1 block text-sm font-normal text-neutral-500">{otherCurrenciesLine}</span>
-              ) : null}
+              {gap.toLocaleString()} to {goal.toLocaleString()} goal
             </span>
-          }
-          ariaLabel="Monthly support — open partners"
-          onActivate={() => navigate('/missionary/partners')}
-          tint="bg-green-light"
-          labelColor="var(--accent)"
-          Icon={<span className="text-green">{metricIconMonthly}</span>}
-        />
-        <MetricCard
-          label="One-time gifts"
-          value={formatAmount(totalOneTimeGifts, homeCurrency)}
-          ariaLabel="One-time gifts — open details"
-          onActivate={() => setOneTimeModalOpen(true)}
-          tint="bg-[color:var(--amber-light)]"
-          labelColor="var(--amber)"
-          Icon={<span className="text-[color:var(--amber)]">{metricIconGift}</span>}
-        />
-        <MetricCard
-          label="Partners"
-          value={`${partners.length}`}
-          ariaLabel="Partners — open partners list"
-          onActivate={() => navigate('/missionary/partners')}
-          tint="bg-green-light"
-          labelColor="var(--accent)"
-          Icon={<span className="text-green">{metricIconPeople}</span>}
-        />
-        <MetricCard
-          label="Gap to Goal"
-          value={formatAmount(gap, homeCurrency)}
-          ariaLabel="Gap to goal — open partners"
-          onActivate={() => navigate('/missionary/partners')}
-          tint="bg-rose-light"
-          labelColor="var(--rose)"
-          Icon={<span className="text-[color:var(--rose)]">{metricIconTarget}</span>}
-        />
-        <MetricCard
-          label="Total Contacts"
-          value={`${contacts.length}`}
-          ariaLabel="Total contacts — open contacts"
-          onActivate={() => navigate('/missionary/contacts')}
-          tint="bg-neutral-100"
-          labelColor="#888888"
-          Icon={<span className="text-neutral-600">{metricIconBook}</span>}
-        />
-      </div>
+            {oneTimeTotal > 0 ? (
+              <span className="flex items-center gap-2">
+                <span className="h-3 w-px shrink-0 bg-[#555]" aria-hidden />
+                <span>
+                  One-time gifts:{' '}
+                  <span style={{ color: '#4CAF7D' }}>${oneTimeTotal.toLocaleString()}</span>
+                </span>
+              </span>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-white/60">Set your monthly goal in Settings</p>
+        )}
+      </header>
 
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3">
@@ -759,39 +600,6 @@ export default function MissionaryOverview() {
       </MissionaryFullscreenOverlay>
 
       {user?.id ? <MissionPushSection missionaryId={user.id} /> : null}
-
-      <Modal open={oneTimeModalOpen} title="One-time gifts" onClose={() => setOneTimeModalOpen(false)}>
-        <p className="text-base font-semibold text-ink">
-          Total one-time gifts:{' '}
-          <span className="text-mission-ink">{formatAmount(oneTimeModalTotal, homeCurrency)}</span>
-        </p>
-        {oneTimeModalLoading ? (
-          <p className="mt-4 text-sm text-neutral-500">Loading…</p>
-        ) : oneTimeModalRows.length === 0 ? (
-          <p className="mt-4 text-sm text-neutral-600">
-            No one-time gifts yet — mark a contact as a one-time donor in Contacts
-          </p>
-        ) : (
-          <ul className="mt-4 divide-y divide-neutral-100 rounded-card border border-neutral-200">
-            {oneTimeModalRows.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-                <span className="font-medium text-ink">{r.full_name || 'Unnamed'}</span>
-                <span className="shrink-0 text-right font-semibold text-neutral-800">
-                  {formatAmount(
-                    r.one_time_donation_amount,
-                    r.currency ?? contacts.find((c) => c.id === r.id)?.currency,
-                  )}
-                  {r.one_time_donation_date ? (
-                    <span className="ml-2 block font-normal text-neutral-500 sm:ml-2 sm:inline">
-                      · {new Date(`${String(r.one_time_donation_date).slice(0, 10)}T12:00:00`).toLocaleDateString()}
-                    </span>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Modal>
 
       <Card className="p-5">
         <p className="text-sm font-semibold text-ink">Supporter prayer requests</p>

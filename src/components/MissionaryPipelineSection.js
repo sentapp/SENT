@@ -1,5 +1,3 @@
-import { Card } from './ui';
-
 export default function MissionaryPipelineSection({
   pipelineInProgressCount = 0,
   pipelineLoading,
@@ -11,21 +9,22 @@ export default function MissionaryPipelineSection({
       : `${pipelineInProgressCount} contacts in progress`;
 
   return (
-    <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
+    <div
+      className="flex items-center justify-between gap-3 bg-white"
+      style={{ padding: '12px 16px', borderBottom: '0.5px solid #EEEEEE' }}
+    >
       <div className="min-w-0">
-        <p className="text-lg font-bold tracking-tight text-ink">Pipeline</p>
-        <p className="mt-1 text-sm text-neutral-600">
-          {pipelineLoading ? 'Loading…' : countLine}
-        </p>
+        <p className="text-sm font-semibold text-ink">Pipeline</p>
+        <p className="mt-0.5 text-xs text-neutral-600">{pipelineLoading ? 'Loading…' : countLine}</p>
       </div>
       <button
         type="button"
         onClick={onOpenPipeline}
         disabled={pipelineLoading}
-        className="shrink-0 rounded-[20px] bg-[#111] px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="shrink-0 rounded-[20px] bg-[#111] px-4 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
       >
         Open pipeline →
       </button>
-    </Card>
+    </div>
   );
 }
