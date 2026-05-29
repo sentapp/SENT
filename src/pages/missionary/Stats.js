@@ -64,7 +64,7 @@ const goalIcons = {
   ),
 };
 
-export default function MissionaryStats() {
+export default function MissionaryStats({ embedded = false }) {
   const { user, profile, loading: authLoading } = useAuth();
   const { contacts, loading: contactsLoading } = useSupabaseContacts(user?.id, { authLoading });
   const [logs, setLogs] = useState([]);
@@ -172,12 +172,16 @@ export default function MissionaryStats() {
 
   return (
     <div className="space-y-6">
-      <DarkPageHeader title="Stats" subtitle="Progress toward your goals" />
-      <div className="-mt-2 flex justify-end">
-        <Link to="/missionary" className="text-sm font-medium text-ink hover:underline">
-          ← Overview
-        </Link>
-      </div>
+      {!embedded ? (
+        <>
+          <DarkPageHeader title="Stats" subtitle="Progress toward your goals" />
+          <div className="-mt-2 flex justify-end">
+            <Link to="/missionary/overview" className="text-sm font-medium text-ink hover:underline">
+              ← Overview
+            </Link>
+          </div>
+        </>
+      ) : null}
 
       {loading ? (
         <div className="flex justify-center py-16">

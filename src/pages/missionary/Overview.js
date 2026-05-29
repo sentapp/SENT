@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { deletePrayerRequestAsMissionary, prayerAttributionLabel } from '../../lib/prayerRequestsRepository';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
 import { useMissionaryPipelineContacts } from '../../hooks/useMissionaryPipelineContacts';
@@ -11,7 +11,10 @@ import { supabase } from '../../lib/supabaseClient';
 import { createTask } from '../../lib/tasksRepository';
 import { daysOverdue, formatDate, isDueToday, isOverdue } from '../../lib/taskDateHelpers';
 import MissionPushSection from '../../components/MissionPushSection';
+import MissionaryFullscreenOverlay from '../../components/MissionaryFullscreenOverlay';
 import MissionaryPipelineSection from '../../components/MissionaryPipelineSection';
+import MissionaryPipeline from './Pipeline';
+import MissionaryStats from './Stats';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import {
@@ -156,10 +159,10 @@ export default function MissionaryOverview() {
   const { contacts, refetch: refetchContacts } = useSupabaseContacts(user?.id, {
     authLoading,
   });
-  const { pipelineContacts, pipelineInProgressCount, pipelineLoading } = useMissionaryPipelineContacts(
-    user?.id,
-    { authLoading, onAfterMutation: () => void refetchContacts() },
-  );
+  const { pipelineInProgressCount, pipelineLoading } = useMissionaryPipelineContacts(user?.id, {
+    authLoading,
+    onAfterMutation: () => void refetchContacts(),
+  });
   const {
     prayerRequests: prayer,
     loading: prayerLoading,
@@ -197,6 +200,8 @@ export default function MissionaryOverview() {
     },
     [user?.id, refetchPrayer, setPrayerRequests],
   );
+  const [showPipeline, setShowPipeline] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [oneTimeModalOpen, setOneTimeModalOpen] = useState(false);
   const [oneTimeModalRows, setOneTimeModalRows] = useState([]);
   const [oneTimeModalLoading, setOneTimeModalLoading] = useState(false);
@@ -428,9 +433,6 @@ export default function MissionaryOverview() {
               ) : null}
             </div>
           </div>
-          <Link to="/missionary/stats" className="shrink-0 pt-1 text-xs font-medium text-white/70 hover:text-white">
-            Stats →
-          </Link>
         </div>
 
         <div className="mt-5 flex items-end justify-between gap-3">
@@ -729,10 +731,32 @@ export default function MissionaryOverview() {
       </Modal>
 
       <MissionaryPipelineSection
-        pipelineContacts={pipelineContacts}
         pipelineInProgressCount={pipelineInProgressCount}
         pipelineLoading={pipelineLoading}
+        onOpenPipeline={() => setShowPipeline(true)}
       />
+
+      <MissionaryFullscreenOverlay
+        open={showPipeline}
+        title="Pipeline"
+        subtitle={
+          pipelineInProgressCount === 1
+            ? '1 contact in progress'
+            : `${pipelineInProgressCount} contacts in progress`
+        }
+        onClose={() => setShowPipeline(false)}
+      >
+        <MissionaryPipeline embedded />
+      </MissionaryFullscreenOverlay>
+
+      <MissionaryFullscreenOverlay
+        open={showStats}
+        title="Stats"
+        subtitle="Progress toward your goals"
+        onClose={() => setShowStats(false)}
+      >
+        <MissionaryStats embedded />
+      </MissionaryFullscreenOverlay>
 
       {user?.id ? <MissionPushSection missionaryId={user.id} /> : null}
 
@@ -806,6 +830,16 @@ export default function MissionaryOverview() {
           )}
         </div>
       </Card>
+
+      <div className="flex justify-center pb-2 pt-1">
+        <button
+          type="button"
+          onClick={() => setShowStats(true)}
+          className="text-sm font-medium text-muted transition-colors hover:text-ink"
+        >
+          View full stats →
+        </button>
+      </div>
     </div>
   );
 }

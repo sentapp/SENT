@@ -1,66 +1,25 @@
-import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 const HOME_PATH = '/missionary/overview';
 
-const primarySideItems = [
-  { to: HOME_PATH, label: 'Overview' },
-  { to: '/missionary/contacts', label: 'Contacts' },
-  { to: '/missionary/partners', label: 'Partners' },
-  { to: '/missionary/updates', label: 'Updates' },
-];
-
-const secondarySideItems = [
-  { to: '/missionary/pipeline', label: 'Pipeline' },
-  { to: '/missionary/meetings', label: 'Meetings' },
-  { to: '/missionary/stats', label: 'Stats' },
-  { to: '/missionary/settings', label: 'Settings' },
-];
-
-const MORE_PATHS = secondarySideItems.map((it) => it.to);
-
-/** Mobile bottom bar: Home, Contacts, Partners, Updates, More */
-const bottomNavItems = [
+/** Sidebar + mobile bottom bar: Overview, Contacts, Partners, Meet, Updates, Settings */
+const navItems = [
   {
     to: HOME_PATH,
-    label: 'Home',
-    ariaLabel: 'Home',
-    Icon: IconHome,
+    label: 'Overview',
+    ariaLabel: 'Overview',
+    Icon: IconOverview,
     match: (pathname) => pathname === HOME_PATH || pathname === '/missionary',
   },
-  {
-    to: '/missionary/contacts',
-    label: 'Contacts',
-    ariaLabel: 'Contacts',
-    Icon: IconPerson,
-  },
-  {
-    to: '/missionary/partners',
-    label: 'Partners',
-    ariaLabel: 'Partners',
-    Icon: IconPeople,
-  },
-  {
-    to: '/missionary/updates',
-    label: 'Updates',
-    ariaLabel: 'Updates',
-    Icon: IconSend,
-  },
+  { to: '/missionary/contacts', label: 'Contacts', ariaLabel: 'Contacts', Icon: IconPerson },
+  { to: '/missionary/partners', label: 'Partners', ariaLabel: 'Partners', Icon: IconPeople },
+  { to: '/missionary/meetings', label: 'Meet', ariaLabel: 'Meet', Icon: IconCalendar },
+  { to: '/missionary/updates', label: 'Updates', ariaLabel: 'Updates', Icon: IconSend },
+  { to: '/missionary/settings', label: 'Settings', ariaLabel: 'Settings', Icon: IconGear },
 ];
 
-const moreSheetItems = [
-  { to: '/missionary/pipeline', label: 'Pipeline', Icon: IconPipeline },
-  { to: '/missionary/meetings', label: 'Meetings', Icon: IconCalendar },
-  { to: '/missionary/stats', label: 'Stats', Icon: IconStats },
-  { to: '/missionary/settings', label: 'Settings', Icon: IconGear },
-];
-
-function isMoreRoute(pathname) {
-  return MORE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
-
-function IconHome({ className }) {
+function IconOverview({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
       <path
@@ -80,22 +39,6 @@ function IconSend({ className }) {
         strokeLinejoin="round"
         d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
       />
-    </svg>
-  );
-}
-
-function IconMore({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01" />
-    </svg>
-  );
-}
-
-function IconPipeline({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h16" />
     </svg>
   );
 }
@@ -127,18 +70,6 @@ function IconCalendar({ className }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-      />
-    </svg>
-  );
-}
-
-function IconStats({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
       />
     </svg>
   );
@@ -182,19 +113,13 @@ function SideNav() {
       </div>
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-1">
-          {primarySideItems.map((it) => (
+          {navItems.map((it) => (
             <li key={it.to}>
-              <NavLink to={it.to} end className={({ isActive }) => navLinkClass(isActive)}>
-                {it.label}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-        <p className="sent-caption mb-2 mt-6 px-3 text-muted">More</p>
-        <ul className="space-y-1">
-          {secondarySideItems.map((it) => (
-            <li key={it.to}>
-              <NavLink to={it.to} className={({ isActive }) => navLinkClass(isActive)}>
+              <NavLink
+                to={it.to}
+                end={it.to === HOME_PATH}
+                className={({ isActive }) => navLinkClass(isActive)}
+              >
                 {it.label}
               </NavLink>
             </li>
@@ -205,111 +130,40 @@ function SideNav() {
   );
 }
 
-function MoreSheet({ open, onClose, onNavigate }) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 md:hidden" role="presentation">
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/40"
-        aria-label="Close menu"
-        onClick={onClose}
-      />
-      <div
-        className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-border bg-surface pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg"
-        role="dialog"
-        aria-label="More navigation"
-      >
-        <div className="flex justify-center py-3">
-          <span className="h-1 w-10 rounded-full bg-border" aria-hidden />
-        </div>
-        <ul className="px-2 pb-2">
-          {moreSheetItems.map((it) => {
-            const Icon = it.Icon;
-            return (
-              <li key={it.to}>
-                <button
-                  type="button"
-                  className="sent-body flex w-full items-center gap-3 rounded-lg px-4 py-3.5 text-left font-medium text-ink transition-colors hover:bg-[color:var(--color-bg)] active:bg-[color:var(--color-bg)]"
-                  onClick={() => onNavigate(it.to)}
-                >
-                  <Icon className="h-5 w-5 shrink-0 text-muted" />
-                  {it.label}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
 function BottomNav() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreActive = isMoreRoute(location.pathname) || moreOpen;
-
-  useEffect(() => {
-    setMoreOpen(false);
-  }, [location.pathname]);
-
-  const closeMore = () => setMoreOpen(false);
-
-  const handleMoreNavigate = (to) => {
-    closeMore();
-    navigate(to);
-  };
 
   return (
-    <>
-      <MoreSheet open={moreOpen} onClose={closeMore} onNavigate={handleMoreNavigate} />
-      <nav
-        className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-[#222] bg-[#111] pb-[env(safe-area-inset-bottom)] md:hidden"
-        aria-label="Missionary navigation"
-      >
-        <ul className="mx-auto grid h-14 max-w-mobile grid-cols-5 items-stretch px-0.5">
-          {bottomNavItems.map((it) => {
-            const Icon = it.Icon;
-            const isActive = it.match
-              ? it.match(location.pathname)
-              : location.pathname === it.to || location.pathname.startsWith(`${it.to}/`);
-            return (
-              <li key={it.to} className="flex min-h-0 items-stretch justify-center">
-                <NavLink
-                  to={it.to}
-                  aria-label={it.ariaLabel}
-                  className={() =>
-                    `flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-white/5 ${
-                      isActive ? 'text-accent-bright' : 'text-[#555555]'
-                    }`
-                  }
-                >
-                  <Icon className="h-[20px] w-[20px] shrink-0" />
-                  <span className="sent-nav-label max-w-full truncate text-center">{it.label}</span>
-                </NavLink>
-              </li>
-            );
-          })}
-          <li className="flex min-h-0 items-stretch justify-center">
-            <button
-              type="button"
-              aria-label="More"
-              aria-expanded={moreOpen}
-              onClick={() => setMoreOpen((v) => !v)}
-              className={`flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-white/5 ${
-                moreActive ? 'text-accent-bright' : 'text-[#555555]'
-              }`}
-            >
-              <IconMore className="h-[20px] w-[20px] shrink-0" />
-              <span className="sent-nav-label max-w-full truncate text-center">More</span>
-            </button>
-          </li>
-        </ul>
-      </nav>
-    </>
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-[#222] bg-[#111] pb-[env(safe-area-inset-bottom)] md:hidden"
+      aria-label="Missionary navigation"
+    >
+      <ul className="mx-auto grid h-14 max-w-mobile grid-cols-6 items-stretch px-0.5">
+        {navItems.map((it) => {
+          const Icon = it.Icon;
+          const isActive = it.match
+            ? it.match(location.pathname)
+            : location.pathname === it.to || location.pathname.startsWith(`${it.to}/`);
+          return (
+            <li key={it.to} className="flex min-h-0 items-stretch justify-center">
+              <NavLink
+                to={it.to}
+                end={it.to === HOME_PATH}
+                aria-label={it.ariaLabel}
+                className={() =>
+                  `flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-white/5 ${
+                    isActive ? 'text-accent-bright' : 'text-[#555555]'
+                  }`
+                }
+              >
+                <Icon className="h-[20px] w-[20px] shrink-0" />
+                <span className="sent-nav-label max-w-full truncate text-center">{it.label}</span>
+              </NavLink>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
 

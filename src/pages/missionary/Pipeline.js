@@ -37,7 +37,7 @@ function truncateNotes(text, max = 100) {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
-export default function MissionaryPipeline() {
+export default function MissionaryPipeline({ embedded = false }) {
   const { openDrawer } = useContactDrawer();
   const { user, loading: authLoading } = useAuth();
   const { contacts, refetch: refetchContacts, updateContact, loading: contactsLoading } = useSupabaseContacts(
@@ -137,8 +137,10 @@ export default function MissionaryPipeline() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-4">
-      <DarkPageHeader title="Pipeline" subtitle="Advance stages & grow partners" />
-      <header className="-mt-2 flex flex-wrap items-end justify-end gap-3">
+      {!embedded ? (
+        <DarkPageHeader title="Pipeline" subtitle="Advance stages & grow partners" />
+      ) : null}
+      <header className={`flex flex-wrap items-end justify-end gap-3 ${embedded ? '' : '-mt-2'}`}>
         <Button type="button" onClick={() => setAddOpen(true)}>
           Add to pipeline
         </Button>
