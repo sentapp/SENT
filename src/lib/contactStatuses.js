@@ -6,6 +6,7 @@ export const CONTACT_STATUS_VALUES = [
   'committed',
   'partner',
   'declined',
+  'not_right_now',
 ];
 
 const ALLOWED = new Set(CONTACT_STATUS_VALUES);
@@ -18,6 +19,7 @@ export const CONTACT_STATUS_FORM_OPTIONS = [
   { value: 'committed', label: 'Committed' },
   { value: 'partner', label: 'Partner' },
   { value: 'declined', label: 'Not interested' },
+  { value: 'not_right_now', label: 'Not right now' },
 ];
 
 const MUTED = '#888888';
@@ -38,6 +40,7 @@ export const QUICK_STATUS_EDIT_OPTIONS = [
   { value: 'committed', label: 'Committed', accent: AMBER },
   { value: 'partner', label: 'Partner', accent: GREEN },
   { value: 'declined', label: 'Not interested', accent: ROSE },
+  { value: 'not_right_now', label: 'Not right now', accent: '#6040B0' },
 ];
 
 const LABEL_BY_VALUE = CONTACT_STATUS_FORM_OPTIONS.reduce((acc, { value, label }) => {
@@ -53,7 +56,20 @@ export const STATUS_TAG_COLORS = {
   committed: { bg: AMBER_LIGHT, text: AMBER, border: 'rgba(193, 122, 0, 0.3)' },
   partner: { bg: GREEN, text: '#FFFFFF', border: ACCENT_BORDER_MIX },
   declined: { bg: ROSE_LIGHT, text: ROSE, border: 'rgba(196, 61, 94, 0.28)' },
+  not_right_now: { bg: '#F5F0FF', text: '#6040B0', border: '#C8BCF5' },
 };
+
+/** Status filter chips (Contacts page) — includes pill colors. */
+export const CONTACT_STATUS_FILTER_OPTIONS = CONTACT_STATUS_FORM_OPTIONS.map((opt) => {
+  const colors = STATUS_TAG_COLORS[opt.value] || { bg: SURFACE, text: MUTED, border: 'rgba(136, 136, 136, 0.35)' };
+  return {
+    label: opt.label,
+    value: opt.value,
+    bg: colors.bg,
+    color: colors.text,
+    border: colors.border,
+  };
+});
 
 /** Map legacy DB value for UI + saves. */
 export function normalizeStatusFromDb(value) {

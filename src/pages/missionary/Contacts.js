@@ -33,8 +33,14 @@ import {
 } from '../../lib/contactCategories';
 import { safeCategoryValue } from '../../lib/safeCategory';
 import { mergeNotesWithSocial, notesWithoutSocialBlock, splitSocialFromNotes } from '../../lib/contactSocialInNotes';
-import { normalizeStatusForSave, normalizeStatusFromDb, statusLabel } from '../../lib/contactStatuses';
-import { normalizeRelationshipForSave } from '../../lib/contactRelationships';
+import {
+  CONTACT_STATUS_FILTER_OPTIONS,
+  normalizeStatusForSave,
+  normalizeStatusFromDb,
+  statusLabel,
+} from '../../lib/contactStatuses';
+import { normalizeRelationshipForSave, RELATIONSHIP_TAG_OPTIONS } from '../../lib/contactRelationships';
+import { daysSince } from '../../lib/dateHelpers';
 import {
   calcCareFlags,
   calcPriorityScore,
@@ -67,6 +73,80 @@ const STRIP_STAGE_LABEL = {
 
 const FILTERS = CONTACT_CATEGORY_FILTER_TABS;
 const VALID_CONTACT_FILTER_VALUES = new Set(FILTERS.map((f) => f.value));
+
+const EMPTY_ADVANCED_FILTERS = {
+  status: [],
+  relationship: '',
+  warmth: '',
+  lastContacted: '',
+};
+
+const WARMTH_FILTER_OPTIONS = [
+  { label: 'Warm', value: 'warm', bg: '#EDFAF2', color: '#1A6B3C' },
+  { label: 'Lukewarm', value: 'lukewarm', bg: '#FFF8E8', color: '#906010' },
+  { label: 'Cold', value: 'cold', bg: '#F5F5F5', color: '#888888' },
+];
+
+const LAST_CONTACTED_OPTIONS = [
+  { label: 'This week', value: '7' },
+  { label: 'This month', value: '30' },
+  { label: 'Over 30 days', value: '30+' },
+  { label: 'Never', value: 'never' },
+];
+
+function FilterChip({ label, active, onToggle, color, bg }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="rounded-full px-2.5 py-0.5 text-[10px] transition-all duration-150"
+      style={{
+        border: `0.5px solid ${active ? color || '#1A6B3C' : '#EEEEEE'}`,
+        background: active ? bg || '#EDFAF2' : 'transparent',
+        color: active ? color || '#1A6B3C' : '#888888',
+        fontWeight: active ? 500 : 400,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function FilterSection({ label, children }) {
+  return (
+    <div className="mb-3 last:mb-0">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </div>
+  );
+}
+
+function applyFilters(contacts, filters, logs, lastContactMap) {
+  return contacts.filter((c) => {
+    const status = normalizeStatusFromDb(c.status);
+    if (filters.status.length > 0 && !filters.status.includes(status)) return false;
+
+    if (filters.relationship && c.relationship !== filters.relationship) return false;
+
+    if (filters.warmth) {
+      const score = calcPriorityScore(c, logs[c.id] || []);
+      if (filters.warmth === 'warm' && score < 3) return false;
+      if (filters.warmth === 'lukewarm' && (score < 1 || score >= 3)) return false;
+      if (filters.warmth === 'cold' && score >= 1) return false;
+    }
+
+    if (filters.lastContacted) {
+      const last = lastContactMap[c.id];
+      const days = last ? daysSince(last) : 999;
+      if (filters.lastContacted === '7' && days > 7) return false;
+      if (filters.lastContacted === '30' && days > 30) return false;
+      if (filters.lastContacted === '30+' && days <= 30) return false;
+      if (filters.lastContacted === 'never' && last) return false;
+    }
+
+    return true;
+  });
+}
 
 function filterContacts(contacts, activeFilter) {
   switch (activeFilter) {
@@ -244,6 +324,8 @@ export default function MissionaryContacts() {
   useEffect(() => {
     if (!VALID_CONTACT_FILTER_VALUES.has(activeFilter)) setActiveFilter('all');
   }, [activeFilter]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState(EMPTY_ADVANCED_FILTERS);
   const [query, setQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -381,6 +463,48 @@ export default function MissionaryContacts() {
     }
     return map;
   }, [missionaryLogs]);
+
+  const logsByContactObject = useMemo(() => {
+    const obj = {};
+    for (const [id, arr] of logsByContactId) obj[id] = arr;
+    return obj;
+  }, [logsByContactId]);
+
+  const lastContactMap = useMemo(() => {
+    const m = {};
+    for (const log of missionaryLogs) {
+      const id = log.contact_id;
+      if (!id || !log.created_at) continue;
+      if (!m[id] || new Date(log.created_at) > new Date(m[id])) m[id] = log.created_at;
+    }
+    return m;
+  }, [missionaryLogs]);
+
+  const activeFilterCount = useMemo(
+    () =>
+      filters.status.length +
+      (filters.relationship ? 1 : 0) +
+      (filters.warmth ? 1 : 0) +
+      (filters.lastContacted ? 1 : 0),
+    [filters],
+  );
+
+  const toggleFilter = useCallback((key, value) => {
+    setFilters((prev) => {
+      if (key === 'status') {
+        const next = prev.status.includes(value)
+          ? prev.status.filter((v) => v !== value)
+          : [...prev.status, value];
+        return { ...prev, status: next };
+      }
+      const cur = prev[key];
+      return { ...prev, [key]: cur === value ? '' : value };
+    });
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setFilters(EMPTY_ADVANCED_FILTERS);
+  }, []);
 
   const resetImportWizard = () => {
     setImportTab('excel');
@@ -841,9 +965,15 @@ export default function MissionaryContacts() {
     setDeleteTarget(null);
   };
 
+  const categoryFiltered = useMemo(
+    () => filterContacts(contacts, activeFilter),
+    [contacts, activeFilter],
+  );
+
   const filteredSorted = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return filterContacts(contacts, activeFilter)
+    const advanced = applyFilters(categoryFiltered, filters, logsByContactObject, lastContactMap);
+    return advanced
       .filter((c) => {
         if (oneTimeDonorFilter && !c.isOneTimeDonor) return false;
         return true;
@@ -863,7 +993,15 @@ export default function MissionaryContacts() {
         if (scoreB !== scoreA) return scoreB - scoreA;
         return (a.fullName || '').localeCompare(b.fullName || '', undefined, { sensitivity: 'base' });
       });
-  }, [contacts, oneTimeDonorFilter, activeFilter, query, logsByContactId]);
+  }, [
+    categoryFiltered,
+    oneTimeDonorFilter,
+    query,
+    logsByContactId,
+    logsByContactObject,
+    lastContactMap,
+    filters,
+  ]);
 
   const pipelineStripContacts = useMemo(
     () =>
@@ -1005,7 +1143,14 @@ export default function MissionaryContacts() {
 
   return (
     <div className="flex flex-col gap-4">
-      <DarkPageHeader title={`Contacts (${contacts.length})`} subtitle="People & relationships" />
+      <DarkPageHeader
+        title={
+          activeFilterCount > 0
+            ? `Showing ${filteredSorted.length} of ${contacts.length} contacts`
+            : `Contacts (${contacts.length})`
+        }
+        subtitle="People & relationships"
+      />
       <header className="-mt-2 flex flex-wrap items-end justify-between gap-3">
         <div className="sr-only">
           <h1>Contacts</h1>
@@ -1030,6 +1175,26 @@ export default function MissionaryContacts() {
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              className="flex items-center gap-1.5 rounded-[20px] px-3 py-1.5 text-[11px] font-medium transition-colors"
+              style={{
+                border: `0.5px solid ${activeFilterCount > 0 ? '#1A6B3C' : '#EEEEEE'}`,
+                background: activeFilterCount > 0 ? '#EDFAF2' : 'transparent',
+                color: activeFilterCount > 0 ? '#1A6B3C' : '#888888',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M4 6h16M7 12h10M10 18h4"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Filter{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+            </button>
             <Button variant="secondary" type="button" onClick={openImport}>
               Import
             </Button>
@@ -1158,6 +1323,66 @@ export default function MissionaryContacts() {
           placeholder="Search contacts…"
           className="py-3 text-sm"
         />
+        {showFilters ? (
+          <div
+            className="rounded-lg border-b border-[#EEEEEE] bg-[#FAFAFA] px-3.5 py-2.5"
+            style={{ borderBottom: '0.5px solid #EEEEEE' }}
+          >
+            <FilterSection label="Status">
+              {CONTACT_STATUS_FILTER_OPTIONS.map((opt) => (
+                <FilterChip
+                  key={opt.value}
+                  label={opt.label}
+                  active={filters.status.includes(opt.value)}
+                  onToggle={() => toggleFilter('status', opt.value)}
+                  color={opt.color}
+                  bg={opt.bg}
+                />
+              ))}
+            </FilterSection>
+            <FilterSection label="Relationship">
+              {RELATIONSHIP_TAG_OPTIONS.map((opt) => (
+                <FilterChip
+                  key={opt.value}
+                  label={opt.label}
+                  active={filters.relationship === opt.value}
+                  onToggle={() => toggleFilter('relationship', opt.value)}
+                />
+              ))}
+            </FilterSection>
+            <FilterSection label="Warmth">
+              {WARMTH_FILTER_OPTIONS.map((opt) => (
+                <FilterChip
+                  key={opt.value}
+                  label={opt.label}
+                  active={filters.warmth === opt.value}
+                  onToggle={() => toggleFilter('warmth', opt.value)}
+                  color={opt.color}
+                  bg={opt.bg}
+                />
+              ))}
+            </FilterSection>
+            <FilterSection label="Last contacted">
+              {LAST_CONTACTED_OPTIONS.map((opt) => (
+                <FilterChip
+                  key={opt.value}
+                  label={opt.label}
+                  active={filters.lastContacted === opt.value}
+                  onToggle={() => toggleFilter('lastContacted', opt.value)}
+                />
+              ))}
+            </FilterSection>
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="border-none bg-transparent text-[11px] text-neutral-500 hover:text-neutral-700"
+              >
+                Clear all filters
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div
           className="grid w-full gap-1 rounded-lg border border-mission-line bg-neutral-100 p-1"
           style={{ gridTemplateColumns: `repeat(${FILTERS.length}, minmax(0, 1fr))` }}

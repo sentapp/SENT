@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { deletePrayerRequestAsMissionary, prayerAttributionLabel } from '../../lib/prayerRequestsRepository';
 import { useAuth } from '../../auth/AuthContext';
+import { useContactDrawer } from '../../context/ContactDrawerContext';
 import { useMissionaryPrayerRequests } from '../../hooks/useMissionaryPrayerRequests';
 import { useMissionaryPipelineContacts } from '../../hooks/useMissionaryPipelineContacts';
 import { useSupabaseContacts } from '../../hooks/useSupabaseContacts';
@@ -17,6 +18,8 @@ import MissionaryStats from './Stats';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { computePartnerCurrencyTotals, formatAmount, normalizeCurrencyCode } from '../../lib/currencies';
+import { daysBetween } from '../../lib/dateHelpers';
+import { normalizeStatusFromDb } from '../../lib/contactStatuses';
 
 function MissionaryPrayerRequestMenu({ open, onOpenChange, onDelete }) {
   const wrapRef = useRef(null);
@@ -99,6 +102,7 @@ function TaskCompleteCircle({ onComplete, variant, ariaLabel }) {
 
 export default function MissionaryOverview() {
   const { profile, user, loading: authLoading } = useAuth();
+  const { openDrawer } = useContactDrawer();
   const { contacts, refetch: refetchContacts } = useSupabaseContacts(user?.id, {
     authLoading,
   });
@@ -256,6 +260,19 @@ export default function MissionaryOverview() {
       : contacts;
     return base.slice(0, 12);
   }, [contacts, contactPickQuery]);
+
+  const circleBackSoon = useMemo(
+    () =>
+      contacts
+        .filter(
+          (c) =>
+            normalizeStatusFromDb(c.status) === 'not_right_now' &&
+            c.followUpDate &&
+            daysBetween(new Date(), new Date(`${c.followUpDate}T12:00:00`)) <= 7,
+        )
+        .sort((a, b) => String(a.followUpDate).localeCompare(String(b.followUpDate))),
+    [contacts],
+  );
 
   const resetAddTaskForm = () => {
     setAddTaskTitle('');
@@ -583,6 +600,39 @@ export default function MissionaryOverview() {
           ) : null}
         </div>
       </Modal>
+
+      {circleBackSoon.length > 0 ? (
+        <div
+          className="overflow-hidden rounded-card border border-[#E8E0F0] bg-[#F5F0FF]"
+          style={{ borderBottom: '0.5px solid #E8E0F0' }}
+        >
+          <div className="px-4 py-2.5">
+            <p className="text-[11px] font-medium text-[#6040B0]">
+              {circleBackSoon.length} contact{circleBackSoon.length > 1 ? 's' : ''} ready to circle back
+            </p>
+            <ul className="mt-1.5">
+              {circleBackSoon.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => openDrawer(c)}
+                    className="flex w-full cursor-pointer items-center gap-2 py-1 text-left"
+                  >
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#6040B0]" aria-hidden />
+                    <span className="truncate text-xs text-[#1A1A1A]">{c.fullName || 'Unnamed'}</span>
+                    <span className="ml-auto shrink-0 text-[10px] text-neutral-500">
+                      {new Date(`${c.followUpDate}T12:00:00`).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
 
       <MissionaryPipelineSection
         pipelineInProgressCount={pipelineInProgressCount}

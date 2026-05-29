@@ -13,7 +13,7 @@ const CONTACT_SELECT_MINIMAL =
 
 /** Optional CRM columns — only used when they exist in the database. */
 const CONTACT_SELECT_OPTIONAL_SUFFIX =
-  'address, is_one_time_donor, one_time_donation_amount, one_time_donation_date, relationship, currency';
+  'address, is_one_time_donor, one_time_donation_amount, one_time_donation_date, relationship, currency, follow_up_date';
 
 const CONTACT_SELECT_FULL = `${CONTACT_SELECT_MINIMAL}, ${CONTACT_SELECT_OPTIONAL_SUFFIX}`;
 
@@ -45,6 +45,7 @@ export function stripOptionalContactColumnsFromRow(row, schemaPartial) {
   delete out.one_time_donation_date;
   delete out.relationship;
   delete out.currency;
+  delete out.follow_up_date;
   return out;
 }
 
@@ -97,6 +98,7 @@ function mapRow(row) {
       : '',
     notes: row.notes || '',
     relationship: row.relationship != null ? String(row.relationship) : '',
+    followUpDate: row.follow_up_date ? String(row.follow_up_date).slice(0, 10) : '',
     updatedAt: row.updated_at,
     createdAt: row.created_at,
   };
@@ -133,6 +135,12 @@ function toRow(payload, missionaryId) {
   const relationship =
     relRaw !== undefined && relRaw !== null && String(relRaw).trim() !== '' ? String(relRaw).trim() : null;
 
+  const followRaw = payload.followUpDate ?? payload.follow_up_date;
+  const followUpDate =
+    followRaw !== undefined && followRaw !== null && String(followRaw).trim() !== ''
+      ? String(followRaw).slice(0, 10)
+      : null;
+
   return {
     missionary_id: missionaryId,
     full_name: fullName,
@@ -145,6 +153,7 @@ function toRow(payload, missionaryId) {
     currency,
     notes: String(payload.notes ?? '').trim(),
     address: String(payload.address ?? '').trim(),
+    follow_up_date: followUpDate,
     ...(() => {
       const isDonor = Boolean(payload.isOneTimeDonor ?? payload.is_one_time_donor);
       const amtRaw = payload.oneTimeDonationAmount ?? payload.one_time_donation_amount;

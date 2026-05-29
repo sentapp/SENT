@@ -34,6 +34,7 @@ function mapRow(row) {
     status: normalizeStatusFromDb(row.status),
     monthlyAmount: row.monthly_amount != null ? Number(row.monthly_amount) : 0,
     notes: row.notes != null ? String(row.notes) : '',
+    followUpDate: row.follow_up_date ? String(row.follow_up_date).slice(0, 10) : '',
   };
 }
 
@@ -79,7 +80,9 @@ export function useMissionaryPipelineContacts(authUserId, options = {}) {
       const statusFilter = variant === 'board' ? MISSIONARY_KANBAN_STATUSES : MISSIONARY_PIPELINE_TRACKED_STATUSES;
       let q = supabase
         .from('contacts')
-        .select('id, full_name, phone, email, address, status, category, monthly_amount, notes, created_at')
+        .select(
+          'id, full_name, phone, email, address, status, category, monthly_amount, notes, follow_up_date, created_at',
+        )
         .eq('missionary_id', missionaryId)
         .in('status', statusFilter);
       if (variant === 'board') {
@@ -125,6 +128,9 @@ export function useMissionaryPipelineContacts(authUserId, options = {}) {
       const nextStatus = normalizeStatusForSave(status);
       const patch = { status: nextStatus, ...extraPatch };
       if (nextStatus === 'partner') patch.category = 'supporter';
+      if (nextStatus !== 'not_right_now' && extraPatch.follow_up_date === undefined) {
+        patch.follow_up_date = null;
+      }
       const { error } = await supabase
         .from('contacts')
         .update(patch)
