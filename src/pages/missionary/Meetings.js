@@ -16,12 +16,10 @@ import {
 import {
   MONTHS_FULL,
   WEEKDAYS,
-  buildCalendarCells,
   formatDay,
   formatMeetingDate,
   formatMonth,
   formatTime,
-  shiftMonth,
   todayStr,
 } from '../../lib/meetingDateUtils';
 import AddMeetingModal from '../../components/meetings/AddMeetingModal';
@@ -29,6 +27,41 @@ import DarkPageHeader from '../../components/DarkPageHeader';
 import MissionaryPageShell from '../../components/MissionaryPageShell';
 import PendingMeetingRequestsBanner from '../../components/meetings/PendingMeetingRequestsBanner';
 import { Button, LoadingSpinner, Modal } from '../../components/ui';
+
+function buildCalendarDays(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days = [];
+
+  for (let i = 0; i < firstDayOfWeek; i += 1) {
+    const d = new Date(year, month, i - firstDayOfWeek + 1);
+    days.push({ date: d, dayNum: d.getDate(), currentMonth: false });
+  }
+
+  for (let i = 1; i <= daysInMonth; i += 1) {
+    days.push({ date: new Date(year, month, i), dayNum: i, currentMonth: true });
+  }
+
+  const remaining = 42 - days.length;
+  for (let i = 1; i <= remaining; i += 1) {
+    days.push({ date: new Date(year, month + 1, i), dayNum: i, currentMonth: false });
+  }
+
+  return days;
+}
+
+function isSameDay(a, b) {
+  const da = a instanceof Date ? a : new Date(`${String(a).slice(0, 10)}T12:00:00`);
+  const db = b instanceof Date ? b : new Date(`${String(b).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(da.getTime()) || Number.isNaN(db.getTime())) return false;
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
 
 export default function MissionaryMeetings() {
   const { openDrawer } = useContactDrawer();
@@ -43,9 +76,10 @@ export default function MissionaryMeetings() {
   const [showAdd, setShowAdd] = useState(false);
   const [addPrefill, setAddPrefill] = useState({ contactId: '', contactName: '', date: '' });
 
-  const now = new Date();
-  const [calendarYear, setCalendarYear] = useState(now.getFullYear());
-  const [calendarMonth, setCalendarMonth] = useState(now.getMonth());
+  const [currentMonthDate, setCurrentMonthDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   const [detailMeeting, setDetailMeeting] = useState(null);
   const [outcome, setOutcome] = useState('');
@@ -66,14 +100,17 @@ export default function MissionaryMeetings() {
       fetchMeetingsForMissionary(supabase, user.id),
       fetchMeetingRequestsForMissionary(supabase, user.id),
     ]);
+    // eslint-disable-next-line no-console
+    console.log('Meetings loaded:', rows?.length, rows);
     setMeetings(rows);
     setMeetingRequests(requests);
     setLoading(false);
   }, [user?.id]);
 
   useEffect(() => {
+    if (!user?.id) return;
     void loadMeetings();
-  }, [loadMeetings]);
+  }, [user?.id, loadMeetings]);
 
   useEffect(() => {
     const add = searchParams.get('add');
@@ -125,21 +162,7 @@ export default function MissionaryMeetings() {
     return { upcomingMeetings: upcoming, pastMeetings: past };
   }, [meetings, today]);
 
-  const meetingsByDate = useMemo(() => {
-    const map = new Map();
-    for (const m of meetings) {
-      const key = m.meetingDate;
-      if (!key) continue;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(m);
-    }
-    return map;
-  }, [meetings]);
-
-  const calendarCells = useMemo(
-    () => buildCalendarCells(calendarYear, calendarMonth),
-    [calendarYear, calendarMonth],
-  );
+  const calendarDays = useMemo(() => buildCalendarDays(currentMonthDate), [currentMonthDate]);
 
   const openMeeting = (meeting) => {
     setDetailMeeting(meeting);
@@ -210,7 +233,7 @@ export default function MissionaryMeetings() {
     void loadMeetings();
   };
 
-  const monthLabel = `${MONTHS_FULL[calendarMonth]} ${calendarYear}`;
+  const monthLabel = `${MONTHS_FULL[currentMonthDate.getMonth()]} ${currentMonthDate.getFullYear()}`;
 
   return (
     <MissionaryPageShell
@@ -288,9 +311,9 @@ export default function MissionaryMeetings() {
               type="button"
               className="rounded-btn px-2 py-1 text-sm text-muted hover:bg-surface"
               onClick={() => {
-                const next = shiftMonth(calendarYear, calendarMonth, -1);
-                setCalendarYear(next.year);
-                setCalendarMonth(next.month);
+                setCurrentMonthDate(
+                  (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+                );
               }}
               aria-label="Previous month"
             >
@@ -301,9 +324,9 @@ export default function MissionaryMeetings() {
               type="button"
               className="rounded-btn px-2 py-1 text-sm text-muted hover:bg-surface"
               onClick={() => {
-                const next = shiftMonth(calendarYear, calendarMonth, 1);
-                setCalendarYear(next.year);
-                setCalendarMonth(next.month);
+                setCurrentMonthDate(
+                  (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+                );
               }}
               aria-label="Next month"
             >
@@ -318,36 +341,55 @@ export default function MissionaryMeetings() {
             ))}
           </div>
           <div className="mt-1 grid grid-cols-7 gap-1">
-            {calendarCells.map((cell, idx) => {
-              if (!cell.date) {
-                return <div key={`empty-${idx}`} className="min-h-[52px]" aria-hidden />;
-              }
-              const dayMeetings = meetingsByDate.get(cell.date) || [];
-              const isToday = cell.date === today;
+            {calendarDays.map((day, idx) => {
+              const dayMeetings = meetings.filter((m) => isSameDay(m.meetingDate, day.date));
+              const isToday = isSameDay(day.date, new Date());
+              const dateStr = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`;
               return (
                 <button
-                  key={cell.date}
+                  key={`${dateStr}-${idx}`}
                   type="button"
                   onClick={() => {
                     if (dayMeetings.length === 1) openMeeting(dayMeetings[0]);
                     else if (dayMeetings.length === 0) {
-                      setAddPrefill({ contactId: '', contactName: '', date: cell.date });
+                      setAddPrefill({ contactId: '', contactName: '', date: dateStr });
                       setShowAdd(true);
                     }
                   }}
                   className={`min-h-[52px] rounded-lg border p-1 text-left transition hover:bg-surface ${
                     isToday ? 'border-accent bg-[color:var(--accent-light,#E8F5EE)]' : 'border-[#EEEEEE]'
-                  }`}
+                  } ${day.currentMonth ? 'opacity-100' : 'opacity-35'}`}
                 >
-                  <span className={`text-xs font-medium ${isToday ? 'text-accent' : 'text-ink'}`}>{cell.day}</span>
+                  <span
+                    className={`inline-flex h-[22px] w-[22px] items-center justify-center rounded-full text-xs font-medium ${
+                      isToday ? 'bg-green text-white' : 'text-ink'
+                    }`}
+                  >
+                    {day.dayNum}
+                  </span>
                   {dayMeetings.length > 0 ? (
                     <div className="mt-0.5 space-y-0.5">
                       {dayMeetings.slice(0, 2).map((m) => (
                         <div
                           key={m.id}
-                          className="truncate rounded bg-white/80 px-0.5 text-[9px] font-medium text-ink"
+                          className={`truncate rounded px-0.5 text-[9px] font-medium ${
+                            m.isComplete ? 'bg-green-light text-accent-dark' : 'bg-[#EBF5FF] text-[#0C447C]'
+                          }`}
                           title={m.contactName}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openMeeting(m);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.stopPropagation();
+                              openMeeting(m);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
                         >
+                          {m.meetingTime ? `${formatTime(m.meetingTime)} ` : ''}
                           {m.contactName}
                         </div>
                       ))}

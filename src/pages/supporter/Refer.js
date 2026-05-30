@@ -1,40 +1,64 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { useMissionaryPublicProfile } from '../../hooks/useMissionaryPublicProfile';
-import { Button, Card } from '../../components/ui';
+import { supabase } from '../../lib/supabaseClient';
 
 const JOIN_BASE = 'https://sent-kohl.vercel.app/join';
 
 export default function SupporterRefer() {
   const { profile } = useAuth();
-  const mid = profile?.connected_missionary_id;
-  const { profile: missionaryDb } = useMissionaryPublicProfile(mid);
-
-  const missionaryName = missionaryDb?.full_name?.trim() || 'your missionary';
-  const supporterCode = String(missionaryDb?.supporter_code ?? '').trim();
-
-  const shareLink = useMemo(() => {
-    if (!supporterCode) return '';
-    return `${JOIN_BASE}?code=${encodeURIComponent(supporterCode)}`;
-  }, [supporterCode]);
-
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [missionary, setMissionary] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!linkCopied) return undefined;
-    const t = window.setTimeout(() => setLinkCopied(false), 2500);
-    return () => window.clearTimeout(t);
-  }, [linkCopied]);
+    async function loadMissionaryCode() {
+      if (!profile?.connected_missionary_id) {
+        setMissionary(null);
+        return;
+      }
 
-  const copyInviteLink = async () => {
-    if (!shareLink) return;
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setLinkCopied(true);
-    } catch {
-      setLinkCopied(false);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('supporter_code, full_name')
+        .eq('id', profile.connected_missionary_id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('Refer loadMissionaryCode', error);
+        setMissionary(null);
+        return;
+      }
+
+      setMissionary(data || null);
     }
-  };
+
+    void loadMissionaryCode();
+  }, [profile?.connected_missionary_id]);
+
+  const code = String(missionary?.supporter_code ?? '').trim();
+  const inviteUrl = code ? `${JOIN_BASE}?code=${encodeURIComponent(code)}` : '';
+  const missionaryName = missionary?.full_name?.trim() || 'your missionary';
+
+  useEffect(() => {
+    if (!copied) return undefined;
+    const t = window.setTimeout(() => setCopied(false), 2500);
+    return () => window.clearTimeout(t);
+  }, [copied]);
+
+  async function copyLink() {
+    if (!inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = inviteUrl;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopied(true);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -46,57 +70,33 @@ export default function SupporterRefer() {
         </p>
       </header>
 
-      <Card className="p-5">
-        <p className="text-sm font-semibold">Join link</p>
-        {!supporterCode ? (
-          <p className="mt-3 text-sm text-neutral-600">
-            Connect to a missionary first — their invite code will appear here.
+      <div className="rounded-card border border-neutral-200 bg-white p-5 shadow-sm">
+        <p className="text-sm font-semibold text-ink">Join link</p>
+
+        <div className="mt-4 break-all rounded-lg bg-neutral-100 px-3 py-2.5 font-mono text-xs text-neutral-600">
+          {inviteUrl || 'Connect to a missionary to get your refer link'}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void copyLink()}
+          disabled={!inviteUrl}
+          className={`mt-3 w-full rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+            inviteUrl
+              ? 'cursor-pointer bg-green text-white hover:bg-green/90'
+              : 'cursor-default bg-neutral-200 text-neutral-500'
+          }`}
+        >
+          {copied ? 'Link copied! ✓' : 'Copy invite link'}
+        </button>
+
+        {code ? (
+          <p className="mt-3 text-xs text-neutral-500">
+            Friends open this link, create a supporter account, and enter code{' '}
+            <span className="font-semibold text-ink">{code}</span> to connect.
           </p>
-        ) : (
-          <>
-            <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <p className="break-all rounded-btn border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-semibold text-ink">
-                {shareLink}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="primary" onClick={() => void copyInviteLink()}>
-                  {linkCopied ? 'Copied!' : 'Copy link'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={async () => {
-                    if (navigator.share) {
-                      try {
-                        await navigator.share({
-                          title: 'Join me on SENT',
-                          text: `Use my link to join as a supporter for ${missionaryName} on SENT.`,
-                          url: shareLink,
-                        });
-                        return;
-                      } catch {
-                        // user cancelled or share failed
-                      }
-                    }
-                    await copyInviteLink();
-                  }}
-                >
-                  Share
-                </Button>
-              </div>
-            </div>
-            {linkCopied ? (
-              <p className="mt-3 rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900">
-                Link copied!
-              </p>
-            ) : null}
-            <p className="mt-3 text-xs text-neutral-500">
-              Friends open this link, create a supporter account, and enter code{' '}
-              <span className="font-semibold text-ink">{supporterCode}</span> to connect.
-            </p>
-          </>
-        )}
-      </Card>
+        ) : null}
+      </div>
     </div>
   );
 }

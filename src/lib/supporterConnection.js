@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { createNotification } from './notificationsRepository';
 import { maybeLinkSupporterContactAfterLink } from './supporterContactLink';
 import { syncSupporterToContacts } from './supporterContactSync';
 
@@ -53,25 +54,41 @@ export async function lookupMissionaryBySupporterCode(rawCode) {
   }
   const rows = Array.isArray(data) ? data : data != null ? [data] : [];
   if (rows.length === 0 || !rows[0]?.id) {
-    const { data: candidates, error: profErr } = await supabase
+    const { data: prof, error: profErr } = await supabase
+      .from('profiles')
+      .select('id, full_name, organization, supporter_code')
+      .eq('role', 'missionary')
+      .eq('supporter_code', cleanCode)
+      .maybeSingle();
+
+    if (!profErr && prof?.id) {
+      return {
+        id: prof.id,
+        full_name: String(prof.full_name ?? ''),
+        organization: String(prof.organization ?? ''),
+        supporter_code: String(prof.supporter_code ?? cleanCode),
+      };
+    }
+
+    const { data: candidates, error: listErr } = await supabase
       .from('profiles')
       .select('id, full_name, organization, supporter_code')
       .eq('role', 'missionary')
       .not('supporter_code', 'is', null);
 
-    if (profErr) {
-      console.warn('profiles supporter_code lookup', profErr);
+    if (listErr) {
+      console.warn('profiles supporter_code lookup', listErr);
       return null;
     }
-    const prof = (candidates || []).find(
+    const match = (candidates || []).find(
       (p) => normalizeMissionaryInviteCode(p.supporter_code) === cleanCode,
     );
-    if (!prof?.id) return null;
+    if (!match?.id) return null;
     return {
-      id: prof.id,
-      full_name: String(prof.full_name ?? ''),
-      organization: String(prof.organization ?? ''),
-      supporter_code: String(prof.supporter_code ?? cleanCode),
+      id: match.id,
+      full_name: String(match.full_name ?? ''),
+      organization: String(match.organization ?? ''),
+      supporter_code: String(match.supporter_code ?? cleanCode),
     };
   }
   const missionary = rows[0];
@@ -96,10 +113,33 @@ async function loadSupporterProfileForContact(supporterUserId) {
 async function afterSupporterLinked(missionaryId, supporterUserId) {
   const p = await loadSupporterProfileForContact(supporterUserId);
   if (p) {
-    await syncSupporterToContacts(missionaryId, p);
+    const syncResult = await syncSupporterToContacts(missionaryId, p);
+    const syncPayload = syncResult?.result;
+    const notified =
+      syncPayload &&
+      typeof syncPayload === 'object' &&
+      (syncPayload.matched === true || syncPayload.created === true);
+    if (!notified) {
+      void createNotification(missionaryId, {
+        type: 'supporter_joined',
+        title: `${p.full_name || 'Someone'} joined as a supporter`,
+        body: 'They connected using your invite code.',
+      });
+    }
   } else {
     void maybeLinkSupporterContactAfterLink(missionaryId, supporterUserId);
   }
+}
+
+/**
+ * Link a signed-in supporter to a missionary by invite code (signup or reconnect).
+ * @returns {{ ok: true, missionary: object } | { ok: true, skipped: true } | { ok: false, error: string }}
+ */
+export async function connectWithCode(supporterUserId, inviteCode) {
+  if (!supabase || !supporterUserId) return { ok: false, error: 'Not signed in.' };
+  const normalized = normalizeMissionaryInviteCode(inviteCode);
+  if (!normalized) return { ok: false, error: 'Please enter your invite code.' };
+  return linkSupporterToMissionary(supporterUserId, normalized);
 }
 
 /** @deprecated use lookupMissionaryBySupporterCode */
@@ -179,7 +219,7 @@ export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed)
       if (rpc.skipped) return { ok: true, skipped: true };
       const m = rpc.missionary;
       if (m?.id) {
-        void afterSupporterLinked(m.id, supporterUserId);
+        await afterSupporterLinked(m.id, supporterUserId);
         return {
           ok: true,
           missionary: {
@@ -212,7 +252,7 @@ export async function linkSupporterToMissionary(supporterUserId, inviteCodeUsed)
     .eq('id', supporterUserId);
 
   if (error) return { ok: false, error: error.message };
-  void afterSupporterLinked(missionary.id, supporterUserId);
+  await afterSupporterLinked(missionary.id, supporterUserId);
   return {
     ok: true,
     missionary: {
@@ -271,7 +311,7 @@ export async function relinkSupporterToMissionary(supporterUserId, inviteCodeUse
     .eq('id', supporterUserId);
 
   if (error) return { ok: false, error: error.message };
-  void afterSupporterLinked(missionary.id, supporterUserId);
+  await afterSupporterLinked(missionary.id, supporterUserId);
   return {
     ok: true,
     missionary: {
