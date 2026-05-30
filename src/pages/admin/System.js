@@ -1,4 +1,4 @@
-const MIGRATION_COUNT = 40;
+const MIGRATION_COUNT = 41;
 
 function envConfigured() {
   return Boolean(process.env.REACT_APP_SUPABASE_URL && process.env.REACT_APP_SUPABASE_ANON_KEY);
@@ -13,10 +13,10 @@ export default function AdminSystem() {
 
   return (
     <div>
-      <header className="border-b border-[#222] bg-[#111] px-8 py-5 text-white">
-        <h1 className="font-display text-2xl tracking-wide">System</h1>
-        <p className="mt-1 text-sm text-[#888]">Settings and platform health</p>
-      </header>
+      <div style={{ background: '#111', padding: '14px 24px', position: 'sticky', top: 0, zIndex: 10 }}>
+        <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 28, color: '#fff', letterSpacing: 1 }}>System</div>
+        <div style={{ fontSize: 10, color: '#555', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>Settings and platform health</div>
+      </div>
       <div className="p-8">
         <div className="divide-y divide-[#EEEEEE] rounded-xl border border-[#EEEEEE] bg-white">
           <div className="flex items-center justify-between gap-4 px-5 py-4">

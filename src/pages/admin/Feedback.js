@@ -35,10 +35,10 @@ export default function AdminFeedback() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="border-b border-[#222] bg-[#111] px-8 py-5 text-white">
-        <h1 className="font-display text-[28px] leading-none tracking-wide">Feedback & Reports</h1>
-        <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-[#666]">User submitted</p>
-      </header>
+      <div style={{ background: '#111', padding: '14px 24px', position: 'sticky', top: 0, zIndex: 10 }}>
+        <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 28, color: '#fff', letterSpacing: 1 }}>Feedback & Reports</div>
+        <div style={{ fontSize: 10, color: '#555', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>User submitted</div>
+      </div>
 
       <div className="flex-1 overflow-y-auto px-8 py-5">
         <div className="mb-5 flex gap-2">
