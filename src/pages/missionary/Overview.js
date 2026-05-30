@@ -18,7 +18,7 @@ import MissionaryStats from './Stats';
 import { Button, Card, EmptyState, Input, Modal } from '../../components/ui';
 import { initialsFromDisplayName } from '../../lib/profileAppearance';
 import { computePartnerCurrencyTotals, formatAmount, normalizeCurrencyCode } from '../../lib/currencies';
-import { daysUntilFollowUp } from '../../lib/dateHelpers';
+import { computeDayOfMission, computeTotalMissionDays, daysUntilFollowUp } from '../../lib/dateHelpers';
 import { fetchMeetingsForMissionary } from '../../lib/meetingsRepository';
 import { formatMeetingDate, formatTime } from '../../lib/meetingDateUtils';
 import { normalizeStatusFromDb } from '../../lib/contactStatuses';
@@ -77,14 +77,6 @@ function localDateStr(d = new Date()) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
-}
-
-function computeDayOfMission(profile) {
-  const raw = profile?.mission_start_date || profile?.created_at;
-  if (!raw) return null;
-  const start = new Date(raw);
-  if (Number.isNaN(start.getTime())) return null;
-  return Math.max(1, Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 }
 
 function TaskCompleteCircle({ onComplete, variant, ariaLabel }) {
@@ -160,7 +152,7 @@ export default function MissionaryOverview() {
   const [todayOutreachCount, setTodayOutreachCount] = useState(0);
   const [todayOutreachLoading, setTodayOutreachLoading] = useState(true);
 
-  const dailyGoal = 16;
+  const dailyGoal = Number(profile?.daily_outreach_goal) || 16;
 
   const loadTodayOutreach = useCallback(async () => {
     if (!supabase || !user?.id) {
@@ -234,7 +226,8 @@ export default function MissionaryOverview() {
   const goal = Number(profile?.monthly_goal ?? state.missionary.profile.monthlyGoal ?? 0) || 0;
   const gap = Math.max(goal - homeCurrencyTotal, 0);
   const pct = goal > 0 ? Math.min(100, Math.round((homeCurrencyTotal / goal) * 100)) : 0;
-  const dayOfMission = computeDayOfMission(profile);
+  const dayOfMission = computeDayOfMission(profile?.mission_start_date);
+  const totalMissionDays = computeTotalMissionDays(profile?.mission_start_date, profile?.mission_end_date);
   const displayName = (profile?.full_name || '').trim() || 'Missionary';
   const orgLine = (profile?.organization || '').trim();
   const avatarInitials = initialsFromDisplayName(displayName);
@@ -356,7 +349,9 @@ export default function MissionaryOverview() {
             </div>
             <div className="min-w-0">
               {dayOfMission != null ? (
-                <p className="font-display text-[22px] leading-none text-accent-bright">DAY {dayOfMission}</p>
+                <p className="font-display text-[22px] leading-none text-accent-bright">
+                  {totalMissionDays != null ? `DAY ${dayOfMission} OF ${totalMissionDays}` : `DAY ${dayOfMission}`}
+                </p>
               ) : (
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#666]">Overview</p>
               )}

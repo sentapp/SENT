@@ -38,6 +38,29 @@ export function addDaysFromNow(n) {
   return localDateStr(d);
 }
 
+/** Inclusive mission day number (1 on start date), or null if missing/invalid. */
+export function computeDayOfMission(startDateStr) {
+  if (!startDateStr) return null;
+  const start = new Date(`${String(startDateStr).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(start.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  start.setHours(0, 0, 0, 0);
+  return Math.max(1, Math.floor((today - start) / (24 * 60 * 60 * 1000)) + 1);
+}
+
+/** Inclusive total mission days from start to end, or null if missing/invalid. */
+export function computeTotalMissionDays(startDateStr, endDateStr) {
+  if (!startDateStr || !endDateStr) return null;
+  const start = new Date(`${String(startDateStr).slice(0, 10)}T12:00:00`);
+  const end = new Date(`${String(endDateStr).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  if (end < start) return null;
+  return Math.floor((end - start) / (24 * 60 * 60 * 1000)) + 1;
+}
+
 /** Whole days until a follow-up date (negative if overdue). */
 export function daysUntilFollowUp(followUpDateStr) {
   if (!followUpDateStr) return Infinity;

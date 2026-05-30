@@ -15,6 +15,10 @@ import MissionaryPageShell from '../../components/MissionaryPageShell';
 import FeedbackSection from '../../components/FeedbackSection';
 import LocalPinSettingsSection from '../../components/LocalPinSettingsSection';
 import { CURRENCIES, getCurrencySymbol, normalizeCurrencyCode } from '../../lib/currencies';
+import { computeDayOfMission, computeTotalMissionDays } from '../../lib/dateHelpers';
+
+const DAILY_OUTREACH_PRESETS = [8, 12, 16, 20];
+const DEFAULT_DAILY_OUTREACH_GOAL = 16;
 
 function applyRowToForm(row, setters) {
   if (!row) return;
@@ -28,6 +32,9 @@ function applyRowToForm(row, setters) {
     setMonthlyGoal,
     setPartnerGoal,
     setHomeCurrency,
+    setMissionStartDate,
+    setMissionEndDate,
+    setDailyOutreachGoal,
   } = setters;
   setFullName(row.full_name || '');
   setOrganization(row.organization || '');
@@ -38,6 +45,9 @@ function applyRowToForm(row, setters) {
   setMonthlyGoal(Number(row.monthly_goal ?? 0) || 0);
   setPartnerGoal(Number(row.partner_goal ?? 0) || 0);
   setHomeCurrency(normalizeCurrencyCode(row.home_currency));
+  setMissionStartDate(row.mission_start_date || '');
+  setMissionEndDate(row.mission_end_date || '');
+  setDailyOutreachGoal(Number(row.daily_outreach_goal ?? DEFAULT_DAILY_OUTREACH_GOAL) || DEFAULT_DAILY_OUTREACH_GOAL);
 }
 
 /**
@@ -63,6 +73,9 @@ export default function MissionarySettings() {
   const [monthlyGoal, setMonthlyGoal] = useState(0);
   const [partnerGoal, setPartnerGoal] = useState(0);
   const [homeCurrency, setHomeCurrency] = useState('USD');
+  const [missionStartDate, setMissionStartDate] = useState('');
+  const [missionEndDate, setMissionEndDate] = useState('');
+  const [dailyOutreachGoal, setDailyOutreachGoal] = useState(DEFAULT_DAILY_OUTREACH_GOAL);
 
   const [accentColor, setAccentColor] = useState(DEFAULT_PROFILE_ACCENT);
   const [locSaving, setLocSaving] = useState(false);
@@ -80,7 +93,14 @@ export default function MissionarySettings() {
     setMonthlyGoal,
     setPartnerGoal,
     setHomeCurrency,
+    setMissionStartDate,
+    setMissionEndDate,
+    setDailyOutreachGoal,
   };
+
+  const missionDayPreview = missionStartDate ? computeDayOfMission(missionStartDate) : null;
+  const missionTotalDaysPreview =
+    missionStartDate && missionEndDate ? computeTotalMissionDays(missionStartDate, missionEndDate) : null;
 
   useEffect(() => {
     let mounted = true;
@@ -221,6 +241,9 @@ export default function MissionarySettings() {
         partner_goal: partnerGoal,
         home_currency: normalizeCurrencyCode(homeCurrency),
         accent_color: normalizeProfileAccent(accentColor),
+        mission_start_date: missionStartDate || null,
+        mission_end_date: missionEndDate || null,
+        daily_outreach_goal: dailyOutreachGoal || DEFAULT_DAILY_OUTREACH_GOAL,
       };
 
       let { data: updated, error } = await supabase.from('profiles').update(payload).eq('id', user.id).select('*').maybeSingle();
@@ -411,6 +434,82 @@ export default function MissionarySettings() {
           <div className="mt-4 flex justify-end">
             <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
               Save currency
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <p className="text-sm font-semibold">Mission timeline</p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Sets the day counter on your overview and how long your mission runs.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Label title="Mission start date">
+              <Input
+                type="date"
+                value={missionStartDate}
+                onChange={(e) => setMissionStartDate(e.target.value)}
+              />
+              {missionDayPreview != null ? (
+                <p className="mt-2 text-xs font-medium text-neutral-600">Day {missionDayPreview} today</p>
+              ) : null}
+            </Label>
+            <Label title="Mission end date">
+              <Input
+                type="date"
+                value={missionEndDate}
+                min={missionStartDate || undefined}
+                onChange={(e) => setMissionEndDate(e.target.value)}
+              />
+              {missionTotalDaysPreview != null ? (
+                <p className="mt-2 text-xs font-medium text-neutral-600">
+                  {missionTotalDaysPreview} day{missionTotalDaysPreview === 1 ? '' : 's'} total
+                </p>
+              ) : null}
+            </Label>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
+              Save timeline
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <p className="text-sm font-semibold">Daily outreach goal</p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Target number of outreach touches to log each day on your overview.
+          </p>
+          <div className="mt-4 max-w-md">
+            <Label title="Contacts per day">
+              <Input
+                inputMode="numeric"
+                min={1}
+                value={dailyOutreachGoal}
+                onChange={(e) => setDailyOutreachGoal(Number(e.target.value || DEFAULT_DAILY_OUTREACH_GOAL))}
+                placeholder={String(DEFAULT_DAILY_OUTREACH_GOAL)}
+              />
+            </Label>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {DAILY_OUTREACH_PRESETS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`rounded-btn border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    dailyOutreachGoal === n
+                      ? 'border-ink bg-ink text-white'
+                      : 'border-neutral-200 bg-white text-ink hover:bg-neutral-50'
+                  }`}
+                  onClick={() => setDailyOutreachGoal(n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
+              Save outreach goal
             </Button>
           </div>
         </Card>
