@@ -109,6 +109,13 @@ export default function NotificationBell() {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   }, [user?.id]);
 
+  const clearAll = useCallback(async () => {
+    if (!supabase || !user?.id) return;
+    await supabase.from('notifications').delete().eq('missionary_id', user.id);
+    setNotifications([]);
+    setOpen(false);
+  }, [user?.id]);
+
   useEffect(() => {
     if (!supabase || !user?.id) return undefined;
     loadNotifications();
@@ -181,14 +188,27 @@ export default function NotificationBell() {
         >
           <div className="flex items-center justify-between border-b border-[#EEEEEE] px-3.5 py-2.5">
             <span className="text-[13px] font-medium text-[#111]">Notifications</span>
-            {unread > 0 ? (
-              <button
-                type="button"
-                onClick={() => void markAllRead()}
-                className="cursor-pointer border-0 bg-transparent text-[10px] text-[#888]"
-              >
-                Mark all read
-              </button>
+            {unread > 0 || notifications.length > 0 ? (
+              <div className="flex gap-2">
+                {unread > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void markAllRead()}
+                    className="cursor-pointer border-0 bg-transparent text-[10px] text-[#888]"
+                  >
+                    Mark all read
+                  </button>
+                ) : null}
+                {notifications.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void clearAll()}
+                    className="cursor-pointer border-0 bg-transparent text-[10px] text-[#888]"
+                  >
+                    Clear all
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </div>
           <div className="max-h-[340px] overflow-y-auto">
