@@ -111,43 +111,21 @@ export default function NotificationBell() {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   }, [user?.id]);
 
-  const markOneRead = useCallback(async (notifId) => {
-    if (!supabase || !notifId) return;
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notifId ? { ...n, is_read: true } : n)),
-    );
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', notifId);
-    if (error) console.warn('markOneRead', error);
-  }, []);
+  const markOneRead = useCallback(async (id) => {
+    if (!supabase || !user?.id) return;
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+  }, [user?.id]);
 
-  const handleNotifClick = useCallback(
-    (n) => {
-      if (!n.is_read) void markOneRead(n.id);
-      setOpen(false);
-      const t = String(n.type || '');
-      if (t.includes('blast')) return;
-      if (t.includes('supporter')) {
-        navigate('/missionary/contacts');
-        return;
-      }
-      if (t.includes('prayer')) {
-        navigate('/missionary/overview');
-        return;
-      }
-      if (t.includes('meeting')) {
-        navigate('/missionary/meetings');
-        return;
-      }
-      if (t.includes('comment')) {
-        navigate('/missionary/updates');
-        return;
-      }
-    },
-    [markOneRead, navigate],
-  );
+  function handleNotifClick(n) {
+    if (!n.is_read) void markOneRead(n.id);
+    setOpen(false);
+    const t = String(n.type || '');
+    if (t.includes('supporter')) navigate('/missionary/contacts');
+    else if (t.includes('prayer')) navigate('/missionary/overview');
+    else if (t.includes('meeting')) navigate('/missionary/meetings');
+    else if (t.includes('comment')) navigate('/missionary/updates');
+  }
 
   const clearAll = useCallback(async () => {
     if (!supabase || !user?.id) return;
@@ -179,11 +157,11 @@ export default function NotificationBell() {
     function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     }
-    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('click', handleClick);
 
     return () => {
       supabase.removeChannel(channel);
-      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('click', handleClick);
     };
   }, [user?.id, loadNotifications]);
 
@@ -259,7 +237,7 @@ export default function NotificationBell() {
                 <div
                   key={n.id}
                   onClick={() => handleNotifClick(n)}
-                  className={`cursor-pointer border-b border-[#F5F5F5] px-3.5 py-2.5 ${n.is_read ? 'bg-white' : 'bg-[#F8FDF9]'}`}
+                  className={`border-b border-[#F5F5F5] px-3.5 py-2.5 cursor-pointer hover:bg-[#F5F5F5] ${n.is_read ? 'bg-white' : 'bg-[#F8FDF9]'}`}
                 >
                   <div className="flex items-start gap-2">
                     <div
