@@ -55,7 +55,7 @@ function accountMatchesContact(account, contact) {
   const cEmail = normMatchKey(contact.email);
   const cName = normMatchKey(contact.fullName);
   if (accEmail && cEmail && accEmail === cEmail) return true;
-  if (accName && cName && accName === cName) return true;
+  if (accName && cName && (accName.startsWith(cName) || cName.startsWith(accName))) return true;
   return false;
 }
 
@@ -132,8 +132,9 @@ export default function MissionaryStats({ embedded = false }) {
     (async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email, role')
-        .eq('connected_missionary_id', user.id);
+        .select('id, full_name, email, role, connected_missionary_id')
+        .eq('connected_missionary_id', user.id)
+        .eq('role', 'supporter');
 
       if (cancelled) return;
 
@@ -145,7 +146,7 @@ export default function MissionaryStats({ embedded = false }) {
         return;
       }
 
-      const accounts = (data || []).filter((row) => row?.role === 'supporter');
+      const accounts = data || [];
       setSupporterAccounts(accounts);
 
       const matchedContacts = contacts.filter((c) =>
