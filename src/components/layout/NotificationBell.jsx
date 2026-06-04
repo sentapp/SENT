@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../auth/AuthContext';
 import {
@@ -91,6 +92,7 @@ function formatNotifDate(iso) {
 
 export default function NotificationBell() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
@@ -108,6 +110,44 @@ export default function NotificationBell() {
     await markAllNotificationsRead(supabase, user.id);
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   }, [user?.id]);
+
+  const markOneRead = useCallback(async (notifId) => {
+    if (!supabase || !notifId) return;
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notifId ? { ...n, is_read: true } : n)),
+    );
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notifId);
+    if (error) console.warn('markOneRead', error);
+  }, []);
+
+  const handleNotifClick = useCallback(
+    (n) => {
+      if (!n.is_read) void markOneRead(n.id);
+      setOpen(false);
+      const t = String(n.type || '');
+      if (t.includes('blast')) return;
+      if (t.includes('supporter')) {
+        navigate('/missionary/contacts');
+        return;
+      }
+      if (t.includes('prayer')) {
+        navigate('/missionary/overview');
+        return;
+      }
+      if (t.includes('meeting')) {
+        navigate('/missionary/meetings');
+        return;
+      }
+      if (t.includes('comment')) {
+        navigate('/missionary/updates');
+        return;
+      }
+    },
+    [markOneRead, navigate],
+  );
 
   const clearAll = useCallback(async () => {
     if (!supabase || !user?.id) return;
@@ -218,7 +258,8 @@ export default function NotificationBell() {
               notifications.map((n) => (
                 <div
                   key={n.id}
-                  className={`border-b border-[#F5F5F5] px-3.5 py-2.5 ${n.is_read ? 'bg-white' : 'bg-[#F8FDF9]'}`}
+                  onClick={() => handleNotifClick(n)}
+                  className={`cursor-pointer border-b border-[#F5F5F5] px-3.5 py-2.5 ${n.is_read ? 'bg-white' : 'bg-[#F8FDF9]'}`}
                 >
                   <div className="flex items-start gap-2">
                     <div
