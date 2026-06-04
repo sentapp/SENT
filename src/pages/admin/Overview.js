@@ -15,7 +15,7 @@ export default function AdminOverview() {
         { data: feedback, error: feedbackError },
         { data: notifications, error: notifError },
       ] = await Promise.all([
-        supabase.from('profiles').select('id, role, connected_missionary_id, monthly_amount, goal_amount'),
+        supabase.from('profiles').select('id, role, connected_missionary_id, monthly_goal, partner_goal'),
         supabase.from('feedback').select('id, message, created_at').order('created_at', { ascending: false }).limit(5),
         supabase.from('notifications').select('id, type, title, created_at').order('created_at', { ascending: false }).limit(6),
       ]);
@@ -27,7 +27,7 @@ export default function AdminOverview() {
       const missionaries = (profiles || []).filter((p) => p.role === 'missionary');
       const supporters = (profiles || []).filter((p) => p.role === 'supporter');
       const connected = supporters.filter((p) => p.connected_missionary_id);
-      const totalRaised = missionaries.reduce((sum, m) => sum + (m.monthly_amount || 0), 0);
+      const totalRaised = missionaries.reduce((sum, m) => sum + (m.monthly_goal || 0), 0);
       const ratio = missionaries.length > 0 ? (supporters.length / missionaries.length).toFixed(1) : '—';
 
       setStats({
@@ -135,9 +135,9 @@ function MissionaryFundingCard() {
   useEffect(() => {
     supabase
       .from('profiles')
-      .select('id, full_name, monthly_amount, goal_amount, organization')
+      .select('id, full_name, monthly_goal, partner_goal, organization')
       .eq('role', 'missionary')
-      .order('monthly_amount', { ascending: false })
+      .order('monthly_goal', { ascending: false })
       .then(({ data }) => setMissionaries(data || []));
   }, []);
 
@@ -146,7 +146,7 @@ function MissionaryFundingCard() {
       {missionaries.length === 0 ? (
         <div style={{ padding: '16px 14px', fontSize: 12, color: '#BBB', textAlign: 'center' }}>No missionaries yet</div>
       ) : missionaries.map((m) => {
-        const pct = m.goal_amount > 0 ? Math.min(Math.round((m.monthly_amount / m.goal_amount) * 100), 100) : 0;
+        const pct = m.partner_goal > 0 ? Math.min(Math.round((m.monthly_goal / m.partner_goal) * 100), 100) : 0;
         const initials = m.full_name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || '?';
         return (
           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '0.5px solid #F5F5F5' }}>
@@ -156,7 +156,7 @@ function MissionaryFundingCard() {
               <div style={{ height: 3, background: '#EEEEEE', borderRadius: 2, marginTop: 4 }}>
                 <div style={{ height: '100%', width: `${pct}%`, background: pct >= 80 ? '#2A9A58' : pct >= 50 ? '#D4A017' : '#E05050', borderRadius: 2 }} />
               </div>
-              <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>${(m.monthly_amount || 0).toLocaleString()} · {pct}% funded</div>
+              <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>${(m.monthly_goal || 0).toLocaleString()} · {pct}% funded</div>
             </div>
           </div>
         );

@@ -5,8 +5,8 @@ import { formatAmount } from '../../lib/currencies';
 function MissionaryDrawer({ missionary, onClose }) {
   if (!missionary) return null;
 
-  const funded = missionary.goal_amount > 0
-    ? Math.round((missionary.monthly_amount / missionary.goal_amount) * 100)
+  const funded = missionary.partner_goal > 0
+    ? Math.round((missionary.monthly_goal / missionary.partner_goal) * 100)
     : 0;
 
   return (
@@ -31,7 +31,7 @@ function MissionaryDrawer({ missionary, onClose }) {
             <div className="h-1.5 rounded-full bg-[#4CAF7D]" style={{ width: `${Math.min(funded, 100)}%` }} />
           </div>
           <p className="mt-1 text-xs text-[#888]">
-            {formatAmount(missionary.monthly_amount || 0, 'USD')} / {formatAmount(missionary.goal_amount || 0, 'USD')} goal
+            {formatAmount(missionary.monthly_goal || 0, 'USD')} / {formatAmount(missionary.partner_goal || 0, 'USD')} goal
           </p>
         </div>
         <div>
@@ -57,7 +57,7 @@ export default function AdminMissionaries() {
     async function load() {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name, organization, location_name, monthly_amount, goal_amount, supporter_code, home_currency')
+        .select('id, full_name, organization, location_name, monthly_goal, partner_goal, supporter_code, home_currency')
         .eq('role', 'missionary')
         .order('full_name');
 
@@ -114,7 +114,7 @@ export default function AdminMissionaries() {
                 </thead>
                 <tbody className="divide-y divide-[#EEEEEE]">
                   {filtered.map((m) => {
-                    const funded = m.goal_amount > 0 ? Math.round((m.monthly_amount / m.goal_amount) * 100) : 0;
+                    const funded = m.partner_goal > 0 ? Math.round((m.monthly_goal / m.partner_goal) * 100) : 0;
                     return (
                       <tr
                         key={m.id}
