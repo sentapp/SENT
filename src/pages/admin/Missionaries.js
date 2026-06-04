@@ -82,6 +82,9 @@ export default function AdminMissionaries() {
         )
       );
 
+      console.log('Missionaries:', profiles.map(p => ({ id: p.id, name: p.full_name, goal: p.monthly_goal })));
+      console.log('Raised:', raised.map((r, i) => ({ name: profiles[i].full_name, data: r.data, error: r.error, total: (r.data || []).reduce((sum, c) => sum + (Number(c.monthly_amount) || 0), 0) })));
+
       const enriched = profiles.map((p, i) => ({
         ...p,
         monthly_amount: (raised[i].data || []).reduce((sum, c) => sum + (Number(c.monthly_amount) || 0), 0),
