@@ -11,14 +11,18 @@ export default function AdminOverview() {
   useEffect(() => {
     async function load() {
       const [
-        { data: profiles },
-        { data: feedback },
-        { data: notifications },
+        { data: profiles, error: profilesError },
+        { data: feedback, error: feedbackError },
+        { data: notifications, error: notifError },
       ] = await Promise.all([
         supabase.from('profiles').select('id, role, connected_missionary_id, monthly_amount, goal_amount'),
         supabase.from('feedback').select('id, message, created_at').order('created_at', { ascending: false }).limit(5),
         supabase.from('notifications').select('id, type, title, created_at').order('created_at', { ascending: false }).limit(6),
       ]);
+
+      if (profilesError) console.error('Admin profiles query error:', profilesError);
+      if (feedbackError) console.error('Admin feedback query error:', feedbackError);
+      if (notifError) console.error('Admin notifications query error:', notifError);
 
       const missionaries = (profiles || []).filter((p) => p.role === 'missionary');
       const supporters = (profiles || []).filter((p) => p.role === 'supporter');
