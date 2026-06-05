@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createMeeting } from '../../lib/meetingsRepository';
+import { createMeeting, updateMeeting } from '../../lib/meetingsRepository';
 import { todayStr } from '../../lib/meetingDateUtils';
 import { Button, Input, Modal } from '../ui';
 
@@ -12,8 +12,13 @@ export default function AddMeetingModal({
   initialContactId = '',
   initialContactName = '',
   initialDate = '',
+  initialTime = '',
+  initialType = 'initial',
+  initialNotes = '',
+  meetingId = null,
   onSaved,
 }) {
+  const isEdit = Boolean(meetingId);
   const [addContactId, setAddContactId] = useState('');
   const [addContactQuery, setAddContactQuery] = useState('');
   const [addDate, setAddDate] = useState(todayStr());
@@ -28,11 +33,19 @@ export default function AddMeetingModal({
     setAddContactId(initialContactId || '');
     setAddContactQuery(initialContactName || '');
     setAddDate(initialDate || todayStr());
-    setAddTime('');
-    setAddType('initial');
-    setAddNotes('');
+    setAddTime(initialTime || '');
+    setAddType(initialType === 'followup' ? 'followup' : 'initial');
+    setAddNotes(initialNotes || '');
     setAddError('');
-  }, [open, initialContactId, initialContactName, initialDate]);
+  }, [
+    open,
+    initialContactId,
+    initialContactName,
+    initialDate,
+    initialTime,
+    initialType,
+    initialNotes,
+  ]);
 
   const contactPickList = useMemo(() => {
     const q = addContactQuery.trim().toLowerCase();
@@ -74,7 +87,7 @@ export default function AddMeetingModal({
     const contactName = contact?.fullName || addContactQuery.trim() || 'Meeting';
 
     setAddSaving(true);
-    const res = await createMeeting(supabase, {
+    const payload = {
       missionaryId,
       contactId: addContactId || null,
       contactName,
@@ -82,7 +95,10 @@ export default function AddMeetingModal({
       meetingTime: addTime || null,
       meetingType: addType,
       notes: addNotes,
-    });
+    };
+    const res = isEdit
+      ? await updateMeeting(supabase, meetingId, payload)
+      : await createMeeting(supabase, payload);
     setAddSaving(false);
     if (!res.ok) {
       setAddError(res.error || 'Could not save.');
@@ -96,7 +112,7 @@ export default function AddMeetingModal({
   return (
     <Modal
       open={open}
-      title="Add meeting"
+      title={isEdit ? 'Edit meeting' : 'Add meeting'}
       onClose={handleClose}
       footer={
         <div className="flex justify-end gap-2">

@@ -74,7 +74,17 @@ export default function MissionaryMeetings() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('calendar');
   const [showAdd, setShowAdd] = useState(false);
-  const [addPrefill, setAddPrefill] = useState({ contactId: '', contactName: '', date: '' });
+  const [editingMeetingId, setEditingMeetingId] = useState(null);
+  const [addPrefill, setAddPrefill] = useState({
+    contactId: '',
+    contactName: '',
+    date: '',
+    time: '',
+    type: 'initial',
+    notes: '',
+  });
+  const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const [currentMonthDate, setCurrentMonthDate] = useState(() => {
     const now = new Date();
@@ -117,10 +127,14 @@ export default function MissionaryMeetings() {
     const contactId = searchParams.get('contact');
     if (add === '1') {
       const c = contactId ? contacts.find((x) => String(x.id) === String(contactId)) : null;
+      setEditingMeetingId(null);
       setAddPrefill({
         contactId: contactId || '',
         contactName: c?.fullName || '',
         date: todayStr(),
+        time: '',
+        type: 'initial',
+        notes: '',
       });
       setShowAdd(true);
       setSearchParams(
@@ -172,8 +186,37 @@ export default function MissionaryMeetings() {
   };
 
   const closeDetail = () => {
-    if (outcomeSaving) return;
+    if (outcomeSaving || deleteBusy) return;
     setDetailMeeting(null);
+    setOutcome('');
+    setOutcomeNotes('');
+    setOutcomeError('');
+    setCancelConfirm(false);
+  };
+
+  const openEditMeeting = () => {
+    if (!detailMeeting) return;
+    setAddPrefill({
+      contactId: detailMeeting.contactId || '',
+      contactName: detailMeeting.contactName || '',
+      date: detailMeeting.meetingDate || todayStr(),
+      time: detailMeeting.meetingTime || '',
+      type: detailMeeting.meetingType || 'initial',
+      notes: detailMeeting.notes || '',
+    });
+    setEditingMeetingId(detailMeeting.id);
+    setShowAdd(true);
+  };
+
+  const handleConfirmCancelMeeting = async () => {
+    if (!detailMeeting?.id || !supabase) return;
+    setDeleteBusy(true);
+    const { error } = await supabase.from('meetings').delete().eq('id', detailMeeting.id);
+    setDeleteBusy(false);
+    if (error) return;
+    setMeetings((prev) => prev.filter((m) => m.id !== detailMeeting.id));
+    setDetailMeeting(null);
+    setCancelConfirm(false);
     setOutcome('');
     setOutcomeNotes('');
     setOutcomeError('');
@@ -251,7 +294,15 @@ export default function MissionaryMeetings() {
           <button
             type="button"
             onClick={() => {
-              setAddPrefill({ contactId: '', contactName: '', date: todayStr() });
+              setEditingMeetingId(null);
+              setAddPrefill({
+                contactId: '',
+                contactName: '',
+                date: todayStr(),
+                time: '',
+                type: 'initial',
+                notes: '',
+              });
               setShowAdd(true);
             }}
             className="rounded-full border-0 bg-green px-3.5 py-1.5 text-[11px] font-medium text-white hover:bg-green/90"
@@ -352,7 +403,15 @@ export default function MissionaryMeetings() {
                   onClick={() => {
                     if (dayMeetings.length === 1) openMeeting(dayMeetings[0]);
                     else if (dayMeetings.length === 0) {
-                      setAddPrefill({ contactId: '', contactName: '', date: dateStr });
+                      setEditingMeetingId(null);
+                      setAddPrefill({
+                        contactId: '',
+                        contactName: '',
+                        date: dateStr,
+                        time: '',
+                        type: 'initial',
+                        notes: '',
+                      });
                       setShowAdd(true);
                     }
                   }}
@@ -435,14 +494,24 @@ export default function MissionaryMeetings() {
 
       <AddMeetingModal
         open={showAdd}
-        onClose={() => setShowAdd(false)}
+        onClose={() => {
+          setShowAdd(false);
+          setEditingMeetingId(null);
+        }}
         supabase={supabase}
         missionaryId={user?.id}
         contacts={contacts}
+        meetingId={editingMeetingId}
         initialContactId={addPrefill.contactId}
         initialContactName={addPrefill.contactName}
         initialDate={addPrefill.date}
-        onSaved={() => void loadMeetings()}
+        initialTime={addPrefill.time}
+        initialType={addPrefill.type}
+        initialNotes={addPrefill.notes}
+        onSaved={() => {
+          void loadMeetings();
+          if (editingMeetingId) closeDetail();
+        }}
       />
 
       <Modal
@@ -450,15 +519,51 @@ export default function MissionaryMeetings() {
         title={detailMeeting?.contactName || 'Meeting'}
         onClose={closeDetail}
         footer={
-          detailMeeting?.isComplete ? (
-            <div className="flex justify-end">
+          cancelConfirm ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium text-ink">Cancel this meeting?</p>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="secondary"
+                  type="button"
+                  disabled={deleteBusy}
+                  onClick={() => setCancelConfirm(false)}
+                >
+                  Go back
+                </Button>
+                <Button
+                  variant="danger"
+                  type="button"
+                  disabled={deleteBusy}
+                  onClick={() => void handleConfirmCancelMeeting()}
+                >
+                  {deleteBusy ? 'Canceling…' : 'Confirm'}
+                </Button>
+              </div>
+            </div>
+          ) : detailMeeting?.isComplete ? (
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" type="button" onClick={openEditMeeting}>
+                Edit
+              </Button>
+              <Button variant="danger" type="button" onClick={() => setCancelConfirm(true)}>
+                Cancel
+              </Button>
               <Button variant="secondary" type="button" onClick={closeDetail}>
                 Close
               </Button>
             </div>
           ) : (
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" type="button" disabled={outcomeSaving} onClick={closeDetail}>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" type="button" disabled={outcomeSaving} onClick={openEditMeeting}>
+                Edit
+              </Button>
+              <Button
+                variant="danger"
+                type="button"
+                disabled={outcomeSaving}
+                onClick={() => setCancelConfirm(true)}
+              >
                 Cancel
               </Button>
               <Button type="button" disabled={outcomeSaving} onClick={() => void handleSaveOutcome()}>

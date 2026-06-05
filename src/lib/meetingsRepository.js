@@ -67,6 +67,31 @@ export async function createMeeting(supabaseClient, payload) {
   return { ok: true, meeting: mapMeetingRow(data) };
 }
 
+export async function updateMeeting(supabaseClient, id, payload) {
+  const {
+    contactId,
+    contactName,
+    meetingDate,
+    meetingTime,
+    meetingType,
+    notes,
+  } = payload;
+
+  const row = {};
+  if (contactId !== undefined) row.contact_id = contactId || null;
+  if (contactName !== undefined) row.contact_name = String(contactName ?? '').trim() || 'Meeting';
+  if (meetingDate !== undefined) row.meeting_date = String(meetingDate).slice(0, 10);
+  if (meetingTime !== undefined) {
+    row.meeting_time = meetingTime && String(meetingTime).trim() ? String(meetingTime).trim() : null;
+  }
+  if (meetingType !== undefined) row.meeting_type = meetingType === 'followup' ? 'followup' : 'initial';
+  if (notes !== undefined) row.notes = notes != null && String(notes).trim() ? String(notes).trim() : null;
+
+  const { error } = await supabaseClient.from('meetings').update(row).eq('id', id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseClient
  * @param {{
