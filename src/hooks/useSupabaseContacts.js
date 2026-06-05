@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useContactDrawer } from '../context/ContactDrawerContext';
 import { supabase } from '../lib/supabaseClient';
 import { normalizeCategoryForSave, normalizeCategoryFromDb } from '../lib/contactCategories';
 import { safeCategoryValue } from '../lib/safeCategory';
@@ -179,6 +180,7 @@ function toRow(payload, missionaryId) {
  */
 export function useSupabaseContacts(authUserId, options = {}) {
   const { authLoading = false } = options;
+  const { subscribeContactPatch, broadcastContactPatch } = useContactDrawer();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -330,6 +332,14 @@ export function useSupabaseContacts(authUserId, options = {}) {
     refetch();
   }, [refetch, authUserId, authLoading]);
 
+  useEffect(() => {
+    return subscribeContactPatch((id, partial) => {
+      setContacts((prev) =>
+        prev.map((c) => (String(c.id) === String(id) ? { ...c, ...partial } : c)),
+      );
+    });
+  }, [subscribeContactPatch]);
+
   const insertContact = useCallback(
     async (payload) => {
       if (!supabase) return { ok: false, error: 'Not signed in.' };
@@ -358,6 +368,15 @@ export function useSupabaseContacts(authUserId, options = {}) {
     [refetch, schemaPartial, authUserId],
   );
 
+  const patchContactInList = useCallback(
+    (id, partial) => {
+      if (id == null || partial == null) return;
+      setContacts((prev) => prev.map((c) => (String(c.id) === String(id) ? { ...c, ...partial } : c)));
+      broadcastContactPatch(id, partial);
+    },
+    [broadcastContactPatch],
+  );
+
   const updateContact = useCallback(
     async (id, payload) => {
       if (!supabase || !id) return { ok: false, error: 'Missing id.' };
@@ -372,16 +391,11 @@ export function useSupabaseContacts(authUserId, options = {}) {
         .eq('id', id)
         .eq('missionary_id', missionaryId);
       if (upErr) return { ok: false, error: upErr.message };
-      await refetch();
+      patchContactInList(id, payload);
       return { ok: true };
     },
-    [refetch, schemaPartial, authUserId],
+    [schemaPartial, authUserId, patchContactInList],
   );
-
-  const patchContactInList = useCallback((id, partial) => {
-    if (id == null || partial == null) return;
-    setContacts((prev) => prev.map((c) => (String(c.id) === String(id) ? { ...c, ...partial } : c)));
-  }, []);
 
   const saveQuickTag = useCallback(
     async (contact, field, value) => {
@@ -393,10 +407,9 @@ export function useSupabaseContacts(authUserId, options = {}) {
         if (import.meta.env.DEV) console.error('[contacts] saveQuickTag failed:', res.error);
         return res;
       }
-      await refetch();
       return { ok: true };
     },
-    [refetch, authUserId],
+    [authUserId],
   );
 
   const deleteContact = useCallback(

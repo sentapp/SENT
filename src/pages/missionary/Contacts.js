@@ -937,7 +937,6 @@ export default function MissionaryContacts() {
         setSaveError(res.error || 'Could not save.');
         return;
       }
-      await refetch();
       setModalOpen(false);
       restoreListScroll();
       setContactSaveSuccess('Contact saved');

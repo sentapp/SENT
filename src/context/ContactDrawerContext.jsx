@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { mapTaskRow } from '../lib/tasksRepository';
@@ -14,6 +14,21 @@ export function ContactDrawerProvider({ children }) {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [activityLogsRefreshKey, setActivityLogsRefreshKey] = useState(0);
   const [contactListDataKey, setContactListDataKey] = useState(0);
+  const contactPatchListenersRef = useRef(new Set());
+
+  const subscribeContactPatch = useCallback((listener) => {
+    contactPatchListenersRef.current.add(listener);
+    return () => {
+      contactPatchListenersRef.current.delete(listener);
+    };
+  }, []);
+
+  const broadcastContactPatch = useCallback((id, partial) => {
+    if (id == null || partial == null) return;
+    for (const listener of contactPatchListenersRef.current) {
+      listener(id, partial);
+    }
+  }, []);
 
   const openDrawer = useCallback((contact) => {
     if (!contact) return;
@@ -109,6 +124,8 @@ export function ContactDrawerProvider({ children }) {
       refreshLogsAndTasks,
       contactListDataKey,
       bumpContactListData,
+      subscribeContactPatch,
+      broadcastContactPatch,
     }),
     [
       openContact,
@@ -123,6 +140,8 @@ export function ContactDrawerProvider({ children }) {
       refreshLogsAndTasks,
       contactListDataKey,
       bumpContactListData,
+      subscribeContactPatch,
+      broadcastContactPatch,
     ],
   );
 

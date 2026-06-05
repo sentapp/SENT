@@ -28,7 +28,7 @@ export default function GlobalContactDrawer() {
     bumpContactListData,
   } = useContactDrawer();
 
-  const { contacts, refetch, saveQuickTag, patchContactInList } = useSupabaseContacts(user?.id, {
+  const { contacts, refetch, saveQuickTag, updateContact, patchContactInList } = useSupabaseContacts(user?.id, {
     authLoading,
   });
 
@@ -170,8 +170,8 @@ export default function GlobalContactDrawer() {
         tasksLoading={tasksLoading}
         onRefreshLogsAndTasks={refreshLogsAndTasks}
         saveQuickTag={saveQuickTag}
+        updateContact={updateContact}
         patchContactInList={patchContactInList}
-        onAfterQuickTagSave={() => void refetch()}
         onPatchContact={patchOpenContact}
         openEditForm={openEditForm}
         onViewInPartners={handleViewInPartners}

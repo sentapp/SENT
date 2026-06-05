@@ -101,6 +101,7 @@ function previewNotes(text, max = 140) {
  *   contact: Record<string, unknown> | null,
  *   onClose: () => void,
  *   saveQuickTag?: (contact: Record<string, unknown>, field: string, value: string) => Promise<{ ok?: boolean }>,
+ *   updateContact?: (id: string, payload: Record<string, unknown>) => Promise<{ ok?: boolean, error?: string }>,
  *   patchContactInList?: (id: string, partial: Record<string, unknown>) => void,
  *   onAfterQuickTagSave?: () => void,
  *   onPatchContact?: (next: Record<string, unknown>) => void,
@@ -125,6 +126,7 @@ export function ContactSideDrawer({
   contact,
   onClose,
   saveQuickTag,
+  updateContact,
   patchContactInList,
   onAfterQuickTagSave,
   onPatchContact,
@@ -417,11 +419,12 @@ export function ContactSideDrawer({
               ✕
             </button>
           </div>
-          {saveQuickTag ? (
+          {saveQuickTag || updateContact ? (
             <div className="mt-3 border-t border-[#EEEEEE]/80 pt-3" onClick={(e) => e.stopPropagation()}>
               <ContactThreeQuickTagRows
                 contact={contact}
                 saveQuickTag={saveQuickTag}
+                updateContact={updateContact}
                 patchContactInList={patchContactInList}
                 onPatchContact={onPatchContact}
                 onAfterSave={onAfterQuickTagSave}
