@@ -37,7 +37,6 @@ import {
   CONTACT_STATUS_FILTER_OPTIONS,
   normalizeStatusForSave,
   normalizeStatusFromDb,
-  statusLabel,
 } from '../../lib/contactStatuses';
 import { normalizeRelationshipForSave, RELATIONSHIP_TAG_OPTIONS } from '../../lib/contactRelationships';
 import { daysSince } from '../../lib/dateHelpers';
@@ -54,24 +53,6 @@ import { Button, EmptyState, Input, LoadingSpinner, Modal } from '../../componen
 import DarkPageHeader from '../../components/DarkPageHeader';
 import MissionaryPageShell from '../../components/MissionaryPageShell';
 import ContactEditFormLayout from './ContactEditFormLayout';
-
-/** Pipeline strip: active outreach stages, excluding monthly supporters (shown under Partners). */
-const PIPELINE_STRIP_VISIBLE_STATUSES = ['contacted', 'meeting_scheduled', 'committed'];
-const PIPELINE_STRIP_SET = new Set(PIPELINE_STRIP_VISIBLE_STATUSES);
-function isPipelineStripContact(c) {
-  const st = normalizeStatusFromDb(c.status);
-  return PIPELINE_STRIP_SET.has(st) && normalizeCategory(c.category) !== 'supporter';
-}
-const STRIP_DOT = {
-  contacted: 'var(--accent)',
-  meeting_scheduled: '#C17A00',
-  committed: '#6040B0',
-};
-const STRIP_STAGE_LABEL = {
-  contacted: 'Contacted',
-  meeting_scheduled: 'Meeting',
-  committed: 'Committed',
-};
 
 const FILTERS = CONTACT_CATEGORY_FILTER_TABS;
 const VALID_CONTACT_FILTER_VALUES = new Set(FILTERS.map((f) => f.value));
@@ -1015,14 +996,6 @@ export default function MissionaryContacts() {
     filters,
   ]);
 
-  const pipelineStripContacts = useMemo(
-    () =>
-      contacts
-        .filter(isPipelineStripContact)
-        .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', undefined, { sensitivity: 'base' })),
-    [contacts],
-  );
-
   const enterSelectMode = () => {
     setSelectMode(true);
     setSelectedIds(new Set());
@@ -1436,45 +1409,6 @@ export default function MissionaryContacts() {
         ref={listRef}
         className="flex flex-col gap-4"
       >
-        {!loading && contacts.length > 0 && pipelineStripContacts.length > 0 ? (
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-mission-muted">Pipeline</p>
-            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 pt-0.5 [-webkit-overflow-scrolling:touch]">
-              {pipelineStripContacts.map((c) => {
-                const st = normalizeStatusFromDb(c.status);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => handleOpenContact(c)}
-                    className="w-[min(200px,72vw)] shrink-0 cursor-pointer rounded-card border border-mission-line bg-white p-3 text-left shadow-none transition-colors hover:border-green/30 hover:bg-surface"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: STRIP_DOT[st] || '#78716c' }}
-                        aria-hidden
-                      />
-                      <span className="truncate text-[10px] font-bold uppercase tracking-wide text-mission-muted">
-                        {STRIP_STAGE_LABEL[st] || statusLabel(c.status)}
-                      </span>
-                    </div>
-                    <p className="mt-1 truncate text-sm font-semibold text-ink">{c.fullName || 'Unnamed'}</p>
-                    <p className="mt-0.5 truncate text-xs text-neutral-600">{formatPhone(c.phone) || '—'}</p>
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={openAdd}
-                className="flex min-w-[100px] shrink-0 flex-col items-center justify-center rounded-card border border-dashed border-mission-line bg-[color:var(--color-bg)] px-4 py-3 text-sm font-semibold text-accent shadow-none"
-              >
-                + Add
-              </button>
-            </div>
-          </div>
-        ) : null}
-
         {loading ? (
           <p className="text-center text-sm text-neutral-500">Loading contacts…</p>
         ) : showEmpty ? (
