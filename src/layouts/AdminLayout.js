@@ -26,9 +26,9 @@ export default function AdminLayout() {
             <NavLink key={item.path} to={item.path} end={item.path === '/admin'}
               style={({ isActive }) => ({
                 display: 'flex', alignItems: 'center', padding: '9px 20px', fontSize: 13,
-                color: isActive ? '#4CAF7D' : '#666',
-                background: isActive ? 'rgba(74,207,125,0.08)' : 'transparent',
-                borderLeft: isActive ? '2px solid #4CAF7D' : '2px solid transparent',
+                color: isActive ? 'var(--accent)' : '#666',
+                background: isActive ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
+                borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
                 textDecoration: 'none', transition: 'all .15s',
               })}>
               {item.label}

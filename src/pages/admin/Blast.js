@@ -73,7 +73,7 @@ export default function AdminBlast() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. New feature available"
-                className="w-full rounded-lg border border-[#EEEEEE] px-4 py-2.5 text-sm outline-none focus:border-[#4CAF7D]"
+                className="w-full rounded-lg border border-[#EEEEEE] px-4 py-2.5 text-sm outline-none focus:border-[color:var(--accent)]"
               />
             </div>
             <div>
@@ -83,7 +83,7 @@ export default function AdminBlast() {
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Additional details…"
                 rows={4}
-                className="w-full resize-none rounded-lg border border-[#EEEEEE] px-4 py-2.5 text-sm outline-none focus:border-[#4CAF7D]"
+                className="w-full resize-none rounded-lg border border-[#EEEEEE] px-4 py-2.5 text-sm outline-none focus:border-[color:var(--accent)]"
               />
             </div>
             <div className="flex items-center justify-between pt-1">

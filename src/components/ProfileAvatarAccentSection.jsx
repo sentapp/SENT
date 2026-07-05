@@ -56,11 +56,11 @@ export function ProfileAvatarAccentSection({
           type="button"
           onClick={openPicker}
           disabled={disabled || busy}
-          className="group relative shrink-0 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-[color:var(--profile-accent,#2A9A58)] disabled:opacity-50"
+          className="group relative shrink-0 outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-[color:var(--profile-accent,var(--accent))] disabled:opacity-50"
           aria-label="Change profile photo"
         >
           <span
-            className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-white text-3xl font-semibold shadow-md ring-2 ring-border/90 transition group-hover:ring-[color:var(--profile-accent,#2A9A58)]"
+            className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-white text-3xl font-semibold shadow-md ring-2 ring-border/90 transition group-hover:ring-[color:var(--profile-accent,var(--accent))]"
             style={avatarSurfaceStyle}
           >
             {photoUrl ? (

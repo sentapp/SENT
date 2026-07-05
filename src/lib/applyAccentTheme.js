@@ -35,6 +35,7 @@ export function computeAccentPalette(hex) {
   const accent = normalizeProfileAccent(hex);
   return {
     accent,
+    accentBright: mixWithWhite(accent, 0.22),
     accentLight: mixWithWhite(accent, 0.915),
     accentBorder: mixWithWhite(accent, 0.58),
     accentDark: darken(accent, 0.32),
@@ -45,6 +46,7 @@ export function applyAccentColor(hex) {
   const palette = computeAccentPalette(hex || DEFAULT_PROFILE_ACCENT);
   const root = document.documentElement;
   root.style.setProperty('--accent', palette.accent);
+  root.style.setProperty('--accent-bright', palette.accentBright);
   root.style.setProperty('--accent-light', palette.accentLight);
   root.style.setProperty('--accent-border', palette.accentBorder);
   root.style.setProperty('--accent-dark', palette.accentDark);
@@ -53,7 +55,7 @@ export function applyAccentColor(hex) {
   root.style.setProperty('--green-border', palette.accentBorder);
   root.style.setProperty('--color-accent', palette.accent);
   root.style.setProperty('--color-success', palette.accent);
-  root.style.setProperty('--sent-nav-active', palette.accent);
+  root.style.setProperty('--sent-nav-active', palette.accentBright);
   root.style.setProperty('--sent-primary', palette.accent);
   root.style.setProperty('--sent-success', palette.accent);
   return palette;

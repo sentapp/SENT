@@ -13,7 +13,7 @@ function IconBell({ className, active }) {
       className={className}
       viewBox="0 0 24 24"
       fill="none"
-      stroke={active ? '#4CAF7D' : '#555555'}
+      stroke={active ? 'var(--accent)' : '#555555'}
       strokeWidth={2}
       aria-hidden
     >
@@ -67,7 +67,7 @@ function IconMessage({ className, color }) {
 }
 
 function notifIcon(type, isRead) {
-  const color = isRead ? '#888888' : '#1A6B3C';
+  const color = isRead ? '#888888' : 'var(--accent-dark)';
   const cls = 'h-3.5 w-3.5';
   const t = String(type || '');
   if (t.includes('supporter')) return <IconUserPlus className={cls} color={color} />;
@@ -237,12 +237,12 @@ export default function NotificationBell() {
                 <div
                   key={n.id}
                   onClick={() => handleNotifClick(n)}
-                  className={`border-b border-[#F5F5F5] px-3.5 py-2.5 cursor-pointer hover:bg-[#F5F5F5] ${n.is_read ? 'bg-white' : 'bg-[#F8FDF9]'}`}
+                  className={`border-b border-[#F5F5F5] px-3.5 py-2.5 cursor-pointer hover:bg-[#F5F5F5] ${n.is_read ? 'bg-white' : 'bg-[color:var(--accent-light)]'}`}
                 >
                   <div className="flex items-start gap-2">
                     <div
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                        n.is_read ? 'bg-[#F5F5F5]' : 'bg-[#EDFAF2]'
+                        n.is_read ? 'bg-[#F5F5F5]' : 'bg-[color:var(--accent-light)]'
                       }`}
                     >
                       {notifIcon(n.type, n.is_read)}

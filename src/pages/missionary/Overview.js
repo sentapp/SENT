@@ -382,7 +382,7 @@ export default function MissionaryOverview() {
               {oneTimeTotal > 0 ? (
                 <>
                   {' · '}
-                  <span style={{ color: '#4CAF7D' }}>
+                  <span style={{ color: 'var(--accent)' }}>
                     One-time: {formatAmount(oneTimeTotal, homeCurrency)}
                   </span>
                 </>

@@ -416,7 +416,7 @@ export default function MissionaryMeetings() {
                     }
                   }}
                   className={`min-h-[52px] rounded-lg border p-1 text-left transition hover:bg-surface ${
-                    isToday ? 'border-accent bg-[color:var(--accent-light,#E8F5EE)]' : 'border-[#EEEEEE]'
+                    isToday ? 'border-accent bg-[color:var(--accent-light)]' : 'border-[#EEEEEE]'
                   } ${day.currentMonth ? 'opacity-100' : 'opacity-35'}`}
                 >
                   <span

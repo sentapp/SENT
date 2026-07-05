@@ -29,7 +29,7 @@ function MissionaryDrawer({ missionary, onClose }) {
           <p className="text-[11px] font-semibold uppercase tracking-widest text-[#888]">Funding</p>
           <p className="mt-1 font-display text-2xl text-[#111]">{funded}%</p>
           <div className="mt-1 h-1.5 w-full rounded-full bg-[#EEEEEE]">
-            <div className="h-1.5 rounded-full bg-[#4CAF7D]" style={{ width: `${Math.min(funded, 100)}%` }} />
+            <div className="h-1.5 rounded-full bg-[color:var(--accent)]" style={{ width: `${Math.min(funded, 100)}%` }} />
           </div>
           <p className="mt-1 text-xs text-[#888]">
             {formatAmount(missionary.monthly_amount || 0, currency)} / {formatAmount(missionary.goal_amount || 0, currency)} goal
@@ -115,7 +115,7 @@ export default function AdminMissionaries() {
             placeholder="Search missionaries…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="mb-4 w-full max-w-sm rounded-lg border border-[#EEEEEE] bg-white px-4 py-2 text-sm outline-none focus:border-[#4CAF7D]"
+            className="mb-4 w-full max-w-sm rounded-lg border border-[#EEEEEE] bg-white px-4 py-2 text-sm outline-none focus:border-[color:var(--accent)]"
           />
 
           {loading ? (
@@ -143,7 +143,7 @@ export default function AdminMissionaries() {
                         <td className="px-5 py-3 font-medium text-[#111]">{m.full_name}</td>
                         <td className="px-5 py-3 text-[#666]">{m.organization || '—'}</td>
                         <td className="px-5 py-3">
-                          <span className={funded >= 80 ? 'text-[#2A9A58]' : funded >= 50 ? 'text-[#906010]' : 'text-[#C03060]'}>
+                          <span className={funded >= 80 ? 'text-[color:var(--accent)]' : funded >= 50 ? 'text-[#906010]' : 'text-[#C03060]'}>
                             {funded}%
                           </span>
                         </td>

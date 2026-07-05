@@ -28,7 +28,7 @@ export default function AdminSystem() {
               href={dashboardUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 text-sm font-medium text-[#4CAF7D] hover:underline"
+              className="shrink-0 text-sm font-medium text-[color:var(--accent)] hover:underline"
             >
               Open dashboard →
             </a>
@@ -47,7 +47,7 @@ export default function AdminSystem() {
             </div>
             <span
               className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                envConfigured() ? 'bg-[#EDFAF2] text-[#2A9A58]' : 'bg-[#FFF8E8] text-[#906010]'
+                envConfigured() ? 'bg-[color:var(--accent-light)] text-[color:var(--accent)]' : 'bg-[#FFF8E8] text-[#906010]'
               }`}
             >
               {envConfigured() ? 'Configured' : 'Missing keys'}

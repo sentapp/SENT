@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 
 const STATUS_COLORS = {
   open: { bg: '#FFF8E8', text: '#906010' },
-  resolved: { bg: '#EDFAF2', text: '#2A9A58' },
+  resolved: { bg: 'var(--accent-light)', text: 'var(--accent)' },
   dismissed: { bg: '#F5F5F5', text: '#888' },
 };
 

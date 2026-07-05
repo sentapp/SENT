@@ -45,7 +45,7 @@ export default function AdminOverview() {
   }, []);
 
   function activityIcon(type) {
-    if (type?.includes('supporter')) return { color: '#4CAF7D', label: 'Supporter joined' };
+    if (type?.includes('supporter')) return { color: 'var(--accent)', label: 'Supporter joined' };
     if (type?.includes('prayer')) return { color: '#185FA5', label: 'Prayer request' };
     if (type?.includes('meeting')) return { color: '#906010', label: 'Meeting request' };
     if (type?.includes('comment')) return { color: '#534AB7', label: 'Comment' };
@@ -71,7 +71,7 @@ export default function AdminOverview() {
               {[
                 { label: 'Missionaries', value: stats.missionaries, sub: 'Active on SENT' },
                 { label: 'Supporters', value: stats.supporters, sub: `${stats.connected} connected` },
-                { label: 'Supporter ratio', value: `${stats.ratio}x`, sub: 'Per missionary', color: '#4CAF7D' },
+                { label: 'Supporter ratio', value: `${stats.ratio}x`, sub: 'Per missionary', color: 'var(--accent)' },
                 { label: 'Total raised', value: `$${stats.totalRaised.toLocaleString()}`, sub: 'Monthly across all' },
               ].map((m) => (
                 <div key={m.label} style={{ background: '#FAFAFA', borderRadius: 8, padding: '12px 14px', border: '0.5px solid #EEEEEE' }}>
@@ -175,11 +175,11 @@ function MissionaryFundingCard() {
         const initials = m.full_name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || '?';
         return (
           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '0.5px solid #F5F5F5' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#EDFAF2', color: '#1A6B3C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 500, flexShrink: 0 }}>{initials}</div>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-light)', color: 'var(--accent-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 500, flexShrink: 0 }}>{initials}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.full_name}</div>
               <div style={{ height: 3, background: '#EEEEEE', borderRadius: 2, marginTop: 4 }}>
-                <div style={{ height: '100%', width: `${pct}%`, background: pct >= 80 ? '#2A9A58' : pct >= 50 ? '#D4A017' : '#E05050', borderRadius: 2 }} />
+                <div style={{ height: '100%', width: `${pct}%`, background: pct >= 80 ? 'var(--accent)' : pct >= 50 ? '#D4A017' : '#E05050', borderRadius: 2 }} />
               </div>
               <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>${(m.monthly_amount || 0).toLocaleString()} · {pct}% funded</div>
             </div>

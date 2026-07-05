@@ -49,7 +49,7 @@ export default function AdminSupporters() {
           placeholder="Search supporters…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="mb-4 w-full max-w-sm rounded-lg border border-[#EEEEEE] bg-white px-4 py-2 text-sm outline-none focus:border-[#4CAF7D]"
+          className="mb-4 w-full max-w-sm rounded-lg border border-[#EEEEEE] bg-white px-4 py-2 text-sm outline-none focus:border-[color:var(--accent)]"
         />
 
         {loading ? (
@@ -71,7 +71,7 @@ export default function AdminSupporters() {
                     <td className="px-5 py-3 text-[#666]">{s.missionary_name || <span className="text-[#AAA]">Not connected</span>}</td>
                     <td className="px-5 py-3">
                       {s.connected_missionary_id ? (
-                        <span className="rounded-full bg-[#EDFAF2] px-2 py-0.5 text-[11px] font-medium text-[#2A9A58]">Connected</span>
+                        <span className="rounded-full bg-[color:var(--accent-light)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--accent)]">Connected</span>
                       ) : (
                         <span className="rounded-full bg-[#F5F5F5] px-2 py-0.5 text-[11px] font-medium text-[#AAA]">Unconnected</span>
                       )}

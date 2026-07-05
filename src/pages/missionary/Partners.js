@@ -606,7 +606,7 @@ export default function MissionaryPartners() {
                         </span>
                         <span className="flex shrink-0 flex-col items-end gap-1">
                           {showOneTimeBadge ? (
-                            <span className="rounded-full bg-[#4CAF7D]/12 px-2 py-0.5 text-[10px] font-semibold text-[#2d7a52]">
+                            <span className="rounded-full bg-[color:color-mix(in_srgb,var(--accent)_12%,transparent)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--accent-dark)]">
                               One-time
                             </span>
                           ) : null}

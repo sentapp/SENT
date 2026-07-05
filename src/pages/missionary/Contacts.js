@@ -84,7 +84,7 @@ const EMPTY_ADVANCED_FILTERS = {
 };
 
 const WARMTH_FILTER_OPTIONS = [
-  { label: 'Warm', value: 'warm', bg: '#EDFAF2', color: '#1A6B3C' },
+  { label: 'Warm', value: 'warm', bg: 'var(--accent-light)', color: 'var(--accent-dark)' },
   { label: 'Lukewarm', value: 'lukewarm', bg: '#FFF8E8', color: '#906010' },
   { label: 'Cold', value: 'cold', bg: '#F5F5F5', color: '#888888' },
 ];
@@ -103,9 +103,9 @@ function FilterChip({ label, active, onToggle, color, bg }) {
       onClick={onToggle}
       className="rounded-full px-2.5 py-0.5 text-[10px] transition-all duration-150"
       style={{
-        border: `0.5px solid ${active ? color || '#1A6B3C' : '#EEEEEE'}`,
-        background: active ? bg || '#EDFAF2' : 'transparent',
-        color: active ? color || '#1A6B3C' : '#888888',
+        border: `0.5px solid ${active ? color || 'var(--accent-dark)' : '#EEEEEE'}`,
+        background: active ? bg || 'var(--accent-light)' : 'transparent',
+        color: active ? color || 'var(--accent-dark)' : '#888888',
         fontWeight: active ? 500 : 400,
       }}
     >
@@ -1196,9 +1196,9 @@ export default function MissionaryContacts() {
               onClick={() => setShowFilters((v) => !v)}
               className="flex items-center gap-1.5 rounded-[20px] px-3 py-1.5 text-[11px] font-medium transition-colors"
               style={{
-                border: `0.5px solid ${activeFilterCount > 0 ? '#1A6B3C' : '#EEEEEE'}`,
-                background: activeFilterCount > 0 ? '#EDFAF2' : 'transparent',
-                color: activeFilterCount > 0 ? '#1A6B3C' : '#888888',
+                border: `0.5px solid ${activeFilterCount > 0 ? 'var(--accent-dark)' : '#EEEEEE'}`,
+                background: activeFilterCount > 0 ? 'var(--accent-light)' : 'transparent',
+                color: activeFilterCount > 0 ? 'var(--accent-dark)' : '#888888',
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -1345,7 +1345,7 @@ export default function MissionaryContacts() {
             style={{ borderBottom: '0.5px solid #EEEEEE' }}
           >
             {activeFilterCount > 0 ? (
-              <p className="mb-2 text-[11px] font-medium text-[#1A6B3C]">
+              <p className="mb-2 text-[11px] font-medium text-[color:var(--accent-dark)]">
                 Showing {filteredSorted.length} of {contacts.length}
               </p>
             ) : null}
