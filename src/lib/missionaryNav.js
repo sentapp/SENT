@@ -74,8 +74,8 @@ function IconGear({ className }) {
 export const missionaryNavItems = [
   {
     to: MISSIONARY_HOME_PATH,
-    label: 'Overview',
-    ariaLabel: 'Overview',
+    label: 'Home',
+    ariaLabel: 'Home',
     Icon: IconOverview,
     match: (pathname) => pathname === MISSIONARY_HOME_PATH || pathname === '/missionary',
   },
