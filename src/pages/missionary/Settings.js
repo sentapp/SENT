@@ -13,7 +13,6 @@ import { Button, Card, Input, Label, Textarea } from '../../components/ui';
 import DarkPageHeader from '../../components/DarkPageHeader';
 import MissionaryPageShell from '../../components/MissionaryPageShell';
 import FeedbackSection from '../../components/FeedbackSection';
-import LocalPinSettingsSection from '../../components/LocalPinSettingsSection';
 import { CURRENCIES, getCurrencySymbol, normalizeCurrencyCode } from '../../lib/currencies';
 import { computeDayOfMission, computeTotalMissionDays } from '../../lib/dateHelpers';
 
@@ -538,8 +537,6 @@ export default function MissionarySettings() {
       ) : null}
 
       <FeedbackSection />
-
-      <LocalPinSettingsSection userId={profile?.id} />
 
       <Card className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
