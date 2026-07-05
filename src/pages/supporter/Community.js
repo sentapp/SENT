@@ -10,17 +10,11 @@ import {
 import { initialsFromDisplayName, normalizeProfileAccent } from '../../lib/profileAppearance';
 import { postTypeBadgeClass } from '../../lib/postTypeStyles';
 import ReactionButton from '../../components/ReactionButton';
-
-const FIELD_FILTERS = [
-  'All fields',
-  'UK & Ireland',
-  'Gen Z',
-  'University',
-  'Spain',
-  'Kansas City',
-  'Kenya',
-  'India',
-];
+import {
+  ALL_FIELDS_FILTER,
+  deriveLocationFiltersFromPosts,
+  matchesCommunityLocationFilter,
+} from '../../lib/communityLocationFilters';
 
 function TypeBadge({ children, typeKeyClass }) {
   return (
@@ -30,18 +24,11 @@ function TypeBadge({ children, typeKeyClass }) {
   );
 }
 
-function matchesFieldFilter(post, filter) {
-  if (filter === 'All fields') return true;
-  const needle = filter.toLowerCase();
-  const haystack = `${post.authorLocation || ''} ${post.authorOrg || ''}`.toLowerCase();
-  return haystack.includes(needle);
-}
-
 export default function SupporterCommunity() {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [fieldFilter, setFieldFilter] = useState('All fields');
+  const [fieldFilter, setFieldFilter] = useState(ALL_FIELDS_FILTER);
   const [counts, setCounts] = useState(() => new Map());
   const [mine, setMine] = useState(() => new Map());
   const [busy, setBusy] = useState(() => new Map());
@@ -61,8 +48,10 @@ export default function SupporterCommunity() {
     };
   }, []);
 
+  const fieldFilters = useMemo(() => deriveLocationFiltersFromPosts(posts), [posts]);
+
   const filtered = useMemo(
-    () => posts.filter((p) => matchesFieldFilter(p, fieldFilter)),
+    () => posts.filter((p) => matchesCommunityLocationFilter(p, fieldFilter)),
     [posts, fieldFilter],
   );
 
@@ -116,7 +105,7 @@ export default function SupporterCommunity() {
 
       <div className="-mx-5 overflow-x-auto px-5 md:-mx-8 md:px-8">
         <div className="flex w-max gap-2 pb-1">
-          {FIELD_FILTERS.map((chip) => {
+          {fieldFilters.map((chip) => {
             const active = fieldFilter === chip;
             return (
               <button
