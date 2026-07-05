@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { useMissionaryPosts } from '../../hooks/useMissionaryPosts';
+import { supabase } from '../../lib/supabaseClient';
 import { useMissionaryMapPoints } from '../../hooks/useMissionaryMapPoints';
 import MapView from '../../components/MapView';
 import { postTypeBadgeClass, postTypePostCardClass } from '../../lib/postTypeStyles';
@@ -84,6 +85,10 @@ export default function MissionaryUpdates() {
   const [type, setType] = useState(POST_TYPES[0]);
   const [locationName, setLocationName] = useState('');
   const [body, setBody] = useState('');
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [shareToCommunity, setShareToCommunity] = useState(false);
+  const fileInputRef = useRef(null);
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState('');
   const [locationWarning, setLocationWarning] = useState('');
@@ -111,15 +116,33 @@ export default function MissionaryUpdates() {
     return () => clearTimeout(t);
   }, [flashSuccess]);
 
-  const submitPost = async () => {
+  function handleImageSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImage(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  async function uploadImage(file) {
+    const path = `${user.id}/${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from('post-images').upload(path, file);
+    if (error) return null;
+    const { data } = supabase.storage.from('post-images').getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  const handlePost = async () => {
     setPostError('');
     setLocationWarning('');
     setPosting(true);
     try {
+      const imageUrl = image ? await uploadImage(image) : null;
       const res = await addPost({
         typeUi: type,
         locationName,
         body,
+        imageUrl,
+        shareToCommunity,
       });
       if (!res.ok) {
         setPostError(res.error || 'Could not publish.');
@@ -134,6 +157,9 @@ export default function MissionaryUpdates() {
       setBody('');
       setLocationName('');
       setType(POST_TYPES[0]);
+      setImage(null);
+      setImagePreview(null);
+      setShareToCommunity(false);
     } catch (e) {
       setPostError(e?.message || 'Could not publish.');
     } finally {
@@ -271,13 +297,69 @@ export default function MissionaryUpdates() {
           <span className="pointer-events-none absolute bottom-3 right-4 text-[13px] text-mission-muted">{body.length}</span>
         </div>
 
+        {imagePreview ? (
+          <div className="relative mt-3">
+            <img
+              src={imagePreview}
+              alt=""
+              className="block w-full max-h-[200px] rounded-lg object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setImage(null);
+                setImagePreview(null);
+              }}
+              className="absolute right-2 top-2 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-none bg-black/60 text-sm text-white"
+              aria-label="Remove photo"
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
+
+        <div className="mt-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#EEE] bg-transparent px-3 py-1.5 text-[13px] text-[#888]"
+          >
+            📷 Add photo
+          </button>
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[#666]">
+            <span>Share to Community</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={shareToCommunity}
+              onClick={() => setShareToCommunity((s) => !s)}
+              className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${
+                shareToCommunity ? 'bg-accent' : 'bg-[#DDD]'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-[left] duration-200 ${
+                  shareToCommunity ? 'left-[18px]' : 'left-0.5'
+                }`}
+              />
+            </button>
+          </label>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageSelect}
+        />
+
         <div className="mt-8">
           <Button
             type="button"
             variant="primary"
             className="h-12 w-full text-[15px] font-medium"
             disabled={!canPost || posting}
-            onClick={submitPost}
+            onClick={handlePost}
           >
             {posting ? 'Posting…' : 'Post to supporters →'}
           </Button>
@@ -320,6 +402,13 @@ export default function MissionaryUpdates() {
                   ) : null}
                   <p className="mt-3 line-clamp-4 whitespace-pre-wrap text-sm leading-relaxed text-white">{p.body}</p>
                 </div>
+                {p.imageUrl ? (
+                  <img
+                    src={p.imageUrl}
+                    alt=""
+                    className="block max-h-[280px] w-full object-cover"
+                  />
+                ) : null}
                 <div className="flex flex-wrap items-center gap-2 border-t border-[#333] px-4 py-3">
                   <ReactionButton active={false} label="Pray" emoji="🙏" disabled onClick={() => {}} />
                   <ReactionButton active={false} label="Celebrate" emoji="🎉" disabled onClick={() => {}} />

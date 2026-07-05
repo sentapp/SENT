@@ -70,7 +70,7 @@ function BottomNav({ pendingMeetingCount }) {
       className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-[#222] bg-[#111] pb-[env(safe-area-inset-bottom)] md:hidden"
       aria-label="Missionary navigation"
     >
-      <ul className="mx-auto grid h-14 max-w-mobile grid-cols-6 items-stretch px-0.5">
+      <ul className="mx-auto grid h-14 max-w-mobile grid-cols-7 items-stretch px-0.5">
         {missionaryNavItems.map((it) => {
           const Icon = it.Icon;
           const isActive = it.match

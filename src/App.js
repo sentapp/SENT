@@ -13,12 +13,14 @@ import MissionaryContacts from './pages/missionary/Contacts';
 import MissionaryPipeline from './pages/missionary/Pipeline';
 import MissionaryPartners from './pages/missionary/Partners';
 import MissionaryUpdates from './pages/missionary/Updates';
+import MissionaryCommunity from './pages/missionary/Community';
 import MissionaryMeetings from './pages/missionary/Meetings';
 import MissionaryStats from './pages/missionary/Stats';
 import MissionarySettings from './pages/missionary/Settings';
 import MissionaryOnboarding from './pages/missionary/MissionaryOnboarding';
 
 import SupporterFeed from './pages/supporter/Feed';
+import SupporterCommunity from './pages/supporter/Community';
 import SupporterPrayer from './pages/supporter/Prayer';
 import SupporterRefer from './pages/supporter/Refer';
 import SupporterGive from './pages/supporter/SupporterGive';
@@ -63,6 +65,7 @@ function App() {
         <Route path="partners" element={<MissionaryPartners />} />
         <Route path="stats" element={<MissionaryStats />} />
         <Route path="updates" element={<MissionaryUpdates />} />
+        <Route path="community" element={<MissionaryCommunity />} />
         <Route path="map" element={<Navigate to="/missionary/updates" replace />} />
         <Route path="settings" element={<MissionarySettings />} />
       </Route>
@@ -94,6 +97,7 @@ function App() {
         }
       >
         <Route index element={<SupporterFeed />} />
+        <Route path="community" element={<SupporterCommunity />} />
         <Route path="map" element={<Navigate to="/supporter" replace />} />
         <Route path="prayer" element={<SupporterPrayer />} />
         <Route path="give" element={<SupporterGive />} />

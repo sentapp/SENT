@@ -28,9 +28,15 @@ export function useMissionaryPosts(missionaryId) {
   }, [refetch]);
 
   const addPost = useCallback(
-    async ({ typeUi, locationName, body }) => {
+    async ({ typeUi, locationName, body, imageUrl, shareToCommunity }) => {
       if (!supabase || !missionaryId) return { ok: false, error: 'Not signed in.' };
-      const res = await createMissionaryPost(supabase, missionaryId, { typeUi, locationName, body });
+      const res = await createMissionaryPost(supabase, missionaryId, {
+        typeUi,
+        locationName,
+        body,
+        imageUrl,
+        shareToCommunity,
+      });
       if (res.error) return { ok: false, error: res.error.message || String(res.error) };
       await refetch();
       return {

@@ -490,6 +490,15 @@ export default function SupporterFeed() {
                     ) : null}
                     <PostBody body={p.body} />
 
+                    {p.imageUrl ? (
+                      <img
+                        src={p.imageUrl}
+                        alt=""
+                        className="mt-3 block max-h-[280px] w-full object-cover"
+                        style={{ borderRadius: '0 0 8px 8px' }}
+                      />
+                    ) : null}
+
                     <div className="mt-4 flex flex-wrap gap-2">
                       <ReactionButton
                         emoji="♥"

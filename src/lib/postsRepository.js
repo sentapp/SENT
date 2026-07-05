@@ -37,6 +37,8 @@ export function mapPostRow(row) {
     locationName: row.location_name || '',
     locationCoords:
       lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng) ? { lat, lng } : null,
+    imageUrl: row.image_url || null,
+    shareToCommunity: row.share_to_community || false,
     createdAt: row.created_at,
     _raw: row,
   };
@@ -57,7 +59,7 @@ export async function fetchMissionaryPosts(supabase, missionaryId) {
   return (data || []).map(mapPostRow);
 }
 
-export async function createMissionaryPost(supabase, missionaryId, { typeUi, locationName, body }) {
+export async function createMissionaryPost(supabase, missionaryId, { typeUi, locationName, body, imageUrl, shareToCommunity }) {
   const bodyText = (body || '').trim();
   if (!bodyText) return { error: new Error('Post body is required.') };
 
@@ -79,6 +81,8 @@ export async function createMissionaryPost(supabase, missionaryId, { typeUi, loc
     latitude,
     longitude,
     body: bodyText,
+    image_url: imageUrl || null,
+    share_to_community: shareToCommunity || false,
   };
 
   const hadLocation = Boolean(loc);
@@ -144,6 +148,27 @@ export async function updateMissionaryPost(supabase, missionaryId, postId, { typ
     data: mapPostRow(data),
     locationWarning: hadLocation && !geocoded,
   };
+}
+
+export async function fetchCommunityPosts(supabase) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, profiles:missionary_id(id, full_name, organization, location_name, accent_color)')
+    .eq('share_to_community', true)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) {
+    console.error('fetchCommunityPosts', error);
+    return [];
+  }
+  return (data || []).map((row) => ({
+    ...mapPostRow(row),
+    authorName: row.profiles?.full_name || 'Missionary',
+    authorOrg: row.profiles?.organization || '',
+    authorLocation: row.profiles?.location_name || '',
+    authorAccent: row.profiles?.accent_color || '#2A9A58',
+  }));
 }
 
 export async function deleteMissionaryPost(supabase, missionaryId, postId) {

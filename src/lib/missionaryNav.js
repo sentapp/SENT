@@ -1,4 +1,4 @@
-/** Single source of truth: missionary sidebar + mobile bottom nav (6 items). */
+/** Single source of truth: missionary sidebar + mobile bottom nav (7 items). */
 
 export const MISSIONARY_HOME_PATH = '/missionary/overview';
 
@@ -58,6 +58,16 @@ function IconCalendar({ className }) {
   );
 }
 
+function IconGlobe({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+    </svg>
+  );
+}
+
 function IconGear({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
@@ -83,5 +93,6 @@ export const missionaryNavItems = [
   { to: '/missionary/partners', label: 'Partners', ariaLabel: 'Partners', Icon: IconPeople },
   { to: '/missionary/meetings', label: 'Meetings', ariaLabel: 'Meetings', Icon: IconCalendar },
   { to: '/missionary/updates', label: 'Updates', ariaLabel: 'Updates', Icon: IconSend },
+  { to: '/missionary/community', label: 'Community', ariaLabel: 'Community', Icon: IconGlobe },
   { to: '/missionary/settings', label: 'Settings', ariaLabel: 'Settings', Icon: IconGear },
 ];

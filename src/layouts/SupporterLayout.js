@@ -3,14 +3,6 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { repairSupporterMissionaryLink } from '../lib/supporterConnection';
 
-const tabs = [
-  { to: '/supporter', label: 'Feed', ariaLabel: 'Feed', Icon: IconFeed },
-  { to: '/supporter/prayer', label: 'Prayer', ariaLabel: 'Prayer', Icon: IconPray },
-  { to: '/supporter/give', label: 'Give', ariaLabel: 'Give', Icon: IconGive },
-  { to: '/supporter/refer', label: 'Refer', ariaLabel: 'Refer', Icon: IconRefer },
-  { to: '/supporter/profile', label: 'Profile', ariaLabel: 'Profile', Icon: IconProfile },
-];
-
 function IconFeed({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.85} aria-hidden>
@@ -19,6 +11,16 @@ function IconFeed({ className }) {
         strokeLinejoin="round"
         d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
       />
+    </svg>
+  );
+}
+
+function IconGlobe({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
     </svg>
   );
 }
@@ -67,13 +69,22 @@ function IconProfile({ className }) {
   );
 }
 
+const tabs = [
+  { to: '/supporter', label: 'Feed', ariaLabel: 'Feed', Icon: IconFeed },
+  { to: '/supporter/community', label: 'Community', ariaLabel: 'Community', Icon: IconGlobe },
+  { to: '/supporter/prayer', label: 'Prayer', ariaLabel: 'Prayer', Icon: IconPray },
+  { to: '/supporter/give', label: 'Give', ariaLabel: 'Give', Icon: IconGive },
+  { to: '/supporter/refer', label: 'Refer', ariaLabel: 'Refer', Icon: IconRefer },
+  { to: '/supporter/profile', label: 'Profile', ariaLabel: 'Profile', Icon: IconProfile },
+];
+
 function BottomNav() {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]"
       aria-label="Supporter navigation"
     >
-      <ul className="mx-auto grid h-14 max-w-6xl grid-cols-5 items-stretch px-1">
+      <ul className="mx-auto grid h-14 max-w-6xl grid-cols-6 items-stretch px-1">
         {tabs.map((t) => {
           const Icon = t.Icon;
           return (
