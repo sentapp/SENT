@@ -11,7 +11,7 @@ import { initialsFromDisplayName, normalizeProfileAccent } from '../../lib/profi
 import { postTypeBadgeClass } from '../../lib/postTypeStyles';
 import ReactionButton from '../../components/ReactionButton';
 
-const ALL_FILTER = 'All';
+const ALL_FILTER = 'All fields';
 const FIELD_CATEGORIES = [
   'Universities',
   'High Schools',

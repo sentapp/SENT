@@ -156,6 +156,10 @@ export default function MissionaryUpdates() {
     return () => clearTimeout(t);
   }, [flashSuccess]);
 
+  useEffect(() => {
+    setEditFieldCategory(editingPost?.fieldCategory || null);
+  }, [editingPost]);
+
   function handleImageSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -536,7 +540,7 @@ export default function MissionaryUpdates() {
             className="py-3 pl-11"
           />
         </div>
-        <p className="sent-section-label mb-1">Field category</p>
+        <p className="sent-section-label mb-1">Field category (optional)</p>
         <div className="mb-4">
           <FieldCategoryChips value={editFieldCategory} onChange={setEditFieldCategory} />
         </div>

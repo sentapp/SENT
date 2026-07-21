@@ -13,7 +13,7 @@ import DarkPageHeader from '../../components/DarkPageHeader';
 import MissionaryPageShell from '../../components/MissionaryPageShell';
 import ReactionButton from '../../components/ReactionButton';
 
-const ALL_FILTER = 'All';
+const ALL_FILTER = 'All fields';
 const FIELD_CATEGORIES = [
   'Universities',
   'High Schools',
