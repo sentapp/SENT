@@ -78,34 +78,48 @@ const tabs = [
   { to: '/supporter/profile', label: 'Profile', ariaLabel: 'Profile', Icon: IconProfile },
 ];
 
+/** Mobile bottom nav only: Feed, Community, Profile. */
+const supporterMobileNavItems = [tabs[0], tabs[1], tabs[5]];
+
+function NavItems({ items, colsClass }) {
+  return (
+    <ul className={`mx-auto grid h-14 max-w-6xl items-stretch px-1 ${colsClass}`}>
+      {items.map((t) => {
+        const Icon = t.Icon;
+        return (
+          <li key={t.to} className="flex items-stretch justify-center">
+            <NavLink
+              to={t.to}
+              end={t.to === '/supporter'}
+              aria-label={t.ariaLabel}
+              className={({ isActive }) =>
+                `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 transition-colors duration-200 active:bg-[color:var(--color-bg)] ${
+                  isActive ? 'text-[color:var(--sent-nav-active)]' : 'text-[color:var(--sent-nav-inactive)]'
+                }`
+              }
+            >
+              <Icon className="h-[20px] w-[20px] shrink-0" />
+              <span className="sent-nav-label max-w-full truncate text-center">{t.label}</span>
+            </NavLink>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function BottomNav() {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]"
       aria-label="Supporter navigation"
     >
-      <ul className="mx-auto grid h-14 max-w-6xl grid-cols-6 items-stretch px-1">
-        {tabs.map((t) => {
-          const Icon = t.Icon;
-          return (
-            <li key={t.to} className="flex items-stretch justify-center">
-              <NavLink
-                to={t.to}
-                end={t.to === '/supporter'}
-                aria-label={t.ariaLabel}
-                className={({ isActive }) =>
-                  `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 transition-colors duration-200 active:bg-[color:var(--color-bg)] ${
-                    isActive ? 'text-[color:var(--sent-nav-active)]' : 'text-[color:var(--sent-nav-inactive)]'
-                  }`
-                }
-              >
-                <Icon className="h-[20px] w-[20px] shrink-0" />
-                <span className="sent-nav-label max-w-full truncate text-center">{t.label}</span>
-              </NavLink>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="md:hidden">
+        <NavItems items={supporterMobileNavItems} colsClass="grid-cols-3" />
+      </div>
+      <div className="hidden md:block">
+        <NavItems items={tabs} colsClass="grid-cols-6" />
+      </div>
     </nav>
   );
 }

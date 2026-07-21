@@ -58,15 +58,20 @@ function isQuotedSegment(part) {
   return /^["']/.test(part) || /^\u201c/.test(part);
 }
 
-function PostBody({ body }) {
+function PostBody({ body, style, className }) {
   const text = String(body ?? '');
   const parts = text.split(QUOTE_SPLIT).filter((p) => p.length > 0);
   const hasQuote = parts.some(isQuotedSegment);
+  const bodyClass = className || 'sent-body mt-3 whitespace-pre-wrap text-mission-ink';
   if (!hasQuote) {
-    return <p className="sent-body mt-3 whitespace-pre-wrap text-mission-ink">{text}</p>;
+    return (
+      <p className={bodyClass} style={style}>
+        {text}
+      </p>
+    );
   }
   return (
-    <p className="sent-body mt-3 whitespace-pre-wrap text-mission-ink">
+    <p className={bodyClass} style={style}>
       {parts.map((part, i) => {
         const isQuote = isQuotedSegment(part);
         if (isQuote) {
@@ -362,7 +367,13 @@ export default function SupporterFeed() {
           <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#666]">Supporter feed</p>
         )}
         {showGiving ? (
-          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          <div
+            style={
+              isMobile
+                ? { display: 'flex', gap: 8, marginBottom: 16 }
+                : { display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }
+            }
+          >
             {taxUrl ? (
               <a
                 href={normalizeUrl(taxUrl)}
@@ -376,6 +387,7 @@ export default function SupporterFeed() {
                   fontSize: 13,
                   fontWeight: 600,
                   textDecoration: 'none',
+                  ...(isMobile ? { flex: 1, textAlign: 'center' } : null),
                 }}
               >
                 Give (Tax deductible) →
@@ -395,6 +407,7 @@ export default function SupporterFeed() {
                   fontSize: 13,
                   fontWeight: 600,
                   textDecoration: 'none',
+                  ...(isMobile ? { flex: 1, textAlign: 'center' } : null),
                 }}
               >
                 Give (Non-tax deductible) →
@@ -407,26 +420,47 @@ export default function SupporterFeed() {
             {ministryStats.map((stat, i) => (
               <div
                 key={`${stat.label || 'stat'}-${i}`}
-                style={{
-                  flexShrink: 0,
-                  textAlign: 'center',
-                  background: 'rgba(255,255,255,0.06)',
-                  borderRadius: 10,
-                  padding: '8px 14px',
-                  minWidth: 80,
-                }}
+                style={
+                  isMobile
+                    ? {
+                        background: 'rgba(255,255,255,0.06)',
+                        borderRadius: 12,
+                        padding: '10px 14px',
+                        textAlign: 'center',
+                        minWidth: 80,
+                        flexShrink: 0,
+                      }
+                    : {
+                        flexShrink: 0,
+                        textAlign: 'center',
+                        background: 'rgba(255,255,255,0.06)',
+                        borderRadius: 10,
+                        padding: '8px 14px',
+                        minWidth: 80,
+                      }
+                }
               >
-                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'Bebas Neue, sans-serif', color: 'white' }}>
+                <div
+                  style={
+                    isMobile
+                      ? { fontSize: 24, fontWeight: 800, color: 'white' }
+                      : { fontSize: 22, fontWeight: 700, fontFamily: 'Bebas Neue, sans-serif', color: 'white' }
+                  }
+                >
                   {stat.value}
                 </div>
                 <div
-                  style={{
-                    fontSize: 10,
-                    color: '#888',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    marginTop: 2,
-                  }}
+                  style={
+                    isMobile
+                      ? { fontSize: 9, color: '#555', textTransform: 'uppercase' }
+                      : {
+                          fontSize: 10,
+                          color: '#888',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                          marginTop: 2,
+                        }
+                  }
                 >
                   {stat.label}
                 </div>
@@ -495,11 +529,6 @@ export default function SupporterFeed() {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <p className="sent-section-title">Recent posts</p>
-            <p className="sent-body text-mission-muted">Posts from your missionary appear below.</p>
-          </div>
-
           {feed.length === 0 ? (
             <EmptyState
               icon="globe"
@@ -518,12 +547,28 @@ export default function SupporterFeed() {
                     key={p.id}
                     id={`supporter-post-${p.id}`}
                     className={`relative scroll-mt-4 overflow-hidden p-5 ${postTypePostCardClass(p.type)}`}
+                    style={{ background: '#111', borderRadius: 16, overflow: 'hidden', border: 'none' }}
                   >
                     <div className="absolute left-5 top-5 z-10">
-                      <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          borderRadius: 999,
+                          padding: '4px 10px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          background: 'rgba(255,255,255,0.08)',
+                          color: 'rgba(255,255,255,0.7)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {p.type}
+                      </span>
                     </div>
                     <div className="flex items-start gap-3 pt-10">
-                      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-mission-line bg-white">
+                      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-[#333] bg-[#1a1a1a]">
                         {photoUrl ? (
                           <img src={photoUrl} alt="" className="h-full w-full object-cover" />
                         ) : (
@@ -533,18 +578,26 @@ export default function SupporterFeed() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="sent-card-title">{displayName}</p>
-                        <p className="sent-caption mt-0.5">{new Date(p.createdAt).toLocaleString()}</p>
+                        <p className="sent-card-title" style={{ color: 'white' }}>
+                          {displayName}
+                        </p>
+                        <p className="sent-caption mt-0.5" style={{ color: '#666' }}>
+                          {new Date(p.createdAt).toLocaleString()}
+                        </p>
 
                         {p.locationName ? (
-                          <p className="sent-body mt-3 font-medium text-mission-ink">
+                          <p className="sent-body mt-3 font-medium" style={{ color: '#4CAF7D' }}>
                             <span className="mr-1" aria-hidden>
                               📍
                             </span>
                             {p.locationName}
                           </p>
                         ) : null}
-                        <PostBody body={p.body} />
+                        <PostBody
+                          body={p.body}
+                          className="sent-body mt-3 whitespace-pre-wrap"
+                          style={{ color: 'rgba(255,255,255,0.8)' }}
+                        />
 
                         {p.imageUrl ? (
                           <img
@@ -654,11 +707,6 @@ export default function SupporterFeed() {
               ) : null}
             </Card>
           ) : null}
-
-          <div className="space-y-1">
-            <p className="sent-section-title">Recent posts</p>
-            <p className="sent-body text-mission-muted">Posts from your missionary appear below.</p>
-          </div>
 
           {feed.length === 0 ? (
             <EmptyState
