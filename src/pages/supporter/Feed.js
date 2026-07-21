@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { linkSupporterToMissionary } from '../../lib/supporterConnection';
 import { fetchConnectedMissionaryPublic } from '../../lib/connectedMissionary';
@@ -18,6 +19,7 @@ import { deleteOwnPostComment, fetchCommentsForPosts, insertPostComment } from '
 import { Card, EmptyState } from '../../components/ui';
 import ReactionButton from '../../components/ReactionButton';
 import RequestMeetingCard from '../../components/meetings/RequestMeetingCard';
+import RequestMeetingModal from '../../components/meetings/RequestMeetingModal';
 import { postTypeBadgeClass, postTypePostCardClass } from '../../lib/postTypeStyles';
 
 function TypeBadge({ children, typeKeyClass }) {
@@ -148,10 +150,19 @@ function PostCommentsBlock({ userId, comments, draft, onDraftChange, onSubmit, o
 }
 
 export default function SupporterFeed() {
+  const navigate = useNavigate();
   const { profile: supporterProfile, user, refreshProfile } = useAuth();
   const missionaryId = supporterProfile?.connected_missionary_id;
   const inviteCodeUsed = supporterProfile?.invite_code_used;
   const lastLinkAttemptCode = useRef('');
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  const [showMeetingRequest, setShowMeetingRequest] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     if (missionaryId || !user?.id) return;
@@ -431,6 +442,169 @@ export default function SupporterFeed() {
           title="Connect to a missionary"
           subtitle="Your SENT invite code links you to their updates. Add it from your profile if you haven’t yet."
         />
+      ) : isMobile ? (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate('/supporter/prayer')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate('/supporter/prayer');
+                }
+              }}
+              style={{ background: '#111', borderRadius: 14, padding: '14px 12px', cursor: 'pointer', textAlign: 'center' }}
+            >
+              <div style={{ fontSize: 22, marginBottom: 8 }}>🙏</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>Prayer</div>
+              <div style={{ fontSize: 10, color: '#555', marginTop: 2 }}>Submit a request</div>
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate('/supporter/refer')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate('/supporter/refer');
+                }
+              }}
+              style={{ background: '#4CAF7D', borderRadius: 14, padding: '14px 12px', cursor: 'pointer', textAlign: 'center' }}
+            >
+              <div style={{ fontSize: 22, marginBottom: 8 }}>👥</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>Refer</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Invite a friend</div>
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setShowMeetingRequest(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setShowMeetingRequest(true);
+                }
+              }}
+              style={{ background: 'white', borderRadius: 14, padding: '14px 12px', cursor: 'pointer', textAlign: 'center' }}
+            >
+              <div style={{ fontSize: 22, marginBottom: 8 }}>📅</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#111' }}>Meet</div>
+              <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>Request time</div>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <p className="sent-section-title">Recent posts</p>
+            <p className="sent-body text-mission-muted">Posts from your missionary appear below.</p>
+          </div>
+
+          {feed.length === 0 ? (
+            <EmptyState
+              icon="globe"
+              title="No updates yet"
+              subtitle="When your missionary shares field stories, prayer requests, and wins — they’ll show up here."
+            />
+          ) : (
+            <div className="space-y-4">
+              {feed.map((p) => {
+                const c = counts.get(p.id) || { heart: 0, pray: 0 };
+                const my = mine.get(p.id);
+                const heartActive = my?.has?.('heart');
+                const prayActive = my?.has?.('pray');
+                return (
+                  <Card
+                    key={p.id}
+                    id={`supporter-post-${p.id}`}
+                    className={`relative scroll-mt-4 overflow-hidden p-5 ${postTypePostCardClass(p.type)}`}
+                  >
+                    <div className="absolute left-5 top-5 z-10">
+                      <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
+                    </div>
+                    <div className="flex items-start gap-3 pt-10">
+                      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-mission-line bg-white">
+                        {photoUrl ? (
+                          <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="feed-accent-bg flex h-full w-full items-center justify-center text-xs font-semibold text-white">
+                            {avatarInitials.slice(0, 2)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="sent-card-title">{displayName}</p>
+                        <p className="sent-caption mt-0.5">{new Date(p.createdAt).toLocaleString()}</p>
+
+                        {p.locationName ? (
+                          <p className="sent-body mt-3 font-medium text-mission-ink">
+                            <span className="mr-1" aria-hidden>
+                              📍
+                            </span>
+                            {p.locationName}
+                          </p>
+                        ) : null}
+                        <PostBody body={p.body} />
+
+                        {p.imageUrl ? (
+                          <img
+                            src={p.imageUrl}
+                            alt=""
+                            className="mt-3 block max-h-[280px] w-full object-cover"
+                            style={{ borderRadius: '0 0 8px 8px' }}
+                          />
+                        ) : null}
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <ReactionButton
+                            emoji="♥"
+                            label={`Heart (${c.heart})`}
+                            active={heartActive}
+                            disabled={busy.get(`${p.id}-heart`)}
+                            onClick={() => toggle(p.id, 'heart')}
+                          />
+                          <ReactionButton
+                            emoji="🙏"
+                            label={`Pray (${c.pray})`}
+                            active={prayActive}
+                            disabled={busy.get(`${p.id}-pray`)}
+                            onClick={() => toggle(p.id, 'pray')}
+                          />
+                        </div>
+                        <PostCommentsBlock
+                          userId={user?.id}
+                          comments={commentsByPost.get(p.id)}
+                          draft={commentDraftByPost[p.id] || ''}
+                          onDraftChange={(v) =>
+                            setCommentDraftByPost((prev) => ({
+                              ...prev,
+                              [p.id]: v,
+                            }))
+                          }
+                          onSubmit={() => void submitPostComment(p.id, commentDraftByPost[p.id] || '')}
+                          onDelete={(commentId) => void deletePostComment(p.id, commentId)}
+                          busySubmit={commentBusyKey === `s:${p.id}`}
+                          deletingCommentId={commentBusyKey.startsWith('d:') ? commentBusyKey.slice(2) : null}
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          <RequestMeetingModal
+            open={showMeetingRequest}
+            onClose={() => setShowMeetingRequest(false)}
+            supabase={supabase}
+            missionaryId={missionaryId}
+            missionaryName={displayName}
+            requesterId={user?.id}
+            requesterName={supporterProfile?.full_name?.trim() || ''}
+            onSubmitted={() => setShowMeetingRequest(false)}
+          />
+        </>
       ) : (
         <>
           <RequestMeetingCard
