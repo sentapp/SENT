@@ -10,6 +10,16 @@ export async function fetchConnectedMissionaryPublic() {
   }
   const row = typeof data === 'string' ? (() => { try { return JSON.parse(data); } catch { return null; } })() : data;
   if (!row?.id) return null;
+  let ministry_stats = row.ministry_stats;
+  if (typeof ministry_stats === 'string') {
+    try {
+      ministry_stats = JSON.parse(ministry_stats);
+    } catch {
+      ministry_stats = [];
+    }
+  }
+  if (!Array.isArray(ministry_stats)) ministry_stats = [];
+
   return {
     id: row.id,
     full_name: String(row.full_name ?? ''),
@@ -18,5 +28,6 @@ export async function fetchConnectedMissionaryPublic() {
     tax_deductible_url: String(row.tax_deductible_url ?? ''),
     non_tax_deductible_url: String(row.non_tax_deductible_url ?? ''),
     accent_color: String(row.accent_color ?? '').trim() || '#2A9A58',
+    ministry_stats,
   };
 }

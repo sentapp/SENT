@@ -18,6 +18,36 @@ import { computeDayOfMission, computeTotalMissionDays } from '../../lib/dateHelp
 
 const DAILY_OUTREACH_PRESETS = [8, 12, 16, 20];
 const DEFAULT_DAILY_OUTREACH_GOAL = 16;
+const SUGGESTED_STATS = [
+  'Salvations',
+  'Baptisms',
+  'Nations Visited',
+  'Churches Planted',
+  'Small Groups Started',
+  'Years on Field',
+  'Unreached Villages',
+  'People Healed',
+  'Baptisms in Water',
+];
+
+function parseMinistryStats(raw) {
+  if (raw == null) return [];
+  let value = raw;
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => ({
+      label: String(item?.label ?? '').trim(),
+      value: Number(item?.value) || 0,
+    }))
+    .filter((item) => item.label);
+}
 
 function applyRowToForm(row, setters) {
   if (!row) return;
@@ -75,6 +105,10 @@ export default function MissionarySettings() {
   const [missionStartDate, setMissionStartDate] = useState('');
   const [missionEndDate, setMissionEndDate] = useState('');
   const [dailyOutreachGoal, setDailyOutreachGoal] = useState(DEFAULT_DAILY_OUTREACH_GOAL);
+  const [ministryStats, setMinistryStats] = useState([]);
+  const [customStatLabel, setCustomStatLabel] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [ministryStatsSaving, setMinistryStatsSaving] = useState(false);
 
   const [accentColor, setAccentColor] = useState(DEFAULT_PROFILE_ACCENT);
   const [locSaving, setLocSaving] = useState(false);
@@ -152,6 +186,7 @@ export default function MissionarySettings() {
 
       setProfile(row);
       applyRowToForm(row, formSetters);
+      setMinistryStats(parseMinistryStats(row.ministry_stats));
       setAccentColor(normalizeProfileAccent(row.accent_color));
       setProfileHydrating(false);
     }
@@ -314,7 +349,85 @@ export default function MissionarySettings() {
     await refreshProfile();
   };
 
+  const addSuggestedStat = (label) => {
+    setMinistryStats((prev) => {
+      if (prev.some((s) => s.label === label)) return prev;
+      return [...prev, { label, value: 0 }];
+    });
+  };
+
+  const addCustomStat = () => {
+    const label = customStatLabel.trim();
+    if (!label) return;
+    setMinistryStats((prev) => {
+      if (prev.some((s) => s.label.toLowerCase() === label.toLowerCase())) return prev;
+      return [...prev, { label, value: 0 }];
+    });
+    setCustomStatLabel('');
+    setShowCustomInput(false);
+  };
+
+  const updateStatValue = (index, nextValue) => {
+    setMinistryStats((prev) =>
+      prev.map((stat, i) => (i === index ? { ...stat, value: Number(nextValue) || 0 } : stat)),
+    );
+  };
+
+  const removeStat = (index) => {
+    setMinistryStats((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const saveMinistryStats = async () => {
+    setProfileErr('');
+    setProfileMsg('');
+
+    if (!supabase) {
+      setProfileErr('Supabase is not configured.');
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.id) {
+      setProfileErr('Not signed in.');
+      return;
+    }
+
+    const payload = ministryStats
+      .map((s) => ({ label: String(s.label || '').trim(), value: Number(s.value) || 0 }))
+      .filter((s) => s.label);
+
+    setMinistryStatsSaving(true);
+    try {
+      const { data: updated, error } = await supabase
+        .from('profiles')
+        .update({ ministry_stats: payload })
+        .eq('id', user.id)
+        .select('*')
+        .maybeSingle();
+
+      if (error) {
+        setProfileErr(error.message);
+        return;
+      }
+
+      if (updated) {
+        setProfile(updated);
+        setMinistryStats(parseMinistryStats(updated.ministry_stats));
+      }
+
+      setProfileMsg('Ministry stats saved.');
+      await refreshProfile();
+    } catch (e) {
+      setProfileErr(e?.message || 'Could not save ministry stats.');
+    } finally {
+      setMinistryStatsSaving(false);
+    }
+  };
+
   const supporterCodeDisplay = String(profile?.supporter_code ?? '').trim() || '—';
+  const activeStatLabels = new Set(ministryStats.map((s) => s.label));
 
   return (
     <MissionaryPageShell
@@ -526,6 +639,118 @@ export default function MissionarySettings() {
           <div className="mt-4 flex justify-end">
             <Button type="button" className="profile-accent-btn-primary" disabled={profileSaving} onClick={saveProfile}>
               Save goals
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <p className="text-sm font-semibold">Ministry Stats</p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Optional — share what God has done through your mission
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {SUGGESTED_STATS.map((label) => {
+              const added = activeStatLabels.has(label);
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  disabled={added}
+                  className={`rounded-btn border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    added
+                      ? 'cursor-default border-neutral-100 bg-neutral-50 text-neutral-400'
+                      : 'border-neutral-200 bg-white text-ink hover:bg-neutral-50'
+                  }`}
+                  onClick={() => addSuggestedStat(label)}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {ministryStats.length > 0 ? (
+            <ul className="mt-4 space-y-3">
+              {ministryStats.map((stat, index) => (
+                <li key={`${stat.label}-${index}`} className="flex items-center gap-3">
+                  <span className="min-w-0 flex-1 text-sm font-medium text-ink">{stat.label}</span>
+                  <div className="w-24 shrink-0">
+                    <Input
+                      inputMode="numeric"
+                      value={stat.value}
+                      onChange={(e) => updateStatValue(index, e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-btn px-2 py-1.5 text-sm font-semibold text-neutral-500 hover:bg-neutral-100 hover:text-ink"
+                    aria-label={`Remove ${stat.label}`}
+                    onClick={() => removeStat(index)}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-xs text-neutral-500">No stats added yet — tap a suggestion or add a custom one.</p>
+          )}
+
+          <div className="mt-4">
+            {showCustomInput ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="min-w-0 flex-1">
+                  <Label title="Custom stat label">
+                    <Input
+                      value={customStatLabel}
+                      onChange={(e) => setCustomStatLabel(e.target.value)}
+                      placeholder="e.g. Bibles Distributed"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addCustomStat();
+                        }
+                      }}
+                    />
+                  </Label>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" className="profile-accent-btn-primary" onClick={addCustomStat} disabled={!customStatLabel.trim()}>
+                    Add
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowCustomInput(false);
+                      setCustomStatLabel('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="text-sm font-semibold text-ink underline-offset-4 hover:underline"
+                onClick={() => setShowCustomInput(true)}
+              >
+                ＋ Add custom stat
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <Button
+              type="button"
+              className="profile-accent-btn-primary"
+              disabled={ministryStatsSaving}
+              onClick={saveMinistryStats}
+            >
+              {ministryStatsSaving ? 'Saving…' : 'Save ministry stats'}
             </Button>
           </div>
         </Card>

@@ -310,11 +310,23 @@ export default function SupporterFeed() {
     });
   }, [user?.id]);
 
-  const taxUrl = (missionaryDb?.tax_deductible_url || '').trim();
-  const nonTaxUrl = (missionaryDb?.non_tax_deductible_url || '').trim();
+  const taxUrl = (missionaryDb?.tax_deductible_url || connectedMissionary?.tax_deductible_url || '').trim();
+  const nonTaxUrl = (missionaryDb?.non_tax_deductible_url || connectedMissionary?.non_tax_deductible_url || '').trim();
   const showGiving = Boolean(taxUrl || nonTaxUrl);
-  const primaryGiveHref = taxUrl ? normalizeUrl(taxUrl) : normalizeUrl(nonTaxUrl);
-  const showOtherGiving = Boolean(taxUrl && nonTaxUrl);
+
+  const ministryStatsRaw = missionaryDb?.ministry_stats ?? connectedMissionary?.ministry_stats ?? [];
+  const ministryStats = Array.isArray(ministryStatsRaw)
+    ? ministryStatsRaw
+    : typeof ministryStatsRaw === 'string'
+      ? (() => {
+          try {
+            const parsed = JSON.parse(ministryStatsRaw);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        })()
+      : [];
 
   const displayName =
     connectedMissionary?.full_name?.trim() || missionaryDb?.full_name?.trim() || 'Missionary';
@@ -338,6 +350,79 @@ export default function SupporterFeed() {
         ) : (
           <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#666]">Supporter feed</p>
         )}
+        {showGiving ? (
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            {taxUrl ? (
+              <a
+                href={normalizeUrl(taxUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: '7px 16px',
+                  background: 'var(--accent)',
+                  color: 'white',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                Give (Tax deductible) →
+              </a>
+            ) : null}
+            {nonTaxUrl ? (
+              <a
+                href={normalizeUrl(nonTaxUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: '7px 16px',
+                  background: 'transparent',
+                  color: 'white',
+                  border: '0.5px solid #444',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                Give (Non-tax deductible) →
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+        {ministryStats.length > 0 ? (
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', marginTop: 12, paddingBottom: 4 }}>
+            {ministryStats.map((stat, i) => (
+              <div
+                key={`${stat.label || 'stat'}-${i}`}
+                style={{
+                  flexShrink: 0,
+                  textAlign: 'center',
+                  background: 'rgba(255,255,255,0.06)',
+                  borderRadius: 10,
+                  padding: '8px 14px',
+                  minWidth: 80,
+                }}
+              >
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'Bebas Neue, sans-serif', color: 'white' }}>
+                  {stat.value}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: '#888',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    marginTop: 2,
+                  }}
+                >
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </header>
 
       {!missionaryId ? (
@@ -354,49 +439,6 @@ export default function SupporterFeed() {
             requesterId={user?.id}
             requesterName={supporterProfile?.full_name?.trim() || ''}
           />
-
-          {showGiving ? (
-            <Card className="overflow-hidden p-6">
-              <div className="flex gap-4">
-                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white shadow ring-1 ring-neutral-200/80">
-                  {photoUrl ? (
-                    <img src={photoUrl} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="feed-accent-bg flex h-full w-full items-center justify-center text-xl font-semibold text-white">
-                      {avatarInitials}
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-lg font-semibold tracking-tight text-ink">{displayName}</p>
-                  {orgLine ? <p className="mt-0.5 text-sm text-neutral-600">{orgLine}</p> : null}
-                  <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-                    Partner with {displayName} through a gift that sends the Gospel further.
-                  </p>
-                </div>
-              </div>
-              <a
-                href={primaryGiveHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="feed-accent-bg mt-5 block w-full rounded-btn py-3.5 text-center text-[17px] font-semibold text-white shadow-sm transition hover:opacity-95"
-              >
-                Give to {displayName}
-              </a>
-              {showOtherGiving ? (
-                <div className="mt-3 text-center">
-                  <a
-                    href={normalizeUrl(nonTaxUrl)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="feed-accent-text text-sm font-medium underline-offset-4 hover:underline"
-                  >
-                    Other giving options
-                  </a>
-                </div>
-              ) : null}
-            </Card>
-          ) : null}
 
           <div className="-mx-6 space-y-1 sm:mx-0">
             <p className="sent-section-label px-6 sm:px-0">Mission map</p>
