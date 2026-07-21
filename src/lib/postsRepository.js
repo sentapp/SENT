@@ -39,6 +39,7 @@ export function mapPostRow(row) {
       lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng) ? { lat, lng } : null,
     imageUrl: row.image_url || null,
     shareToCommunity: row.share_to_community || false,
+    fieldCategory: row.field_category || null,
     createdAt: row.created_at,
     _raw: row,
   };
@@ -59,7 +60,11 @@ export async function fetchMissionaryPosts(supabase, missionaryId) {
   return (data || []).map(mapPostRow);
 }
 
-export async function createMissionaryPost(supabase, missionaryId, { typeUi, locationName, body, imageUrl, shareToCommunity }) {
+export async function createMissionaryPost(
+  supabase,
+  missionaryId,
+  { typeUi, locationName, body, imageUrl, shareToCommunity, fieldCategory, field_category },
+) {
   const bodyText = (body || '').trim();
   if (!bodyText) return { error: new Error('Post body is required.') };
 
@@ -74,6 +79,8 @@ export async function createMissionaryPost(supabase, missionaryId, { typeUi, loc
     }
   }
 
+  const category = fieldCategory ?? field_category ?? null;
+
   const row = {
     missionary_id: missionaryId,
     post_type: postTypeUiToDb(typeUi),
@@ -83,6 +90,7 @@ export async function createMissionaryPost(supabase, missionaryId, { typeUi, loc
     body: bodyText,
     image_url: imageUrl || null,
     share_to_community: shareToCommunity || false,
+    field_category: category || null,
   };
 
   const hadLocation = Boolean(loc);
@@ -96,12 +104,19 @@ export async function createMissionaryPost(supabase, missionaryId, { typeUi, loc
   };
 }
 
-export async function updateMissionaryPost(supabase, missionaryId, postId, { typeUi, locationName, body }, existingPost) {
+export async function updateMissionaryPost(
+  supabase,
+  missionaryId,
+  postId,
+  { typeUi, locationName, body, fieldCategory, field_category },
+  existingPost,
+) {
   const bodyText = (body || '').trim();
   if (!bodyText) return { error: new Error('Post body is required.') };
 
   const loc = (locationName || '').trim();
   const prevLoc = (existingPost?.locationName || '').trim();
+  const category = fieldCategory ?? field_category ?? null;
 
   let latitude;
   let longitude;
@@ -137,6 +152,7 @@ export async function updateMissionaryPost(supabase, missionaryId, postId, { typ
       location_name: loc,
       latitude,
       longitude,
+      field_category: category || null,
     })
     .eq('id', postId)
     .eq('missionary_id', missionaryId)

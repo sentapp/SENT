@@ -10,11 +10,19 @@ import {
 import { initialsFromDisplayName, normalizeProfileAccent } from '../../lib/profileAppearance';
 import { postTypeBadgeClass } from '../../lib/postTypeStyles';
 import ReactionButton from '../../components/ReactionButton';
-import {
-  ALL_FIELDS_FILTER,
-  deriveLocationFiltersFromPosts,
-  matchesCommunityLocationFilter,
-} from '../../lib/communityLocationFilters';
+
+const ALL_FILTER = 'All';
+const FIELD_CATEGORIES = [
+  'Universities',
+  'High Schools',
+  'Nations',
+  'Cities',
+  'Church Planting',
+  'Unreached People Groups',
+  'Marketplace',
+  'Arts & Entertainment',
+];
+const FIELD_FILTERS = [ALL_FILTER, ...FIELD_CATEGORIES];
 
 function TypeBadge({ children, typeKeyClass }) {
   return (
@@ -24,11 +32,20 @@ function TypeBadge({ children, typeKeyClass }) {
   );
 }
 
+function FieldCategoryBadge({ category }) {
+  if (!category) return null;
+  return (
+    <span className="inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/50">
+      {category}
+    </span>
+  );
+}
+
 export default function SupporterCommunity() {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [fieldFilter, setFieldFilter] = useState(ALL_FIELDS_FILTER);
+  const [fieldFilter, setFieldFilter] = useState(ALL_FILTER);
   const [counts, setCounts] = useState(() => new Map());
   const [mine, setMine] = useState(() => new Map());
   const [busy, setBusy] = useState(() => new Map());
@@ -48,10 +65,11 @@ export default function SupporterCommunity() {
     };
   }, []);
 
-  const fieldFilters = useMemo(() => deriveLocationFiltersFromPosts(posts), [posts]);
-
   const filtered = useMemo(
-    () => posts.filter((p) => matchesCommunityLocationFilter(p, fieldFilter)),
+    () =>
+      fieldFilter === ALL_FILTER
+        ? posts
+        : posts.filter((p) => p.fieldCategory === fieldFilter),
     [posts, fieldFilter],
   );
 
@@ -105,7 +123,7 @@ export default function SupporterCommunity() {
 
       <div className="-mx-5 overflow-x-auto px-5 md:-mx-8 md:px-8">
         <div className="flex w-max gap-2 pb-1">
-          {fieldFilters.map((chip) => {
+          {FIELD_FILTERS.map((chip) => {
             const active = fieldFilter === chip;
             return (
               <button
@@ -162,7 +180,10 @@ export default function SupporterCommunity() {
                         {new Date(p.createdAt).toLocaleString()}
                       </p>
                     </div>
-                    <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <TypeBadge typeKeyClass={postTypeBadgeClass(p.type)}>{p.type}</TypeBadge>
+                      <FieldCategoryBadge category={p.fieldCategory} />
+                    </div>
                   </div>
                   {p.locationName ? (
                     <p className="mt-3 text-sm font-medium text-[#2A9A58]">

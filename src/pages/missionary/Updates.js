@@ -11,6 +11,44 @@ import MissionaryPageShell from '../../components/MissionaryPageShell';
 import ReactionButton from '../../components/ReactionButton';
 
 const POST_TYPES = ['Field story 🔥', 'Prayer 🙏', 'Monthly update 📊', 'Win ✨'];
+const FIELD_CATEGORIES = [
+  'Universities',
+  'High Schools',
+  'Nations',
+  'Cities',
+  'Church Planting',
+  'Unreached People Groups',
+  'Marketplace',
+  'Arts & Entertainment',
+];
+
+function FieldCategoryChips({ value, onChange }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '8px 0' }}>
+      {FIELD_CATEGORIES.map((cat) => (
+        <button
+          key={cat}
+          type="button"
+          onClick={() => onChange(value === cat ? null : cat)}
+          style={{
+            padding: '5px 14px',
+            borderRadius: 20,
+            fontSize: 12,
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+            cursor: 'pointer',
+            border: '0.5px solid',
+            background: value === cat ? '#111' : 'white',
+            color: value === cat ? 'white' : '#666',
+            borderColor: value === cat ? '#111' : '#DDD',
+          }}
+        >
+          {cat}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function TypeBadge({ children, typeKeyClass }) {
   return (
@@ -88,6 +126,7 @@ export default function MissionaryUpdates() {
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [shareToCommunity, setShareToCommunity] = useState(false);
+  const [fieldCategory, setFieldCategory] = useState(null);
   const fileInputRef = useRef(null);
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState('');
@@ -97,6 +136,7 @@ export default function MissionaryUpdates() {
   const [editType, setEditType] = useState(POST_TYPES[0]);
   const [editLocation, setEditLocation] = useState('');
   const [editBody, setEditBody] = useState('');
+  const [editFieldCategory, setEditFieldCategory] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
 
@@ -143,6 +183,7 @@ export default function MissionaryUpdates() {
         body,
         imageUrl,
         shareToCommunity,
+        fieldCategory: shareToCommunity ? fieldCategory : null,
       });
       if (!res.ok) {
         setPostError(res.error || 'Could not publish.');
@@ -160,6 +201,7 @@ export default function MissionaryUpdates() {
       setImage(null);
       setImagePreview(null);
       setShareToCommunity(false);
+      setFieldCategory(null);
     } catch (e) {
       setPostError(e?.message || 'Could not publish.');
     } finally {
@@ -172,6 +214,7 @@ export default function MissionaryUpdates() {
     setEditType(p.type);
     setEditLocation(p.locationName || '');
     setEditBody(p.body || '');
+    setEditFieldCategory(p.fieldCategory || null);
     setEditError('');
   };
 
@@ -188,7 +231,12 @@ export default function MissionaryUpdates() {
     try {
       const res = await updatePost(
         editingPost.id,
-        { typeUi: editType, locationName: editLocation, body: editBody },
+        {
+          typeUi: editType,
+          locationName: editLocation,
+          body: editBody,
+          fieldCategory: editFieldCategory,
+        },
         editingPost,
       );
       if (!res.ok) {
@@ -345,6 +393,12 @@ export default function MissionaryUpdates() {
             </button>
           </label>
         </div>
+        {shareToCommunity ? (
+          <div className="mt-3">
+            <p className="sent-section-label mb-1">Field category</p>
+            <FieldCategoryChips value={fieldCategory} onChange={setFieldCategory} />
+          </div>
+        ) : null}
         <input
           ref={fileInputRef}
           type="file"
@@ -481,6 +535,10 @@ export default function MissionaryUpdates() {
             placeholder="e.g. Dublin, Ireland"
             className="py-3 pl-11"
           />
+        </div>
+        <p className="sent-section-label mb-1">Field category</p>
+        <div className="mb-4">
+          <FieldCategoryChips value={editFieldCategory} onChange={setEditFieldCategory} />
         </div>
         <Label title="Post">
           <Textarea
