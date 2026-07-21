@@ -125,7 +125,7 @@ export default function MissionaryCommunity() {
       }
     >
       <div className="space-y-5 pb-5 md:pb-8">
-        <div className="-mx-5 overflow-x-auto px-5 md:-mx-8 md:px-8">
+        <div className="-mx-5 overflow-x-auto px-5 py-4 md:-mx-8 md:px-8">
           <div className="flex w-max gap-2 pb-1">
             {FIELD_FILTERS.map((chip) => {
               const active = fieldFilter === chip;
