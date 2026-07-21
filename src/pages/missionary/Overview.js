@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { deletePrayerRequestAsMissionary, prayerAttributionLabel } from '../../lib/prayerRequestsRepository';
 import { useAuth } from '../../auth/AuthContext';
 import { useContactDrawer } from '../../context/ContactDrawerContext';
@@ -98,6 +99,7 @@ function TaskCompleteCircle({ onComplete, variant, ariaLabel }) {
 }
 
 export default function MissionaryOverview() {
+  const navigate = useNavigate();
   const { profile, user, loading: authLoading } = useAuth();
   const { openDrawer } = useContactDrawer();
   const { contacts, refetch: refetchContacts } = useSupabaseContacts(user?.id, {
@@ -116,6 +118,7 @@ export default function MissionaryOverview() {
   const { state } = useAppState();
   const { tasks, loading: tasksLoading, refetch: refetchTasks, completeTask } = useMissionaryTasks(user?.id);
   const { pending: pendingMeetingRequests } = usePendingMeetingRequestsCount(user?.id);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addTaskTitle, setAddTaskTitle] = useState('');
   const [addTaskContactId, setAddTaskContactId] = useState('');
@@ -193,10 +196,20 @@ export default function MissionaryOverview() {
   }, [loadTodayOutreach, loadMeetings]);
 
   useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
     const onFocus = () => void loadTodayOutreach();
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [loadTodayOutreach]);
+
+  const handleLogOutreach = useCallback(() => {
+    navigate('/missionary/contacts');
+  }, [navigate]);
 
   const partners = useMemo(
     () =>
@@ -287,16 +300,28 @@ export default function MissionaryOverview() {
     [contacts],
   );
 
-  const upcomingMeetingsPreview = useMemo(() => {
-    const upcoming = meetings
-      .filter((m) => !m.isComplete && m.meetingDate && m.meetingDate >= todayStr)
-      .sort((a, b) => {
-        const d = String(a.meetingDate).localeCompare(String(b.meetingDate));
-        if (d !== 0) return d;
-        return String(a.meetingTime || '').localeCompare(String(b.meetingTime || ''));
-      });
-    return upcoming.slice(0, 2);
-  }, [meetings, todayStr]);
+  const upcomingMeetings = useMemo(
+    () =>
+      meetings
+        .filter((m) => !m.isComplete && m.meetingDate && m.meetingDate >= todayStr)
+        .sort((a, b) => {
+          const d = String(a.meetingDate).localeCompare(String(b.meetingDate));
+          if (d !== 0) return d;
+          return String(a.meetingTime || '').localeCompare(String(b.meetingTime || ''));
+        }),
+    [meetings, todayStr],
+  );
+  const upcomingMeetingsPreview = useMemo(() => upcomingMeetings.slice(0, 2), [upcomingMeetings]);
+
+  const mobileTasks = useMemo(
+    () =>
+      incompleteTasks.slice(0, 5).map((t) => ({
+        ...t,
+        contactName: t.contactId ? contactNameById.get(t.contactId) || '' : '',
+        isOverdue: Boolean(t.dueDate && isOverdue(t.dueDate, todayStr)),
+      })),
+    [incompleteTasks, contactNameById, todayStr],
+  );
 
   const resetAddTaskForm = () => {
     setAddTaskTitle('');
@@ -411,6 +436,246 @@ export default function MissionaryOverview() {
         </header>
       }
     >
+    {isMobile ? (
+      <>
+        <div
+          style={{
+            background: '#F5F5F5',
+            borderRadius: '24px 24px 0 0',
+            padding: '20px 16px 110px',
+          }}
+        >
+          {/* Outreach card */}
+          <div
+            style={{
+              background: '#111',
+              borderRadius: 16,
+              padding: '16px 18px',
+              marginBottom: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#555',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  marginBottom: 4,
+                }}
+              >
+                Today&apos;s outreach
+              </div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: 'white', lineHeight: 1 }}>
+                {todayOutreachLoading ? '…' : todayOutreachCount}{' '}
+                <span style={{ fontSize: 18, color: '#444', fontWeight: 500 }}>/ {dailyGoal}</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#555', marginTop: 3 }}>
+                {todayOutreachLoading
+                  ? 'Loading…'
+                  : todayOutreachCount >= dailyGoal
+                    ? 'Daily goal reached! 🎉'
+                    : `${Math.max(dailyGoal - todayOutreachCount, 0)} more to hit your goal`}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogOutreach}
+              style={{
+                background: 'var(--accent)',
+                color: 'white',
+                fontSize: 14,
+                fontWeight: 700,
+                padding: '12px 20px',
+                borderRadius: 12,
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              Log +
+            </button>
+          </div>
+
+          {/* Quick actions grid */}
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: '#AAA',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              marginBottom: 10,
+            }}
+          >
+            Quick actions
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate('/missionary/contacts')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') navigate('/missionary/contacts');
+              }}
+              style={{ background: '#1A1A1A', borderRadius: 16, padding: 16, cursor: 'pointer' }}
+            >
+              <div style={{ fontSize: 22, marginBottom: 8 }}>👥</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>Contacts</div>
+              <div style={{ fontSize: 11, color: '#555', marginTop: 3 }}>{contacts.length} total</div>
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate('/missionary/partners')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') navigate('/missionary/partners');
+              }}
+              style={{ background: '#1A1A1A', borderRadius: 16, padding: 16, cursor: 'pointer' }}
+            >
+              <div style={{ fontSize: 22, marginBottom: 8 }}>💚</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>Partners</div>
+              <div style={{ fontSize: 11, color: '#555', marginTop: 3 }}>{partners.length} partners</div>
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate('/missionary/meetings')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') navigate('/missionary/meetings');
+              }}
+              style={{ background: 'white', borderRadius: 16, padding: 16, cursor: 'pointer' }}
+            >
+              <div style={{ fontSize: 22, marginBottom: 8 }}>📅</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>Meetings</div>
+              <div style={{ fontSize: 11, color: '#888', marginTop: 3 }}>
+                {upcomingMeetings.length} upcoming
+              </div>
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setShowPipeline(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') setShowPipeline(true);
+              }}
+              style={{ background: 'var(--accent)', borderRadius: 16, padding: 16, cursor: 'pointer' }}
+            >
+              <div style={{ fontSize: 22, marginBottom: 8 }}>🔀</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>Pipeline</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 3 }}>
+                {pipelineInProgressCount} in progress
+              </div>
+            </div>
+          </div>
+
+          {/* Tasks */}
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: '#AAA',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              marginBottom: 10,
+            }}
+          >
+            Tasks
+          </div>
+          {mobileTasks.map((task) => (
+            <div
+              key={task.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => void completeTask(task)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') void completeTask(task);
+              }}
+              style={{
+                background: 'white',
+                borderRadius: 12,
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                marginBottom: 8,
+                cursor: 'pointer',
+              }}
+            >
+              <div
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  border: '2px solid #DDD',
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: '#111',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {task.title}
+                </div>
+                <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{task.contactName || ''}</div>
+              </div>
+              {task.isOverdue ? (
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: '#E05050',
+                    background: '#FFF0F0',
+                    padding: '3px 8px',
+                    borderRadius: 20,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  Overdue
+                </div>
+              ) : null}
+            </div>
+          ))}
+          {mobileTasks.length === 0 ? (
+            <div style={{ fontSize: 13, color: '#BBB', textAlign: 'center', padding: '20px 0' }}>
+              No tasks yet
+            </div>
+          ) : null}
+        </div>
+
+        <MissionaryFullscreenOverlay
+          open={showPipeline}
+          title="Pipeline"
+          subtitle={
+            pipelineInProgressCount === 1
+              ? '1 contact in progress'
+              : `${pipelineInProgressCount} contacts in progress`
+          }
+          onClose={() => setShowPipeline(false)}
+        >
+          <MissionaryPipeline embedded />
+        </MissionaryFullscreenOverlay>
+
+        <MissionaryFullscreenOverlay
+          open={showStats}
+          title="Stats"
+          subtitle="Progress toward your goals"
+          onClose={() => setShowStats(false)}
+        >
+          <MissionaryStats embedded />
+        </MissionaryFullscreenOverlay>
+      </>
+    ) : (
     <div className="flex flex-col gap-6 pb-5 md:pb-8">
       <PendingMeetingRequestsBanner pending={pendingMeetingRequests} />
 
@@ -769,6 +1034,7 @@ export default function MissionaryOverview() {
       </Card>
 
     </div>
+    )}
     </MissionaryPageShell>
   );
 }

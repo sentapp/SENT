@@ -2,7 +2,7 @@ import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import NotificationBell from '../components/layout/NotificationBell';
 import { usePendingMeetingRequestsCount } from '../hooks/usePendingMeetingRequestsCount';
-import { MISSIONARY_HOME_PATH, missionaryNavItems } from '../lib/missionaryNav';
+import { MISSIONARY_HOME_PATH, missionaryMobileNavItems, missionaryNavItems } from '../lib/missionaryNav';
 
 function navLinkClass(isActive) {
   return `sent-body flex w-full items-center rounded-lg border-l-[3px] px-3 py-2.5 text-left font-medium transition-colors duration-200 ${
@@ -62,44 +62,39 @@ function SideNav({ pendingMeetingCount }) {
   );
 }
 
-function BottomNav({ pendingMeetingCount }) {
+function BottomNav() {
   const location = useLocation();
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 h-14 border-t border-[#222] bg-[#111] pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 md:hidden"
+      style={{
+        background: 'white',
+        borderTop: '0.5px solid #EEE',
+        padding: '10px 0 28px',
+      }}
       aria-label="Missionary navigation"
     >
-      <ul className="mx-auto grid h-14 max-w-mobile grid-cols-7 items-stretch px-0.5">
-        {missionaryNavItems.map((it) => {
+      <ul className="mx-auto grid max-w-mobile grid-cols-4 items-stretch px-0.5">
+        {missionaryMobileNavItems.map((it) => {
           const Icon = it.Icon;
           const isActive = it.match
             ? it.match(location.pathname)
             : location.pathname === it.to || location.pathname.startsWith(`${it.to}/`);
+          const color = isActive ? 'var(--accent)' : '#AAA';
           return (
             <li key={it.to} className="flex min-h-0 items-stretch justify-center">
               <NavLink
                 to={it.to}
                 end={it.to === MISSIONARY_HOME_PATH}
                 aria-label={it.ariaLabel}
-                className={() =>
-                  `relative flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-white/5 ${
-                    isActive ? 'text-accent-bright' : 'text-[#555555]'
-                  }`
-                }
+                className="relative flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-1 transition-colors duration-200 active:bg-black/[0.03]"
+                style={{ color }}
               >
-                <span className="relative">
-                  <Icon className="h-[20px] w-[20px] shrink-0" />
-                  {it.to === '/missionary/meetings' && pendingMeetingCount > 0 ? (
-                    <span
-                      className="absolute -right-1.5 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold leading-none text-white"
-                      aria-hidden
-                    >
-                      {pendingMeetingCount > 9 ? '9+' : pendingMeetingCount}
-                    </span>
-                  ) : null}
+                <Icon className="h-[20px] w-[20px] shrink-0" />
+                <span className="sent-nav-label max-w-full truncate text-center" style={{ color }}>
+                  {it.label}
                 </span>
-                <span className="sent-nav-label max-w-full truncate text-center">{it.label}</span>
               </NavLink>
             </li>
           );
@@ -137,7 +132,7 @@ export default function MissionaryLayout() {
           </div>
         </div>
       </main>
-      <BottomNav pendingMeetingCount={pendingMeetingCount} />
+      <BottomNav />
     </div>
   );
 }

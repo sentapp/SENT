@@ -1,4 +1,4 @@
-/** Single source of truth: missionary sidebar + mobile bottom nav (7 items). */
+/** Single source of truth: missionary sidebar (7 items) + mobile bottom nav (4 items). */
 
 export const MISSIONARY_HOME_PATH = '/missionary/overview';
 
@@ -95,4 +95,12 @@ export const missionaryNavItems = [
   { to: '/missionary/updates', label: 'Updates', ariaLabel: 'Updates', Icon: IconSend },
   { to: '/missionary/community', label: 'Community', ariaLabel: 'Community', Icon: IconGlobe },
   { to: '/missionary/settings', label: 'Settings', ariaLabel: 'Settings', Icon: IconGear },
+];
+
+/** Mobile bottom nav only: Home, Updates, Community, Settings. */
+export const missionaryMobileNavItems = [
+  missionaryNavItems[0], // Home
+  missionaryNavItems[4], // Updates
+  missionaryNavItems[5], // Community
+  missionaryNavItems[6], // Settings
 ];
