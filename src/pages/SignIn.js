@@ -229,7 +229,7 @@ function SignIn() {
 
   return (
     <AuthSplitShell>
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+      <div style={{ width: '100%' }}>
         <h2 className="mb-6 text-center text-xl font-semibold tracking-tight text-ink">Welcome back</h2>
 
         {error ? (

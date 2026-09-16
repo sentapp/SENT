@@ -284,7 +284,7 @@ function SignUp({ prefilledCode = '' }) {
 
   return (
     <AuthSplitShell>
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+      <div style={{ width: '100%' }}>
         <header className="mb-8 flex shrink-0 items-center gap-4">
           <button
             type="button"
