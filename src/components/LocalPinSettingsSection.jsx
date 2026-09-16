@@ -35,6 +35,17 @@ export default function LocalPinSettingsSection({ userId }) {
     setHasPin(hasLocalPin(userId));
   }, [userId, pinStep]);
 
+  useEffect(() => {
+    if (pinStep) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [pinStep]);
+
   const closePanel = useCallback(() => {
     setPinStep(null);
     setPinBuf('');
@@ -142,13 +153,53 @@ export default function LocalPinSettingsSection({ userId }) {
 
       {pinStep ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 md:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="local-pin-settings-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closePanel();
+          }}
         >
-          <div className="w-full max-w-md rounded-card border border-neutral-200 bg-white p-6 shadow-lg">
-            <p id="local-pin-settings-title" className="text-center text-sm font-semibold text-ink">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="local-pin-settings-title"
+            style={{
+              background: 'white',
+              borderRadius: 20,
+              padding: '24px',
+              width: '100%',
+              maxWidth: 480,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              position: 'relative',
+            }}
+          >
+            <button
+              type="button"
+              onClick={closePanel}
+              aria-label="Close"
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: 'none',
+                border: 'none',
+                fontSize: 20,
+                color: '#888',
+                cursor: 'pointer',
+              }}
+            >
+              ×
+            </button>
+            <p id="local-pin-settings-title" className="pr-8 text-center text-sm font-semibold text-ink">
               {pinStepTitle(pinStep)}
             </p>
             {pinMsg ? <p className="mt-2 text-center text-sm text-red-600">{pinMsg}</p> : null}

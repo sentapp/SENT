@@ -9,7 +9,7 @@ import {
   prayerAttributionLabel,
   updatePrayerRequestAsAuthor,
 } from '../../lib/prayerRequestsRepository';
-import { Button, Card, EmptyState, Label, Modal, Textarea } from '../../components/ui';
+import { Button, Card, EmptyState, Label, Textarea } from '../../components/ui';
 
 function SupporterPrayerCardMenu({ open, onOpenChange, onEdit, onDelete, disabled }) {
   const wrapRef = useRef(null);
@@ -102,6 +102,17 @@ export default function SupporterPrayer() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (editOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [editOpen]);
 
   const submit = async () => {
     setSubmitErr('');
@@ -296,36 +307,86 @@ export default function SupporterPrayer() {
             )}
           </div>
 
-          <Modal
-            open={editOpen}
-            title="Edit prayer request"
-            backdropClose={false}
-            onClose={() => !editSaving && closeEdit()}
-            footer={
-              <div className="flex justify-end gap-2">
-                <Button variant="secondary" type="button" disabled={editSaving} onClick={closeEdit}>
-                  Cancel
-                </Button>
-                <Button type="button" disabled={editSaving || !editBody.trim()} onClick={() => void saveEdit()}>
-                  {editSaving ? 'Saving…' : 'Save'}
-                </Button>
+          {editOpen ? (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.5)',
+                zIndex: 1000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px',
+              }}
+              role="presentation"
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !editSaving) closeEdit();
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="edit-prayer-request-title"
+                style={{
+                  background: 'white',
+                  borderRadius: 20,
+                  padding: '24px',
+                  width: '100%',
+                  maxWidth: 480,
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  position: 'relative',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!editSaving) closeEdit();
+                  }}
+                  aria-label="Close"
+                  style={{
+                    position: 'absolute',
+                    top: 16,
+                    right: 16,
+                    background: 'none',
+                    border: 'none',
+                    fontSize: 20,
+                    color: '#888',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ×
+                </button>
+                <p id="edit-prayer-request-title" className="sent-section-title pr-8">
+                  Edit prayer request
+                </p>
+                {editErr ? <p className="mb-3 mt-4 text-sm text-red-600">{editErr}</p> : null}
+                <div className={editErr ? '' : 'mt-4'}>
+                  <Label title="Request">
+                    <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={5} />
+                  </Label>
+                  <label className="mt-4 flex items-center gap-3 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={editAnonymous}
+                      onChange={(e) => setEditAnonymous(e.target.checked)}
+                      className="h-4 w-4 accent-green"
+                    />
+                    Submit anonymously
+                  </label>
+                </div>
+                <div className="mt-6 flex justify-end gap-2">
+                  <Button variant="secondary" type="button" disabled={editSaving} onClick={closeEdit}>
+                    Cancel
+                  </Button>
+                  <Button type="button" disabled={editSaving || !editBody.trim()} onClick={() => void saveEdit()}>
+                    {editSaving ? 'Saving…' : 'Save'}
+                  </Button>
+                </div>
               </div>
-            }
-          >
-            {editErr ? <p className="mb-3 text-sm text-red-600">{editErr}</p> : null}
-            <Label title="Request">
-              <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={5} />
-            </Label>
-            <label className="mt-4 flex items-center gap-3 text-sm text-neutral-700">
-              <input
-                type="checkbox"
-                checked={editAnonymous}
-                onChange={(e) => setEditAnonymous(e.target.checked)}
-                className="h-4 w-4 accent-green"
-              />
-              Submit anonymously
-            </label>
-          </Modal>
+            </div>
+          ) : null}
         </>
       )}
     </div>
