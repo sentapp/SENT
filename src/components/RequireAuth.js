@@ -36,6 +36,20 @@ export default function RequireAuth({ children, role }) {
     return <Navigate to="/signin" replace state={{ from: location.pathname + location.search }} />;
   }
 
+  // Redirect only when onboarding_complete is explicitly false.
+  // undefined/null (column missing, profile failed to load, or not yet migrated) is treated as complete.
+  const needsOnboarding =
+    profile != null && profile.role !== 'admin' && profile.onboarding_complete === false;
+  const onOnboarding = location.pathname === '/onboarding';
+
+  if (needsOnboarding && !onOnboarding) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  if (onOnboarding && profile && !needsOnboarding) {
+    return <Navigate to={homePathForRole(profile.role)} replace />;
+  }
+
   if (role && profile && profile.role !== role) {
     return <Navigate to={homePathForRole(profile.role)} replace />;
   }

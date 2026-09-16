@@ -109,6 +109,13 @@ export function AuthProvider({ children }) {
   }, [session?.user?.id, loadProfile]);
 
   const role = profile?.role ?? null;
+  // Missing column / null / failed profile load is treated as complete so users are not locked out.
+  // Only an explicit false sends someone through first-run onboarding.
+  const onboardingComplete = profile?.onboarding_complete !== false;
+
+  const markOnboardingCompleteLocally = useCallback(() => {
+    setProfile((prev) => (prev ? { ...prev, onboarding_complete: true } : prev));
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -118,11 +125,13 @@ export function AuthProvider({ children }) {
       profile,
       role,
       isAdmin: isAdminRole(role),
+      onboardingComplete,
       loading,
       signOut,
       refreshProfile,
+      markOnboardingCompleteLocally,
     }),
-    [session, profile, role, loading, signOut, refreshProfile],
+    [session, profile, role, onboardingComplete, loading, signOut, refreshProfile, markOnboardingCompleteLocally],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

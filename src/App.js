@@ -33,6 +33,7 @@ import AdminFeedback from './pages/admin/Feedback';
 import AdminBlast from './pages/admin/Blast';
 import AdminSystem from './pages/admin/System';
 
+import Onboarding from './pages/Onboarding';
 import RequireAuth from './components/RequireAuth';
 import { ContactDrawerProvider } from './context/ContactDrawerContext';
 import GlobalContactDrawer from './components/contacts/GlobalContactDrawer';
@@ -47,6 +48,7 @@ function App() {
       <Route path="/join" element={<JoinWithCode />} />
       <Route path="/signin" element={<SignIn />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
 
       <Route
         path="/missionary"

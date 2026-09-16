@@ -138,7 +138,13 @@ export default function MissionaryLayout() {
     return <FullPageLoading />;
   }
 
-  if (profile?.role === 'missionary' && location.pathname !== '/missionary/onboarding') {
+  // Legacy profile gate only when first-run onboarding was not completed.
+  // onboarding_complete === true (existing users after migration, or skip/finish) must not be sent here.
+  if (
+    profile?.role === 'missionary' &&
+    profile.onboarding_complete !== true &&
+    location.pathname !== '/missionary/onboarding'
+  ) {
     const org = (profile.organization ?? '').trim();
     const ms = (profile.mission_statement ?? '').trim();
     const loc = (profile.location_name ?? '').trim();
