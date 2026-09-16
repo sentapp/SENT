@@ -1,21 +1,33 @@
 .ob-shell {
   min-height: 100vh;
+  height: 100vh;
   background: #111;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
   color: #fff;
+  overflow: hidden;
 }
-.ob-left { display: none; }
+.ob-left {
+  display: flex;
+  flex-direction: column;
+  width: 420px;
+  flex-shrink: 0;
+  height: 100vh;
+  background: #111;
+  padding: 48px;
+  box-sizing: border-box;
+}
 .ob-right {
   position: relative;
   flex: 1;
-  background: #111;
-  padding: 32px 24px;
+  background: #F7F7F7;
+  padding: 60px 80px;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
 }
 .ob-skip {
   position: absolute;
@@ -37,7 +49,8 @@
   letter-spacing: 4px;
   line-height: 1;
 }
-.ob-mobile-head { margin-top: 8px; margin-bottom: 28px; }
+.ob-mobile-head,
+.ob-mobile-progress { display: none; }
 .ob-kicker {
   margin: 18px 0 10px;
   color: #4CAF7D;
@@ -54,23 +67,40 @@
   line-height: 1.12;
   letter-spacing: -0.02em;
 }
+.ob-left-mid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.ob-left .ob-kicker { margin-top: 0; }
+.ob-left-sub {
+  margin: 12px 0 0;
+  font-size: 15px;
+  color: #444;
+  line-height: 1.5;
+}
+.ob-progress { margin-top: 0; }
 .ob-card {
   width: 100%;
   max-width: 480px;
-  background: transparent;
-  color: #fff;
+  background: #fff;
+  color: #111;
+  border-radius: 20px;
+  padding: 36px 40px;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.06);
 }
 .ob-card-title {
   margin: 0 0 8px;
   font-size: 22px;
   font-weight: 800;
-  color: #fff;
+  color: #111;
   line-height: 1.25;
 }
 .ob-welcome-sub {
   margin: 0 0 22px;
   font-size: 15px;
-  color: #AAA;
+  color: #444;
   line-height: 1.5;
 }
 .ob-emoji { font-size: 36px; line-height: 1; margin-bottom: 14px; }
@@ -103,26 +133,30 @@
   width: 100%;
   padding: 13px 16px;
   border-radius: 12px;
-  border: none;
-  background: #1A1A1A;
-  color: #fff;
+  border: 1px solid #EEE;
+  background: #F9F9F9;
+  color: #111;
   font-size: 15px;
   font-family: inherit;
 }
-.ob-input:focus { outline: none; }
+.ob-input:focus {
+  outline: none;
+  border-color: #4CAF7D;
+  background: #fff;
+}
 .ob-btn-row { display: flex; gap: 12px; margin-top: 24px; }
 .ob-btn-back {
   padding: 13px 20px;
   border-radius: 12px;
   background: none;
-  border: 1px solid #333;
-  color: #AAA;
+  border: 1px solid #EEE;
+  color: #888;
   font-size: 15px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
 }
-.ob-btn-continue, .ob-btn-missionary, .ob-btn-supporter {
+.ob-btn-continue {
   padding: 15px;
   border-radius: 14px;
   background: #4CAF7D;
@@ -132,10 +166,33 @@
   font-family: inherit;
   border: none;
   cursor: pointer;
+  flex: 1;
 }
-.ob-btn-continue { flex: 1; }
-.ob-btn-missionary, .ob-btn-supporter { width: 100%; display: block; }
-.ob-btn-supporter { margin-top: 10px; }
+.ob-btn-missionary {
+  background: #111;
+  color: #fff;
+  padding: 16px;
+  border-radius: 14px;
+  border: none;
+  width: 100%;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.ob-btn-supporter {
+  background: #fff;
+  color: #111;
+  border: 1px solid #EEE;
+  padding: 14px;
+  border-radius: 14px;
+  width: 100%;
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
 .ob-btn-continue:disabled, .ob-btn-back:disabled, .ob-btn-missionary:disabled, .ob-btn-supporter:disabled, .ob-ghost:disabled {
   opacity: 0.55;
   cursor: default;
@@ -235,7 +292,7 @@
 }
 .ob-error {
   margin: 0 0 14px;
-  color: #ff8a8a;
+  color: #C43D5E;
   font-size: 13px;
 }
 .ob-mobile-progress { margin-top: 28px; }
@@ -255,94 +312,35 @@
 }
 .ob-dot.active { background: #4CAF7D; }
 
-@media (min-width: 768px) {
+@media (max-width: 767px) {
   .ob-shell {
-    flex-direction: row;
-    height: 100vh;
+    flex-direction: column;
+    height: auto;
     min-height: 100vh;
-    overflow: hidden;
-  }
-  .ob-left {
-    display: flex;
-    flex-direction: column;
-    width: 420px;
-    flex-shrink: 0;
-    height: 100vh;
-    background: #111;
-    padding: 48px;
-    box-sizing: border-box;
-  }
-  .ob-left-mid {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  .ob-left .ob-kicker { margin-top: 0; }
-  .ob-left-sub {
-    margin: 12px 0 0;
-    font-size: 15px;
-    color: #444;
-    line-height: 1.5;
-  }
-  .ob-progress { margin-top: 0; }
-  .ob-right {
-    flex: 1;
-    background: #F7F7F7;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 80px;
-    position: relative;
     overflow: auto;
-    width: auto;
-    min-height: 0;
-    height: 100vh;
   }
-  .ob-mobile-head, .ob-mobile-progress { display: none; }
-  .ob-card {
-    background: #fff;
-    border-radius: 20px;
-    padding: 36px 40px;
-    width: 100%;
-    max-width: 480px;
-    box-shadow: 0 4px 40px rgba(0,0,0,0.06);
-    color: #111;
-  }
-  .ob-card-title { color: #111; }
-  .ob-welcome-sub { color: #444; }
-  .ob-error { color: #C43D5E; }
-  .ob-input {
-    border: 1px solid #EEE;
-    background: #F9F9F9;
-    color: #111;
-  }
-  .ob-input:focus {
-    border-color: #4CAF7D;
-    background: #fff;
-    outline: none;
-  }
-  .ob-btn-missionary {
+  .ob-left { display: none; }
+  .ob-right {
     background: #111;
+    padding: 32px 24px;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  .ob-mobile-head,
+  .ob-mobile-progress { display: block; }
+  .ob-card {
+    background: transparent;
     color: #fff;
-    padding: 16px;
-    border-radius: 14px;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  .ob-card-title { color: #fff; }
+  .ob-welcome-sub { color: #AAA; }
+  .ob-input {
     border: none;
-  }
-  .ob-btn-supporter {
-    background: #fff;
-    color: #111;
-    border: 1px solid #EEE;
-    padding: 14px;
-    border-radius: 14px;
-  }
-  .ob-btn-back {
-    border: 1px solid #EEE;
-    color: #888;
-    background: none;
-  }
-  .ob-btn-continue {
-    background: #4CAF7D;
+    background: #1A1A1A;
     color: #fff;
   }
+  .ob-label { color: #888; }
 }
