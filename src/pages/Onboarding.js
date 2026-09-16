@@ -332,17 +332,19 @@ export default function Onboarding() {
           {error ? <p className="ob-error">{error}</p> : null}
 
           {step === 0 ? (
-            <>
-              <div className="ob-emoji" aria-hidden="true">✉️</div>
-              <h2 className="ob-card-title">Welcome to SENT</h2>
-              <p className="ob-welcome-sub">Are you on the field, or sending someone who is?</p>
-              <button type="button" className="ob-btn-missionary" disabled={saving} onClick={() => chooseRole('missionary')}>
-                I'm a missionary →
-              </button>
-              <button type="button" className="ob-btn-supporter" disabled={saving} onClick={() => chooseRole('supporter')}>
-                I'm a supporter →
-              </button>
-            </>
+            <div style={{ textAlign: 'center' }}>
+              <div className="ob-emoji" aria-hidden="true" style={{ fontSize: 56, marginBottom: 16 }}>✉️</div>
+              <h2 className="ob-card-title" style={{ fontSize: 26, fontWeight: 900, marginBottom: 8 }}>Welcome to SENT</h2>
+              <p className="ob-welcome-sub" style={{ marginBottom: 28 }}>Are you a missionary raising support, or a supporter sending someone on mission?</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button type="button" className="ob-btn-missionary" disabled={saving} onClick={() => chooseRole('missionary')}>
+                  I'm a missionary →
+                </button>
+                <button type="button" className="ob-btn-supporter" disabled={saving} onClick={() => chooseRole('supporter')}>
+                  I'm a supporter →
+                </button>
+              </div>
+            </div>
           ) : null}
 
           {role === 'missionary' && step === 1 ? (
