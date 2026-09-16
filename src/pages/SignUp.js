@@ -17,7 +17,6 @@ import {
 } from '../lib/supporterConnection';
 import { saveLocalPin } from '../lib/localPin';
 import { PinDots, PinKeypad } from '../components/PinEntry';
-import AuthSplitShell from '../components/AuthSplitShell';
 import { homePathForRole } from '../lib/roles';
 
 function Progress({ step }) {
@@ -283,8 +282,87 @@ function SignUp({ prefilledCode = '' }) {
   };
 
   return (
-    <AuthSplitShell>
-      <div style={{ width: '100%' }}>
+    <div
+      className="signup-split"
+      style={{
+        display: 'flex',
+        height: '100vh',
+        width: '100%',
+        overflow: 'hidden',
+        background: '#111',
+      }}
+    >
+      <style>{`
+        .signup-split-left { display: none; }
+        .signup-split-right {
+          flex: 1;
+          background: #fff;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          padding: 24px;
+          min-height: 100vh;
+          overflow: auto;
+        }
+        @media (min-width: 768px) {
+          .signup-split-left {
+            display: flex;
+            width: 420px;
+            flex-shrink: 0;
+            background: #111;
+            padding: 48px;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+          .signup-split-right {
+            align-items: safe center;
+            justify-content: safe center;
+            padding: 40px 60px;
+            min-height: 0;
+            background: #fff;
+          }
+        }
+      `}</style>
+      <aside className="signup-split-left">
+        <p
+          style={{
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 80,
+            lineHeight: 1,
+            letterSpacing: 4,
+            color: '#fff',
+            margin: 0,
+          }}
+        >
+          SENT
+        </p>
+        <div>
+          <p
+            style={{
+              margin: 0,
+              color: '#fff',
+              fontSize: 32,
+              lineHeight: 1.2,
+              fontWeight: 600,
+            }}
+          >
+            For missionaries and the people who send them.
+          </p>
+          <p
+            style={{
+              margin: '16px 0 0',
+              color: '#888',
+              fontSize: 16,
+              lineHeight: 1.5,
+            }}
+          >
+            Raise support, stay connected, and keep the mission moving.
+          </p>
+        </div>
+        <p style={{ margin: 0, color: '#555', fontSize: 13 }}>© 2026 SENT</p>
+      </aside>
+      <main className="signup-split-right">
+        <div style={{ width: '100%', maxWidth: 480 }}>
         <header className="mb-8 flex shrink-0 items-center gap-4">
           <button
             type="button"
@@ -491,8 +569,9 @@ function SignUp({ prefilledCode = '' }) {
             {submitting ? <p className="mt-6 text-center text-sm text-muted">Creating account…</p> : null}
           </section>
         )}
-      </div>
-    </AuthSplitShell>
+        </div>
+      </main>
+    </div>
   );
 }
 
