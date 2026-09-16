@@ -471,6 +471,26 @@ export default function SupporterProfile() {
           </Button>
         </div>
       </Card>
+
+      <button
+        type="button"
+        className="md:hidden"
+        onClick={async () => { await signOut(); navigate('/'); }}
+        style={{
+          width: '100%',
+          padding: '14px',
+          background: 'none',
+          border: '0.5px solid #EEE',
+          borderRadius: 12,
+          color: '#E05050',
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: 'pointer',
+          marginTop: 24,
+        }}
+      >
+        Sign out
+      </button>
     </div>
   );
 }

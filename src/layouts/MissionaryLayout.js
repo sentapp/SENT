@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import NotificationBell from '../components/layout/NotificationBell';
 import { usePendingMeetingRequestsCount } from '../hooks/usePendingMeetingRequestsCount';
@@ -33,6 +33,9 @@ function MeetingNavBadge({ count }) {
 }
 
 function SideNav({ pendingMeetingCount }) {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
   return (
     <aside className="hidden w-[240px] shrink-0 border-r border-[#222] bg-[#111] text-white md:flex md:flex-col">
       <div className="flex items-center justify-between border-b border-[#222] px-5 py-4">
@@ -58,6 +61,28 @@ function SideNav({ pendingMeetingCount }) {
           ))}
         </ul>
       </nav>
+      <div style={{ padding: '16px 20px', borderTop: '0.5px solid #222' }}>
+        <button
+          type="button"
+          onClick={async () => { await signOut(); navigate('/'); }}
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            background: 'none',
+            border: '0.5px solid #333',
+            borderRadius: 6,
+            color: '#666',
+            fontSize: 12,
+            cursor: 'pointer',
+            textAlign: 'left',
+            letterSpacing: '0.03em',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = '#666'; }}
+        >
+          Sign out →
+        </button>
+      </div>
     </aside>
   );
 }

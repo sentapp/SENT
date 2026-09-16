@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { repairSupporterMissionaryLink } from '../lib/supporterConnection';
 
@@ -125,8 +125,9 @@ function BottomNav() {
 }
 
 export default function SupporterLayout() {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!user?.id) return undefined;
@@ -142,6 +143,27 @@ export default function SupporterLayout() {
 
   return (
     <div className="min-h-full bg-mission-canvas text-ink">
+      <header className="hidden border-b border-[#222] bg-[#111] md:block">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-end px-8 py-3">
+          <button
+            type="button"
+            onClick={async () => { await signOut(); navigate('/'); }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#666',
+              fontSize: 12,
+              cursor: 'pointer',
+              letterSpacing: '0.03em',
+              padding: '4px 0',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#666'; }}
+          >
+            Sign out →
+          </button>
+        </div>
+      </header>
       <main className="mx-auto w-full max-w-6xl px-5 py-5 pb-28 md:px-8 md:py-8">
         <div key={location.pathname} className="sent-outlet-enter">
           <Outlet />
