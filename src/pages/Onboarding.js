@@ -297,8 +297,8 @@ export default function Onboarding() {
   const showBack = step > 1 || (step === 1 && !roleLocked);
 
   return (
-    <div className="ob-shell">
-      <aside className="ob-left">
+    <div className="ob-shell" style={{ display: 'flex', flexDirection: 'row', minHeight: '100vh', height: '100vh', background: '#111', overflow: 'hidden' }}>
+      <aside className="ob-left" style={{ width: 420, flexShrink: 0, height: '100vh', background: '#111', padding: '48px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
         <div className="ob-logo">SENT</div>
         <div className="ob-left-mid">
           <p className="ob-kicker">{copy.kicker}</p>
@@ -317,7 +317,7 @@ export default function Onboarding() {
         </div>
       </aside>
 
-      <section className="ob-right">
+      <section className="ob-right" style={{ flex: 1, background: '#F7F7F7', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 80px', overflowY: 'auto', position: 'relative' }}>
         <button type="button" className="ob-skip" onClick={finish} disabled={saving}>
           Skip setup
         </button>

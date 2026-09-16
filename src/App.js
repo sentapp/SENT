@@ -7,6 +7,12 @@ import ResetPassword from './pages/ResetPassword';
 import MissionaryLayout from './layouts/MissionaryLayout';
 import SupporterLayout from './layouts/SupporterLayout';
 import AdminLayout from './layouts/AdminLayout';
+import AdminOverview from './pages/admin/Overview';
+import AdminMissionaries from './pages/admin/Missionaries';
+import AdminSupporters from './pages/admin/Supporters';
+import AdminFeedback from './pages/admin/Feedback';
+import AdminBlast from './pages/admin/Blast';
+import AdminLayout from './layouts/AdminLayout';
 
 import MissionaryOverview from './pages/missionary/Overview';
 import MissionaryContacts from './pages/missionary/Contacts';
@@ -105,6 +111,22 @@ function App() {
         <Route path="give" element={<SupporterGive />} />
         <Route path="refer" element={<SupporterRefer />} />
         <Route path="profile" element={<SupporterProfile />} />
+      </Route>
+
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth role="admin">
+            <AdminLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<Navigate to="/admin/overview" replace />} />
+        <Route path="overview" element={<AdminOverview />} />
+        <Route path="missionaries" element={<AdminMissionaries />} />
+        <Route path="supporters" element={<AdminSupporters />} />
+        <Route path="feedback" element={<AdminFeedback />} />
+        <Route path="blast" element={<AdminBlast />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

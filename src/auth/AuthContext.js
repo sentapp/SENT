@@ -48,6 +48,7 @@ export function AuthProvider({ children }) {
       } else {
         clearAccentColor();
       }
+      return row;
     } finally {
       if (!silent) setLoading(false);
     }
@@ -77,11 +78,21 @@ export function AuthProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // INITIAL_SESSION often arrives with a null session on mobile/PWA while
+      // storage is still hydrating. Clearing here bounced first-run users to /signin.
+      if (event === 'INITIAL_SESSION' && !nextSession?.user?.id) return;
+
       setSession(nextSession ?? null);
       if (nextSession?.user?.id) {
         // Avoid re-showing full-page loading on token refresh / duplicate init (prevents layout blink).
         const silent = event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION';
-        void loadProfile(nextSession.user.id, { silent });
+        const userId = nextSession.user.id;
+        // Defer profile reads so they don't run inside the auth lock (that deadlock
+        // drops the session on mobile and RequireAuth sends the user to /signin).
+        window.setTimeout(() => {
+          if (cancelled) return;
+          void loadProfile(userId, { silent });
+        }, 0);
       } else {
         setProfile(null);
         clearAccentColor();
