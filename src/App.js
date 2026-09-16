@@ -41,7 +41,7 @@ import GlobalContactDrawer from './components/contacts/GlobalContactDrawer';
 function App() {
   return (
     <ContactDrawerProvider>
-    <div className="font-sans min-h-screen bg-[#F7F5F2]">
+    <div className="font-sans">
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/signup" element={<SignUp />} />
